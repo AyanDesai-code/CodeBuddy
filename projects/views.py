@@ -1,11 +1,12 @@
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect
-from .models import Project
-from .models import Project
+from django.shortcuts import get_object_or_404, redirect, render
+
+from .models import Project,ProjectMessage
 
 
+@login_required
 def project_list(request):
-    return HttpResponse("Project List")
+    return render(request, "projects/list.html")
 
 
 @login_required
@@ -19,17 +20,32 @@ def new_project(request):
 
 
 @login_required
-from django.shortcuts import render
-
-@login_required
 def project_setup(request, pk):
+    project = get_object_or_404(
+        Project,
+        pk=pk,
+        owner=request.user,
+    )
 
-    project = Project.objects.get(pk=pk)
+    if request.method == "POST":
+        content = request.POST.get("message", "").strip()
+
+        if content:
+            ProjectMessage.objects.create(
+                project=project,
+                role=ProjectMessage.Role.USER,
+                content=content,
+            )
+
+        return redirect("project_setup", pk=project.pk)
+
+    messages = project.messages.all()
 
     return render(
         request,
         "projects/setup.html",
         {
             "project": project,
+            "messages": messages,
         },
     )

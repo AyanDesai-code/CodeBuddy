@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BuilderOS</title>
+</head>
+<body>
+
+<h1>BuilderOS</h1>
+<h2>What would you like to build today?</h2>
+
+<div>
+    {% for message in messages %}
+        <p>
+            <strong>{{ message.get_role_display }}:</strong>
+            {{ message.content }}
+        </p>
+    {% empty %}
+        <p>No messages yet.</p>
+    {% endfor %}
+</div>
+
+<form method="POST">
+    {% csrf_token %}
+
+    <textarea
+        name="message"
+        rows="8"
+        cols="70"
+        placeholder="Describe your idea..."
+        required
+    ></textarea>
+
+    <br><br>
+
+    <button type="submit">Send</button>
+</form>
+
+</body>
+</html>
