@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ project.name|default:"BuilderOS Workspace" }}</title>
+</head>
+<body>
+
+<h1>{{ project.name|default:"Untitled Project" }}</h1>
+
+<h2>Workspace</h2>
+
+{% for folder in folders %}
+    <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px;">
+        <h3>
+            <a href="{% url 'workspace_folder' project.pk folder.pk %}">
+                {{ folder.name }}
+            </a>
+        </h3>
+
+        {% if folder.description %}
+            <p>{{ folder.description }}</p>
+        {% else %}
+            <p><em>Empty folder</em></p>
+        {% endif %}
+    </div>
+{% endfor %}
+
+</body>
+</html>

@@ -1,18 +1,19 @@
+# Environment variables
+.env
+
 # Python
 __pycache__/
 *.py[cod]
+*.pyo
 
 # Virtual environment
 venv/
 
-# Environment variables
-.env
-
 # Django
 db.sqlite3
 
-# macOS
-.DS_Store
-
 # VS Code
 .vscode/
+
+# macOS
+.DS_Store

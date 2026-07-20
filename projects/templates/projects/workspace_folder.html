@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ folder.name }} | BuilderOS</title>
+</head>
+<body>
+
+<a href="{% url 'workspace' project.pk %}">
+    ← Back to workspace
+</a>
+
+<h1>{{ folder.name }}</h1>
+
+{% if folder.description %}
+    <p>{{ folder.description }}</p>
+{% else %}
+    <p>This folder has not been populated yet.</p>
+{% endif %}
+
+</body>
+</html>

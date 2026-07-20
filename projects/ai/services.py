@@ -93,3 +93,115 @@ def generate_reply(project) -> ProjectInterviewReply:
     )
 
     return response.output_parsed
+WORKSPACE_PROMPT = """
+You are BuilderOS's workspace generator.
+
+Using the complete project discovery conversation, generate a useful
+initial workspace for the project.
+
+Return:
+
+- a clear project name
+- content for every requested workspace section
+
+The workspace should help a beginner move from idea to completion.
+
+Keep the content practical, specific, and editable.
+
+Required folder types:
+
+- overview
+- requirements
+- roadmap
+- tasks
+- resources
+- budget
+- learning
+- documentation
+- testing
+
+Section requirements:
+
+overview:
+Summarize what is being built, who it is for, its main goal, constraints,
+and any assumptions.
+
+requirements:
+List functional requirements, non-functional requirements, constraints,
+and success criteria.
+
+roadmap:
+Create ordered phases from research and planning through prototyping,
+testing, refinement, and completion.
+
+tasks:
+Create a detailed checklist ordered by what should be done first.
+Mention dependencies where useful.
+
+resources:
+Recommend initial hardware parts, materials, software, libraries,
+frameworks, APIs, services, and tools. Only include categories relevant
+to the project. Clearly label recommendations requiring verification.
+
+budget:
+Provide an editable preliminary budget. Separate one-time, recurring,
+optional, and contingency costs. Clearly label estimates.
+
+learning:
+Recommend what the user needs to learn and which official documentation
+or types of resources to look for. Do not invent URLs.
+
+documentation:
+Create the initial structure for project documentation, including setup,
+architecture, decisions, build notes, and maintenance.
+
+testing:
+Create a staged testing plan with test goals, procedures, and success
+criteria.
+
+Do not claim uncertain prices, compatibility, or technical facts as
+guaranteed. Mark estimates and assumptions clearly.
+You MUST return exactly one section for every required folder type.
+
+Every folder_type must exactly match one of:
+
+overview
+requirements
+roadmap
+tasks
+resources
+budget
+learning
+documentation
+testing
+
+Do not omit any section.
+"""
+class WorkspaceSection(BaseModel):
+    folder_type: str
+    content: str
+
+
+class GeneratedWorkspace(BaseModel):
+    project_name: str
+    sections: list[WorkspaceSection]
+
+def generate_workspace_content(project) -> GeneratedWorkspace:
+    conversation = []
+
+    for message in project.messages.order_by("created_at"):
+        conversation.append(
+            {
+                "role": message.role,
+                "content": message.content,
+            }
+        )
+
+    response = client.responses.parse(
+        model="gpt-5-mini",
+        instructions=WORKSPACE_PROMPT,
+        input=conversation,
+        text_format=GeneratedWorkspace,
+    )
+
+    return response.output_parsed

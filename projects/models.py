@@ -60,6 +60,7 @@ class WorkspaceFolder(models.Model):
         blank=True,
         related_name="children",
     )
+    icon = models.CharField(max_length=10, blank=True)
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True)
     folder_type = models.CharField(max_length=50, blank=True)
