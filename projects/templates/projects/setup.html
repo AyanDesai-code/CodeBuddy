@@ -19,21 +19,32 @@
     {% endfor %}
 </div>
 
-<form method="POST">
-    {% csrf_token %}
+{% if project.status == "generating" %}
+    <div>
+        <h3>Project discovery complete</h3>
+        <p>BuilderOS is ready to generate your workspace.</p>
 
-    <textarea
-        name="message"
-        rows="8"
-        cols="70"
-        placeholder="Describe your idea..."
-        required
-    ></textarea>
+        <button type="button">
+            Generate Workspace
+        </button>
+    </div>
+{% else %}
+    <form method="POST">
+        {% csrf_token %}
 
-    <br><br>
+        <textarea
+            name="message"
+            rows="8"
+            cols="70"
+            placeholder="Describe your idea..."
+            required
+        ></textarea>
 
-    <button type="submit">Send</button>
-</form>
+        <br><br>
+
+        <button type="submit">Send</button>
+    </form>
+{% endif %}
 
 </body>
 </html>

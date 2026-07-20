@@ -1,6 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
-
+from .ai.services import generate_reply
 from .models import Project, ProjectMessage
 
 
@@ -17,7 +17,6 @@ def new_project(request):
     )
 
     return redirect("project_setup", pk=project.pk)
-
 
 @login_required
 def project_setup(request, pk):
@@ -37,33 +36,29 @@ def project_setup(request, pk):
                 content=content,
             )
 
-            lower = content.lower()
-
-            if "robot" in lower:
-                reply = (
-                    "That sounds like an awesome robotics project! "
-                    "Will it be autonomous or remotely controlled?"
+            try:
+                result = generate_reply(project)
+                print("\n===== BuilderOS Response =====")
+                print(result.model_dump_json(indent=4))
+                print("==============================\n")
+                ProjectMessage.objects.create(
+                    project=project,
+                    role=ProjectMessage.Role.ASSISTANT,
+                    content=result.message,
                 )
 
-            elif "website" in lower:
-                reply = "Great! Who will be using this website?"
+                if result.ready:
+                    project.status = Project.Status.GENERATING
+                    project.save(update_fields=["status"])
 
-            elif "app" in lower:
-                reply = (
-                    "Nice! Will this be a web app, mobile app, or desktop app?"
+            except Exception as error:
+                print(error)
+
+                ProjectMessage.objects.create(
+                    project=project,
+                    role=ProjectMessage.Role.ASSISTANT,
+                    content="I ran into a problem. Please try again.",
                 )
-
-            else:
-                reply = (
-                    "That sounds interesting! "
-                    "Tell me a little more about your idea."
-                )
-
-            ProjectMessage.objects.create(
-                project=project,
-                role=ProjectMessage.Role.ASSISTANT,
-                content=reply,
-            )
 
         return redirect("project_setup", pk=project.pk)
 
