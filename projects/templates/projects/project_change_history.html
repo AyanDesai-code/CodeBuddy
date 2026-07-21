@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Change History | {{ project.name }}</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 950px;
+            margin: 40px auto;
+            padding: 0 20px;
+            line-height: 1.5;
+        }
+
+        .toolbar {
+            margin-bottom: 24px;
+        }
+
+        .change-card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 20px;
+        }
+
+        .change-date {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .user-request {
+            background: #f5f5f5;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 12px 0;
+        }
+
+        details {
+            margin-top: 12px;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            background: #f7f7f7;
+            padding: 12px;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="toolbar">
+    <a href="{% url 'workspace' project.pk %}">
+        ← Back to Workspace
+    </a>
+</div>
+
+<h1>{{ project.name }} Change History</h1>
+
+<p>
+    Every successful BuilderOS workspace update is recorded here.
+</p>
+
+{% for change in changes %}
+
+    <div class="change-card">
+        <h2>
+            Change #{{ change.pk }}
+        </h2>
+
+        <p class="change-date">
+            {{ change.created_at|date:"F j, Y, g:i A" }}
+        </p>
+
+        <div class="user-request">
+            <strong>User request</strong>
+            <p>{{ change.user_message|linebreaksbr }}</p>
+        </div>
+
+        {% if change.summary %}
+            <p>
+                <strong>Summary:</strong>
+                {{ change.summary }}
+            </p>
+        {% endif %}
+
+        <p>
+            <a href="{% url 'project_change_detail' project.pk change.pk %}">
+                View Change Details
+            </a>
+        </p>
+
+        <details>
+            <summary>View facts before</summary>
+            <pre>{{ change.facts_before }}</pre>
+        </details>
+
+        <details>
+            <summary>View facts after</summary>
+            <pre>{{ change.facts_after }}</pre>
+        </details>
+
+        <details>
+            <summary>View sections before</summary>
+            <pre>{{ change.sections_before }}</pre>
+        </details>
+
+        <details>
+            <summary>View sections after</summary>
+            <pre>{{ change.sections_after }}</pre>
+        </details>
+
+        <details>
+            <summary>View tasks before</summary>
+            <pre>{{ change.tasks_before }}</pre>
+        </details>
+
+        <details>
+            <summary>View tasks after</summary>
+            <pre>{{ change.tasks_after }}</pre>
+        </details>
+    </div>
+
+{% empty %}
+
+    <p>No project changes have been recorded yet.</p>
+
+{% endfor %}
+
+</body>
+</html>

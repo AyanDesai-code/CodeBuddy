@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Assistant | {{ project.name }}</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 850px;
+            margin: 40px auto;
+            padding: 0 20px;
+            line-height: 1.5;
+        }
+
+        .toolbar {
+            margin-bottom: 24px;
+        }
+
+        .messages {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 18px;
+            min-height: 300px;
+            margin-bottom: 24px;
+        }
+
+        .message {
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+        }
+
+        .message-user {
+            background: #f2f2f2;
+        }
+
+        .message-assistant {
+            background: #e8eefc;
+        }
+
+        textarea {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            font: inherit;
+        }
+
+        button {
+            margin-top: 12px;
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+
+        .timestamp {
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="toolbar">
+    <a href="{% url 'workspace' project.pk %}">
+        ← Back to Workspace
+    </a>
+</div>
+
+<h1>{{ project.name }} Assistant</h1>
+
+<p>
+    Ask BuilderOS to change, explain, or improve your project.
+</p>
+
+<div class="messages">
+    {% for message in messages %}
+
+        <div
+            class="
+                message
+                {% if message.role == 'user' %}
+                    message-user
+                {% else %}
+                    message-assistant
+                {% endif %}
+            "
+        >
+            <strong>{{ message.get_role_display }}</strong>
+
+            <p>{{ message.content|linebreaksbr }}</p>
+
+            <div class="timestamp">
+                {{ message.created_at|date:"F j, Y, g:i A" }}
+            </div>
+        </div>
+
+    {% empty %}
+
+        <p>No assistant messages yet.</p>
+
+    {% endfor %}
+</div>
+
+<form method="POST">
+    {% csrf_token %}
+
+    <textarea
+        name="message"
+        rows="5"
+        placeholder="Example: Switch this project from Raspberry Pi 4 to Raspberry Pi 5."
+        required
+    ></textarea>
+
+    <button type="submit">
+        Send
+    </button>
+</form>
+
+</body>
+</html>

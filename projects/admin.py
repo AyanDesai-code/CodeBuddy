@@ -2,8 +2,15 @@ from django.contrib import admin
 
 # Register your models here.
 from django.contrib import admin
-from .models import Project, ProjectMessage, WorkspaceFolder,Task
-
+from .models import (
+    Project,
+    ProjectChange,
+    ProjectMessage,
+    ProjectState,
+    Task,
+    WorkspaceFolder,
+    WorkspaceMessage,
+)
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
@@ -45,4 +52,43 @@ class TaskAdmin(admin.ModelAdmin):
     ordering = (
         "project",
         "order",
+    )
+@admin.register(ProjectState)
+class ProjectStateAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "project",
+        "updated_at",
+    )
+@admin.register(WorkspaceMessage)
+class WorkspaceMessageAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "project",
+        "role",
+        "created_at",
+    )
+
+    list_filter = (
+        "role",
+        "created_at",
+    )
+
+@admin.register(ProjectChange)
+class ProjectChangeAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "project",
+        "summary",
+        "created_at",
+    )
+
+    list_filter = (
+        "created_at",
+    )
+
+    search_fields = (
+        "project__name",
+        "summary",
+        "user_message",
     )

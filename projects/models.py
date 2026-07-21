@@ -103,3 +103,94 @@ class Task(models.Model):
 
     def __str__(self):
         return self.title
+class ProjectState(models.Model):
+    project = models.OneToOneField(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="state",
+    )
+
+    facts = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+
+    def __str__(self):
+        return f"State for {self.project}"
+
+class WorkspaceMessage(models.Model):
+    class Role(models.TextChoices):
+        USER = "user", "User"
+        ASSISTANT = "assistant", "Assistant"
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="workspace_messages",
+    )
+
+    role = models.CharField(
+        max_length=20,
+        choices=Role.choices,
+    )
+
+    content = models.TextField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.get_role_display()}: {self.content[:50]}"
+    
+class ProjectChange(models.Model):
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="changes",
+    )
+
+    user_message = models.TextField()
+
+    summary = models.TextField(blank=True)
+
+    facts_before = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    facts_after = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    sections_before = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    sections_after = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    tasks_before = models.JSONField(
+        default=list,
+        blank=True,
+    )
+
+    tasks_after = models.JSONField(
+        default=list,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Change {self.pk} — {self.project}"

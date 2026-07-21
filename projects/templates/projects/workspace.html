@@ -7,6 +7,12 @@
 
 <h1>{{ project.name|default:"Untitled Project" }}</h1>
 
+<a href="{% url 'workspace_assistant' project.pk %}">
+    Open Workspace Assistant
+</a>
+<a href="{% url 'project_change_history' project.pk %}">
+    View Change History
+</a>
 <h2>Workspace</h2>
 
 {% for folder in folders %}
