@@ -2,7 +2,7 @@ from django.contrib import admin
 
 # Register your models here.
 from django.contrib import admin
-from .models import Project, ProjectMessage, WorkspaceFolder
+from .models import Project, ProjectMessage, WorkspaceFolder,Task
 
 
 @admin.register(Project)
@@ -21,3 +21,28 @@ class ProjectMessageAdmin(admin.ModelAdmin):
 @admin.register(WorkspaceFolder)
 class WorkspaceFolderAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "project", "parent")
+
+@admin.register(Task)
+class TaskAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "title",
+        "project",
+        "completed",
+        "priority",
+    )
+
+    list_filter = (
+        "completed",
+        "priority",
+    )
+
+    search_fields = (
+        "title",
+        "project__name",
+    )
+
+    ordering = (
+        "project",
+        "order",
+    )

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Task</title>
+</head>
+
+<body>
+
+<h1>Edit Task</h1>
+
+<form method="POST">
+
+    {% csrf_token %}
+
+    <label>Title</label>
+
+    <input
+        type="text"
+        name="title"
+        value="{{ task.title }}"
+        required
+    >
+
+    <br><br>
+
+    <label>Description</label>
+
+    <textarea
+        name="description"
+        rows="8"
+    >{{ task.description }}</textarea>
+
+    <br><br>
+
+    <label>Priority</label>
+
+    <select name="priority">
+
+        {% for value,label in priorities %}
+
+            <option
+                value="{{ value }}"
+                {% if task.priority == value %}
+                    selected
+                {% endif %}
+            >
+                {{ label }}
+            </option>
+
+        {% endfor %}
+
+    </select>
+
+    <br><br>
+
+    <button type="submit">
+
+        Save Changes
+
+    </button>
+
+</form>
+
+</body>
+</html>

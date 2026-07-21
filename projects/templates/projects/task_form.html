@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Task | {{ project.name }}</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        label {
+            display: block;
+            margin-top: 18px;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Add Task</h1>
+
+<form method="POST">
+    {% csrf_token %}
+
+    <label for="title">Title</label>
+    <input
+        id="title"
+        name="title"
+        type="text"
+        maxlength="200"
+        required
+    >
+
+    <label for="description">Description</label>
+    <textarea
+        id="description"
+        name="description"
+        rows="8"
+    ></textarea>
+
+    <label for="priority">Priority</label>
+    <select id="priority" name="priority">
+        {% for value, label in priorities %}
+            <option value="{{ value }}">
+                {{ label }}
+            </option>
+        {% endfor %}
+    </select>
+
+    <button type="submit">
+        Add Task
+    </button>
+</form>
+
+<p>
+    <a href="{% url 'workspace_folder' project.pk tasks_folder.pk %}">
+        Cancel
+    </a>
+</p>
+
+</body>
+</html>

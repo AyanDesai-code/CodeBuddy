@@ -69,3 +69,37 @@ class WorkspaceFolder(models.Model):
 
     class Meta:
         ordering = ["order"]
+class Task(models.Model):
+    class Priority(models.IntegerChoices):
+        LOW = 1, "Low"
+        MEDIUM = 2, "Medium"
+        HIGH = 3, "High"
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="tasks",
+    )
+
+    title = models.CharField(max_length=200)
+
+    description = models.TextField(blank=True)
+
+    completed = models.BooleanField(default=False)
+
+    priority = models.IntegerField(
+        choices=Priority.choices,
+        default=Priority.MEDIUM,
+    )
+
+    order = models.PositiveIntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "-priority", "created_at"]
+
+    def __str__(self):
+        return self.title

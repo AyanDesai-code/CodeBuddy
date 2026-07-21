@@ -44,6 +44,28 @@
         .content {
             margin-top: 30px;
         }
+        .progress-container {
+        margin-bottom: 30px;
+    }
+
+.progress-track {
+    width: 100%;
+    height: 18px;
+    background: #e5e5e5;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #222;
+    transition: width 0.2s ease;
+}
+
+.progress-text {
+    margin-top: 8px;
+    color: #555;
+}
     </style>
 </head>
 <body>
@@ -75,15 +97,133 @@
 <p class="updated">
     Last updated: {{ folder.updated_at|date:"F j, Y, g:i A" }}
 </p>
+<div style="display: flex; gap: 12px; align-items: center;">
+    <a href="{% url 'new_task' project.pk %}">
+        + Add Task
+    </a>
 
-<div class="content">
-    {% if folder.description %}
-        {{ folder.description|linebreaks }}
-    {% else %}
-        <p>This folder has not been populated yet.</p>
-    {% endif %}
+    <form
+        id="generate-tasks-form"
+        method="POST"
+        action="{% url 'generate_more_tasks' project.pk %}"
+    >
+        {% csrf_token %}
+
+        <button id="generate-tasks-button" type="submit">
+            ✨ Generate More Tasks
+        </button>
+    </form>
 </div>
 
+<div class="content">
+    {% if folder.folder_type == "tasks" %}
+        <div class="progress-container">
+    <h2>Project Progress</h2>
+
+    <div class="progress-track">
+        <div
+    class="progress-fill"
+    style="width: {{ progress }}%;"
+></div>
+    </div>
+
+    <p class="progress-text">
+        {{ completed_tasks }} of {{ total_tasks }} tasks complete
+        ({{ progress }}%)
+    </p>
+</div>
+        {% for task in tasks %}
+
+            <div style="margin-bottom: 20px;">
+                <div style="display: flex; gap: 12px; align-items: flex-start;">
+
+                    <form
+                        method="POST"
+                        action="{% url 'toggle_task' project.pk task.pk %}"
+                    >
+                        {% csrf_token %}
+
+                        <button
+                            type="submit"
+                            aria-label="Toggle task completion"
+                            style="
+                                border: none;
+                                background: none;
+                                font-size: 22px;
+                                cursor: pointer;
+                                padding: 0;
+                            "
+                        >
+                            {% if task.completed %}
+                                ☑
+                            {% else %}
+                                ☐
+                            {% endif %}
+                        </button>
+                    </form>
+
+                    <div>
+                        <h3 style="margin-top: 0;">
+                            {% if task.completed %}
+                                <s>{{ task.title }}</s>
+                            {% else %}
+                                {{ task.title }}
+                            {% endif %}
+                        </h3>
+
+                        {% if task.description %}
+                            <p>{{ task.description }}</p>
+                        {% endif %}
+
+                        <p>
+                            <strong>Priority:</strong>
+                            {{ task.get_priority_display }}
+                        </p>
+                        <div style="margin-top:10px;">
+
+    <a href="{% url 'edit_task' project.pk task.pk %}">
+        ✏ Edit
+    </a>
+
+    &nbsp;&nbsp;
+
+    <form
+        method="POST"
+        action="{% url 'delete_task' project.pk task.pk %}"
+        style="display:inline;"
+    >
+
+        {% csrf_token %}
+
+        <button
+            type="submit"
+            onclick="return confirm('Delete this task?')"
+        >
+            🗑 Delete
+        </button>
+
+    </form>
+
+</div>
+                    </div>
+
+                </div>
+            </div>
+
+            <hr>
+
+        {% empty %}
+
+            <p>No tasks yet.</p>
+
+        {% endfor %}
+
+    {% else %}
+
+        {{ folder.description|linebreaks }}
+
+    {% endif %}
+</div>
 <script>
     const regenerateForm = document.getElementById("regenerate-form");
     const regenerateButton = document.getElementById("regenerate-button");

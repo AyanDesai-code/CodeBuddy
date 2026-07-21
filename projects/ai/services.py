@@ -176,16 +176,44 @@ documentation
 testing
 
 Do not omit any section.
+
+Also generate a structured task list.
+
+For every task return:
+
+- title: a short, actionable task title
+- description: practical details explaining the task
+- priority: exactly 1, 2, or 3
+
+Priority meanings:
+
+1 = Low
+2 = Medium
+3 = High
+
+Generate approximately 8 to 15 useful tasks.
+
+Tasks must:
+
+- be specific to this project
+- be ordered from earliest to latest
+- begin with an action verb
+- be achievable as individual pieces of work
+- avoid combining several major activities into one task
+- reflect the roadmap and project requirements
 """
 class WorkspaceSection(BaseModel):
     folder_type: str
     content: str
-
+class GeneratedTask(BaseModel):
+    title: str
+    description: str
+    priority: int
 
 class GeneratedWorkspace(BaseModel):
     project_name: str
     sections: list[WorkspaceSection]
-
+    tasks: list[GeneratedTask]
 def generate_workspace_content(project) -> GeneratedWorkspace:
     conversation = []
 
@@ -268,6 +296,77 @@ OTHER WORKSPACE SECTIONS:
         instructions=SECTION_REGENERATION_PROMPT,
         input=regeneration_input,
         text_format=RegeneratedSection,
+    )
+
+    return response.output_parsed
+
+class AdditionalTasks(BaseModel):
+    tasks: list[GeneratedTask]
+MORE_TASKS_PROMPT = """
+You are BuilderOS, an AI project-planning assistant.
+
+Generate additional actionable tasks for an existing project.
+
+Use the project discovery conversation, current workspace, and existing
+tasks as context.
+
+Requirements:
+
+- Generate 3 to 5 useful new tasks.
+- Do not repeat or closely duplicate an existing task.
+- Fill meaningful gaps in the current plan.
+- Keep tasks specific to this project.
+- Begin each title with an action verb.
+- Each task should represent one clear piece of work.
+- Respect the project's budget, requirements, timeline, and resources.
+- Do not recreate tasks merely because they are completed.
+- priority must be exactly:
+  1 = Low
+  2 = Medium
+  3 = High
+"""
+def generate_additional_tasks(project) -> AdditionalTasks:
+    conversation_text = "\n\n".join(
+        f"{message.role.upper()}: {message.content}"
+        for message in project.messages.order_by("created_at")
+    )
+
+    workspace_text = "\n\n".join(
+        (
+            f"SECTION: {folder.name}\n"
+            f"{folder.description}"
+        )
+        for folder in project.folders.order_by("order")
+    )
+
+    existing_tasks_text = "\n".join(
+        (
+            f"- {task.title} | "
+            f"Priority: {task.get_priority_display()} | "
+            f"Completed: {task.completed}"
+        )
+        for task in project.tasks.order_by("order")
+    )
+
+    generation_input = f"""
+PROJECT DISCOVERY:
+
+{conversation_text}
+
+CURRENT WORKSPACE:
+
+{workspace_text}
+
+EXISTING TASKS:
+
+{existing_tasks_text}
+"""
+
+    response = client.responses.parse(
+        model="gpt-5-mini",
+        instructions=MORE_TASKS_PROMPT,
+        input=generation_input,
+        text_format=AdditionalTasks,
     )
 
     return response.output_parsed
