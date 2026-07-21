@@ -1,21 +1,98 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>{{ folder.name }} | BuilderOS</title>
+    <title>{{ folder.name }} | {{ project.name }}</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+            line-height: 1.6;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .toolbar a,
+        .toolbar button {
+            padding: 8px 14px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background: white;
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .toolbar a:hover,
+        .toolbar button:hover {
+            background: #f2f2f2;
+        }
+
+        .updated {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .content {
+            margin-top: 30px;
+        }
+    </style>
 </head>
 <body>
 
-<a href="{% url 'workspace' project.pk %}">
-    ← Back to workspace
-</a>
+<div class="toolbar">
+    <a href="{% url 'workspace' project.pk %}">
+        ← Back to Workspace
+    </a>
+
+    <a href="{% url 'edit_workspace_folder' project.pk folder.pk %}">
+        Edit
+    </a>
+
+    <form
+        id="regenerate-form"
+        method="POST"
+        action="{% url 'regenerate_workspace_folder' project.pk folder.pk %}"
+    >
+        {% csrf_token %}
+
+        <button id="regenerate-button" type="submit">
+            Regenerate with AI
+        </button>
+    </form>
+</div>
 
 <h1>{{ folder.name }}</h1>
 
-{% if folder.description %}
-    <p>{{ folder.description }}</p>
-{% else %}
-    <p>This folder has not been populated yet.</p>
-{% endif %}
+<p class="updated">
+    Last updated: {{ folder.updated_at|date:"F j, Y, g:i A" }}
+</p>
+
+<div class="content">
+    {% if folder.description %}
+        {{ folder.description|linebreaks }}
+    {% else %}
+        <p>This folder has not been populated yet.</p>
+    {% endif %}
+</div>
+
+<script>
+    const regenerateForm = document.getElementById("regenerate-form");
+    const regenerateButton = document.getElementById("regenerate-button");
+
+    regenerateForm.addEventListener("submit", function () {
+        regenerateButton.disabled = true;
+        regenerateButton.textContent = "Regenerating...";
+    });
+</script>
 
 </body>
 </html>

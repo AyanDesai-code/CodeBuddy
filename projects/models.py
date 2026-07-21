@@ -65,6 +65,7 @@ class WorkspaceFolder(models.Model):
     description = models.TextField(blank=True)
     folder_type = models.CharField(max_length=50, blank=True)
     order = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["order"]

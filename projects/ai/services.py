@@ -205,3 +205,69 @@ def generate_workspace_content(project) -> GeneratedWorkspace:
     )
 
     return response.output_parsed
+
+class RegeneratedSection(BaseModel):
+    content: str
+SECTION_REGENERATION_PROMPT = """
+You are BuilderOS, an AI project-planning assistant.
+
+Rewrite one section of an existing project workspace.
+
+Use the complete project discovery conversation and the other workspace
+sections as context.
+
+Only rewrite the requested section.
+
+Requirements:
+
+- Keep the result specific to the project.
+- Improve clarity, usefulness, organization, and detail.
+- Stay consistent with the project's requirements, budget, timeline,
+  materials, tasks, and other workspace sections.
+- Do not rewrite or discuss unrelated sections.
+- Do not include commentary about the rewriting process.
+- Return only the replacement content for the requested section.
+"""
+def regenerate_workspace_section(
+    project,
+    folder,
+) -> RegeneratedSection:
+    conversation_text = "\n\n".join(
+        f"{message.role.upper()}: {message.content}"
+        for message in project.messages.order_by("created_at")
+    )
+
+    workspace_text = "\n\n".join(
+        (
+            f"SECTION: {workspace_folder.name}\n"
+            f"{workspace_folder.description}"
+        )
+        for workspace_folder in project.folders.order_by("order")
+        if workspace_folder.pk != folder.pk
+    )
+
+    current_section = (
+        f"SECTION TO REWRITE: {folder.name}\n\n"
+        f"CURRENT CONTENT:\n{folder.description}"
+    )
+
+    regeneration_input = f"""
+PROJECT DISCOVERY CONVERSATION:
+
+{conversation_text}
+
+OTHER WORKSPACE SECTIONS:
+
+{workspace_text}
+
+{current_section}
+"""
+
+    response = client.responses.parse(
+        model="gpt-5-mini",
+        instructions=SECTION_REGENERATION_PROMPT,
+        input=regeneration_input,
+        text_format=RegeneratedSection,
+    )
+
+    return response.output_parsed

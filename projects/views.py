@@ -1,6 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
-from .ai.services import generate_reply,generate_workspace_content
+from .ai.services import generate_reply,generate_workspace_content,regenerate_workspace_section 
 from .models import Project, ProjectMessage, WorkspaceFolder
 from django.views.decorators.http import require_POST
 
@@ -72,8 +72,6 @@ def project_setup(request, pk):
             "messages": messages,
         },
     )
-@login_required
-
 @login_required
 @require_POST
 def generate_workspace(request, pk):
@@ -180,4 +178,73 @@ def workspace_folder(request, project_pk, folder_pk):
             "project": project,
             "folder": folder,
         },
+    )
+@login_required
+def edit_workspace_folder(request, project_pk, folder_pk):
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+        owner=request.user,
+    )
+
+    folder = get_object_or_404(
+        WorkspaceFolder,
+        pk=folder_pk,
+        project=project,
+    )
+
+    if request.method == "POST":
+        folder.description = request.POST.get("description", "")
+        folder.save(update_fields=["description", "updated_at"])
+
+        return redirect(
+            "workspace_folder",
+            project_pk=project.pk,
+            folder_pk=folder.pk,
+        )
+
+    return render(
+        request,
+        "projects/workspace_folder_edit.html",
+        {
+            "project": project,
+            "folder": folder,
+        },
+    )
+@login_required
+@require_POST
+def regenerate_workspace_folder(request, project_pk, folder_pk):
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+        owner=request.user,
+    )
+
+    folder = get_object_or_404(
+        WorkspaceFolder,
+        pk=folder_pk,
+        project=project,
+    )
+
+    try:
+        result = regenerate_workspace_section(
+            project=project,
+            folder=folder,
+        )
+
+        folder.description = result.content
+        folder.save(update_fields=["description", "updated_at"])
+
+        print(f"Regenerated section: {folder.name}")
+
+    except Exception as error:
+        print(
+            f"Failed to regenerate {folder.name}:",
+            error,
+        )
+
+    return redirect(
+        "workspace_folder",
+        project_pk=project.pk,
+        folder_pk=folder.pk,
     )
