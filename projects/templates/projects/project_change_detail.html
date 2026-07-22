@@ -82,7 +82,47 @@
                 grid-template-columns: 1fr;
             }
         }
-    </style>
+        .diff {
+    margin-top: 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    font-family: monospace;
+    font-size: 14px;
+}
+
+    .diff-line {
+        display: grid;
+        grid-template-columns: 28px 1fr;
+        gap: 8px;
+        padding: 4px 10px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        border-bottom: 1px solid #eee;
+    }
+
+    .diff-line:last-child {
+        border-bottom: none;
+    }
+
+    .diff-added {
+        background: #eaf7ea;
+    }
+
+    .diff-removed {
+        background: #fdeaea;
+    }
+
+    .diff-unchanged {
+        background: #fafafa;
+        color: #666;
+    }
+
+    .diff-symbol {
+        font-weight: bold;
+        user-select: none;
+    }
+        </style>
 </head>
 <body>
 
@@ -145,14 +185,34 @@
 
 <h2>Workspace section changes</h2>
 
+<h2>Workspace section changes</h2>
+
 {% for item in section_changes %}
     <div class="change-card">
         <span class="badge">{{ item.change_type }}</span>
 
         <h3>{{ item.section_type|title }}</h3>
 
+        <div class="diff">
+            {% for line in item.diff_lines %}
+                <div class="diff-line diff-{{ line.change_type }}">
+                    {% if line.change_type == "added" %}
+                        <span class="diff-symbol">+</span>
+                    {% elif line.change_type == "removed" %}
+                        <span class="diff-symbol">−</span>
+                    {% else %}
+                        <span class="diff-symbol">&nbsp;</span>
+                    {% endif %}
+
+                    <span>{{ line.content|default:" " }}</span>
+                </div>
+            {% empty %}
+                <p>No line-level differences found.</p>
+            {% endfor %}
+        </div>
+
         <details>
-            <summary>Compare before and after</summary>
+            <summary>View complete before and after</summary>
 
             <div class="before-after">
                 <div class="snapshot">

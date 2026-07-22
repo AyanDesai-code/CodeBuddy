@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+import difflib
 from .ai.services import (
     analyze_workspace_change,
     apply_canonical_updates,
@@ -7,7 +8,7 @@ from .ai.services import (
     generate_reply,
     generate_task_synchronization,
     generate_workspace_content,
-    regenerate_affected_workspace_sections,
+    regenerate_affected_workspace_sections_combined,
     regenerate_workspace_section,
 )
 from .models import (
@@ -21,7 +22,47 @@ from .models import (
 )
 from django.views.decorators.http import require_POST
 from django.db import transaction
+import time
+def build_text_diff(before_text, after_text):
+    before_lines = (before_text or "").splitlines()
+    after_lines = (after_text or "").splitlines()
 
+    diff_lines = difflib.ndiff(
+        before_lines,
+        after_lines,
+    )
+
+    result = []
+
+    for line in diff_lines:
+        prefix = line[:2]
+        content = line[2:]
+
+        if prefix == "- ":
+            result.append(
+                {
+                    "change_type": "removed",
+                    "content": content,
+                }
+            )
+
+        elif prefix == "+ ":
+            result.append(
+                {
+                    "change_type": "added",
+                    "content": content,
+                }
+            )
+
+        elif prefix == "  ":
+            result.append(
+                {
+                    "change_type": "unchanged",
+                    "content": content,
+                }
+            )
+
+    return result
 def task_snapshot_key(task_data):
     return task_data.get("title", "").strip().lower()
 
@@ -607,20 +648,14 @@ def apply_task_synchronization(
 
     existing_tasks = list(project.tasks.all())
 
-    tasks_by_title = {
-        task.title.strip().lower(): task
+    tasks_by_id = {
+        task.pk: task
         for task in existing_tasks
     }
 
-    existing_task_words = [
-        normalize_task_title(task.title)
-        for task in existing_tasks
-    ]
-
-    # Update existing tasks.
+    # Update existing tasks by database ID.
     for task_update in synchronization.tasks_to_update:
-        lookup_title = task_update.existing_title.strip().lower()
-        task = tasks_by_title.get(lookup_title)
+        task = tasks_by_id.get(task_update.task_id)
 
         if task is None:
             continue
@@ -649,20 +684,20 @@ def apply_task_synchronization(
             ]
         )
 
-        tasks_by_title.pop(lookup_title, None)
-        tasks_by_title[new_title.lower()] = task
         updated_count += 1
 
-    # Remove only unfinished obsolete tasks.
-    removal_titles = {
-        title.strip().lower()
-        for title in synchronization.task_titles_to_remove
-    }
+    # Remove only unfinished obsolete tasks by database ID.
+    removal_ids = set(
+        synchronization.task_ids_to_remove
+    )
 
-    for task in project.tasks.filter(completed=False):
-        if task.title.strip().lower() in removal_titles:
-            task.delete()
-            removed_count += 1
+    tasks_to_remove = project.tasks.filter(
+        completed=False,
+        pk__in=removal_ids,
+    )
+
+    removed_count = tasks_to_remove.count()
+    tasks_to_remove.delete()
 
     # Refresh comparisons after updates and removals.
     remaining_tasks = list(project.tasks.all())
@@ -790,15 +825,21 @@ def workspace_assistant(request, project_pk):
                     current_facts=project_state.facts,
                     analysis=analysis,
                 )
-
+                cascade_started_at = time.monotonic()
+                
                 regenerated_sections = (
-                    regenerate_affected_workspace_sections(
+                    regenerate_affected_workspace_sections_combined(
                         project=project,
                         analysis=analysis,
                         updated_facts=updated_facts,
                     )
                 )
+                cascade_seconds = time.monotonic() - cascade_started_at
 
+                print(
+                    f"Combined workspace regeneration took "
+                    f"{cascade_seconds:.2f} seconds."
+                )
                 tasks_affected = "tasks" in analysis.affected_sections
 
                 synchronization = None
@@ -909,17 +950,30 @@ def workspace_assistant(request, project_pk):
                         tasks_after=tasks_after,
                     )
 
+                    facts_changed = [
+                        update.key
+                        for update in analysis.canonical_updates
+                    ]
+
+                    request.session["workspace_update_summary"] = {
+                        "sections": updated_section_names,
+                        "task_changes": task_changes,
+                        "facts_changed": facts_changed,
+                    }
+
+
                     WorkspaceMessage.objects.create(
                         project=project,
                         role=WorkspaceMessage.Role.ASSISTANT,
                         content=(
                             f"{analysis.assistant_message}\n\n"
+                            f"Why this matters:\n"
+                            f"{analysis.impact_explanation}\n\n"
                             f"Updated workspace sections: "
                             f"{section_summary}."
                             f"{task_note}"
                         ),
                     )
-
                 print("\n===== Cascade Update Complete =====")
                 print("Updated facts:", updated_facts)
                 print("Updated sections:", updated_section_names)
@@ -950,12 +1004,18 @@ def workspace_assistant(request, project_pk):
 
     messages = project.workspace_messages.all()
 
+    update_summary = request.session.pop(
+        "workspace_update_summary",
+        None,
+    )
+
     return render(
         request,
         "projects/workspace_assistant.html",
         {
             "project": project,
             "messages": messages,
+            "update_summary": update_summary,
         },
     )
 @login_required
@@ -1052,9 +1112,12 @@ def project_change_detail(request, project_pk, change_pk):
                 "before": before_content,
                 "after": after_content,
                 "change_type": change_type,
+                "diff_lines": build_text_diff(
+                    before_content,
+                    after_content,
+                ),
             }
         )
-
     tasks_before = change.tasks_before or []
     tasks_after = change.tasks_after or []
 

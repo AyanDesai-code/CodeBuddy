@@ -379,7 +379,6 @@ class CanonicalFactUpdate(BaseModel):
 
 class WorkspaceChangeAnalysis(BaseModel):
     summary: str
-
     canonical_updates: list[CanonicalFactUpdate]
 
     affected_sections: list[
@@ -397,6 +396,7 @@ class WorkspaceChangeAnalysis(BaseModel):
     ]
 
     assistant_message: str
+    impact_explanation: str
 WORKSPACE_CHANGE_PROMPT = """
 You are BuilderOS, a dependency-aware AI project manager.
 
@@ -464,6 +464,17 @@ interpret.
 If information is missing, make clearly labeled reasonable assumptions.
 
 Your job is to understand the requested change, not continue the interview.
+
+5. A concise impact explanation describing why the requested change affects
+the selected workspace sections.
+
+The impact_explanation should:
+
+- be 1 to 3 sentences
+- explain the most important technical or project consequences
+- avoid repeating the list of section names
+- avoid claiming the updates have already happened
+- not ask follow-up questions
 """
 def analyze_workspace_change(project) -> WorkspaceChangeAnalysis:
     project_state = getattr(project, "state", None)
@@ -758,7 +769,7 @@ CURRENT CONTENT:
     return regenerated_sections
 
 class TaskToUpdate(BaseModel):
-    existing_title: str
+    task_id: int
     new_title: str
     description: str
     priority: int
@@ -767,7 +778,7 @@ class TaskToUpdate(BaseModel):
 class TaskSynchronization(BaseModel):
     tasks_to_add: list[GeneratedTask]
     tasks_to_update: list[TaskToUpdate]
-    task_titles_to_remove: list[str]
+    task_ids_to_remove: list[int]
     summary: str
 
 TASK_SYNCHRONIZATION_PROMPT = """
@@ -786,22 +797,21 @@ Return:
 
 - tasks_to_add
 - tasks_to_update
-- task_titles_to_remove
+- task_ids_to_remove
 - a short summary
 
 Rules:
 
+- Every existing task includes a TASK ID.
+- Use task_id to identify tasks that should be updated.
+- task_ids_to_remove must contain only valid IDs of existing unfinished tasks.
+- Never request removal of a completed task.
+- Prefer updating an existing task rather than deleting it and creating a replacement.
+- Do not use task titles as identifiers.
 - Keep tasks consistent with the updated project facts and workspace.
 - Do not recreate work already represented by an existing task.
 - Do not add near-duplicate tasks.
 - Preserve useful tasks that are still relevant.
-- Never request removal of a completed task.
-- Only remove an unfinished task when it is clearly obsolete or
-  contradicted by the new project direction.
-- Prefer updating an existing task over removing it and creating a
-  replacement.
-- existing_title must exactly match the title of an existing task.
-- task_titles_to_remove must exactly match existing unfinished task titles.
 - Begin all new task titles with an action verb.
 - Every task must be one clear, actionable piece of work.
 - Priority must be exactly:
@@ -820,7 +830,8 @@ def generate_task_synchronization(
 ) -> TaskSynchronization:
     existing_tasks_text = "\n\n".join(
         (
-            f"TITLE: {task.title}\n"
+            f"TASK ID: {task.pk}\n"
+f"TITLE: {task.title}\n"
             f"DESCRIPTION: {task.description}\n"
             f"PRIORITY: {task.get_priority_display()}\n"
             f"COMPLETED: {task.completed}"
@@ -863,5 +874,194 @@ EXISTING TASKS:
         input=generation_input,
         text_format=TaskSynchronization,
     )
+    result = response.output_parsed
 
-    return response.output_parsed
+    return result
+
+class UpdatedWorkspaceSection(BaseModel):
+    folder_type: str
+    content: str
+
+
+class RegeneratedWorkspaceSections(BaseModel):
+    sections: list[UpdatedWorkspaceSection]
+    
+    
+    
+    
+COMBINED_CASCADE_PROMPT = """
+You are BuilderOS, a dependency-aware AI project manager.
+
+Rewrite all requested workspace sections after a project-level change.
+
+You will receive:
+
+- the original project discovery conversation
+- the workspace assistant conversation
+- the requested project change
+- updated canonical project facts
+- current workspace sections
+- current database-backed tasks
+- the exact section types that must be rewritten
+
+Requirements:
+
+- Return exactly one replacement for every requested section type.
+- Do not return any section type that was not requested.
+- Keep all returned sections mutually consistent.
+- Treat the updated canonical project facts as authoritative.
+- Preserve useful existing information that is still valid.
+- Remove or revise information contradicted by the updated facts.
+- Do not invent optional features the user did not request.
+- Make the smallest reasonable interpretation of broad requests.
+- Clearly label assumptions, estimates, risks, and uncertainties.
+- Keep content practical, specific, organized, and editable.
+- Do not describe the rewriting process.
+- Do not rewrite the database-backed tasks section.
+
+Valid section types are:
+
+overview
+requirements
+roadmap
+resources
+budget
+learning
+documentation
+testing
+"""
+def regenerate_affected_workspace_sections_combined(
+    project,
+    analysis: WorkspaceChangeAnalysis,
+    updated_facts: dict,
+) -> dict[str, str]:
+    allowed_section_types = {
+        "overview",
+        "requirements",
+        "roadmap",
+        "resources",
+        "budget",
+        "learning",
+        "documentation",
+        "testing",
+    }
+
+    affected_sections = [
+        section_type
+        for section_type in analysis.affected_sections
+        if section_type in allowed_section_types
+    ]
+
+    if not affected_sections:
+        return {}
+
+    discovery_text = "\n\n".join(
+        f"{message.role.upper()}: {message.content}"
+        for message in project.messages.order_by("created_at")
+    )
+
+    assistant_conversation = "\n\n".join(
+        f"{message.role.upper()}: {message.content}"
+        for message in project.workspace_messages.order_by(
+            "created_at"
+        )
+    )
+
+    workspace_text = "\n\n".join(
+        (
+            f"SECTION TYPE: {folder.folder_type}\n"
+            f"SECTION NAME: {folder.name}\n"
+            f"CURRENT CONTENT:\n{folder.description}"
+        )
+        for folder in project.folders.order_by("order")
+    )
+
+    tasks_text = "\n\n".join(
+    (
+        f"TASK ID: {task.pk}\n"
+        f"TITLE: {task.title}\n"
+        f"DESCRIPTION: {task.description}\n"
+        f"PRIORITY: {task.get_priority_display()}\n"
+        f"COMPLETED: {task.completed}"
+    )
+    for task in project.tasks.order_by("order")
+)
+
+    sections_to_rewrite_text = "\n".join(
+        f"- {section_type}"
+        for section_type in affected_sections
+    )
+
+    generation_input = f"""
+ORIGINAL PROJECT DISCOVERY:
+
+{discovery_text}
+
+
+WORKSPACE ASSISTANT CONVERSATION:
+
+{assistant_conversation}
+
+
+REQUESTED PROJECT CHANGE:
+
+{analysis.summary}
+
+
+UPDATED CANONICAL PROJECT FACTS:
+
+{updated_facts}
+
+
+CURRENT DATABASE-BACKED TASKS:
+
+{tasks_text}
+
+
+CURRENT WORKSPACE:
+
+{workspace_text}
+
+
+SECTIONS TO REWRITE:
+
+{sections_to_rewrite_text}
+"""
+
+    response = client.responses.parse(
+        model="gpt-5-mini",
+        instructions=COMBINED_CASCADE_PROMPT,
+        input=generation_input,
+        text_format=RegeneratedWorkspaceSections,
+    )
+
+    result = response.output_parsed
+
+    returned_sections = {}
+
+    for section in result.sections:
+        section_type = section.folder_type.strip().lower()
+
+        if section_type not in affected_sections:
+            continue
+
+        content = section.content.strip()
+
+        if not content:
+            continue
+
+        returned_sections[section_type] = content
+
+    missing_sections = (
+        set(affected_sections)
+        - set(returned_sections.keys())
+    )
+
+    if missing_sections:
+        raise ValueError(
+            "AI omitted required workspace sections: "
+            + ", ".join(sorted(missing_sections))
+        )
+
+    return returned_sections
+
