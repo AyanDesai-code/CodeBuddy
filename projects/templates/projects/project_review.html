@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Project Review | {{ project.name }}</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 950px;
+            margin: 40px auto;
+            padding: 0 20px;
+            line-height: 1.5;
+        }
+
+        .toolbar {
+            margin-bottom: 24px;
+        }
+
+        .review-card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 20px;
+        }
+
+        .score {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .error {
+            border: 1px solid #e0a0a0;
+            background: #fff0f0;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+        .conflict-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.conflict-actions form {
+    margin: 0;
+}
+    </style>
+</head>
+<body>
+
+<div class="toolbar">
+    <a href="{% url 'workspace' project.pk %}">
+        ← Back to Workspace
+    </a>
+</div>
+
+<h1>{{ project.name }} Project Review</h1>
+
+<p>
+    BuilderOS will inspect the project for contradictions, risks,
+    missing information, task problems, testing gaps, and documentation quality.
+</p>
+
+<form id="review-form" method="POST">
+    {% csrf_token %}
+
+    <button id="review-button" type="submit">
+        Review Project
+    </button>
+</form>
+
+<div id="review-status" hidden>
+    <p>BuilderOS is reviewing the project...</p>
+    <p>This may take around 30–90 seconds.</p>
+</div>
+
+{% if error_message %}
+    <div class="error">
+        {{ error_message }}
+    </div>
+{% endif %}
+
+{% if review %}
+    <div class="review-card">
+        <h2>Project Health</h2>
+
+        <div class="score">
+            {{ review.health_score }}%
+        </div>
+
+        <p>{{ review.summary }}</p>
+    </div>
+
+    <div class="review-card">
+        <h2>Critical Issues</h2>
+
+        {% if current_critical_issues %}
+            <ul>
+                {% for finding in current_critical_issues %}
+                    <li>
+                        <strong>{{ finding.title }}</strong><br>
+                        {{ finding.description }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No critical issues found.</p>
+        {% endif %}
+    </div>
+
+   <div class="review-card">
+    <h2>Warnings</h2>
+
+        {% if current_warnings %}
+            <ul>
+                {% for finding in current_warnings %}
+                    <li>
+                        <strong>{{ finding.title }}</strong><br>
+                        {{ finding.description }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No warnings found.</p>
+        {% endif %}
+    </div>
+
+    <div class="review-card">
+        <h2>Strengths</h2>
+
+        {% for strength in review.strengths %}
+            <ul>
+                <li>{{ strength }}</li>
+            </ul>
+        {% empty %}
+            <p>No strengths were identified.</p>
+        {% endfor %}
+    </div>
+{% endif %}
+<h2>Open Conflicts</h2>
+
+{% for conflict in open_conflicts %}
+    <div class="review-card">
+        <p>
+            <strong>
+                {{ conflict.get_severity_display }}
+            </strong>
+        </p>
+
+        <h3>{{ conflict.title }}</h3>
+
+        <p>{{ conflict.description }}</p>
+
+        {% if conflict.source_reference %}
+            <p>
+                <strong>Source:</strong>
+                {{ conflict.source_type }}
+                —
+                {{ conflict.source_reference }}
+            </p>
+        {% endif %}
+
+        {% if conflict.suggested_fix %}
+            <p>
+                <strong>Suggested fix:</strong>
+                {{ conflict.suggested_fix }}
+            </p>
+        {% endif %}
+        
+
+        <div class="conflict-actions">
+    <form
+        method="POST"
+        action="{% url 'apply_project_conflict_fix' project.pk conflict.pk %}"
+    >
+        {% csrf_token %}
+
+        <button
+            type="submit"
+            onclick="return confirm(
+                'Apply BuilderOS’s suggested fix? This may update project facts, workspace sections, and tasks.'
+            )"
+        >
+            Apply AI Fix
+        </button>
+    </form>
+
+    <form
+        method="POST"
+        action="{% url 'resolve_project_conflict' project.pk conflict.pk %}"
+    >
+        {% csrf_token %}
+
+        <button type="submit">
+            Mark Resolved
+        </button>
+    </form>
+
+    <form
+        method="POST"
+        action="{% url 'ignore_project_conflict' project.pk conflict.pk %}"
+    >
+        {% csrf_token %}
+
+        <button
+            type="submit"
+            onclick="return confirm(
+                'Ignore this conflict? It will no longer appear as open.'
+            )"
+        >
+            Ignore
+        </button>
+    </form>
+</div>
+    </div>
+
+{% empty %}
+    <p>No open conflicts.</p>
+{% endfor %}
+<h2>Review History</h2>
+
+{% for saved_review in previous_reviews %}
+    <div class="review-card">
+        <h3>
+            {{ saved_review.created_at|date:"F j, Y, g:i A" }}
+        </h3>
+
+        <p>
+            <strong>Health score:</strong>
+            {{ saved_review.health_score }}%
+        </p>
+
+        <p>
+            {{ saved_review.summary }}
+        </p>
+    </div>
+{% empty %}
+    <p>No saved reviews yet.</p>
+{% endfor %}
+
+
+<script>
+    const reviewForm =
+        document.getElementById("review-form");
+
+    const reviewButton =
+        document.getElementById("review-button");
+
+    const reviewStatus =
+        document.getElementById("review-status");
+
+    reviewForm.addEventListener("submit", function () {
+        reviewButton.disabled = true;
+        reviewButton.textContent = "Reviewing...";
+
+        reviewStatus.hidden = false;
+    });
+</script>
+
+</body>
+</html>

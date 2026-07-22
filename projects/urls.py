@@ -20,4 +20,8 @@ urlpatterns = [
     path("<int:project_pk>/history/",views.project_change_history,name="project_change_history",),
     path("<int:project_pk>/history/<int:change_pk>/",views.project_change_detail,name="project_change_detail",),
     path("<int:project_pk>/history/<int:change_pk>/undo/",views.undo_project_change,name="undo_project_change",),
+    path("<int:project_pk>/review/",views.project_review,name="project_review",),
+    path("<int:project_pk>/conflicts/<int:conflict_pk>/resolve/",views.resolve_project_conflict,name="resolve_project_conflict",),
+    path("<int:project_pk>/conflicts/<int:conflict_pk>/ignore/",views.ignore_project_conflict,name="ignore_project_conflict",),   
+    path("<int:project_pk>/conflicts/<int:conflict_pk>/apply-fix/",views.apply_project_conflict_fix,name="apply_project_conflict_fix",),
 ]

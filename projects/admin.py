@@ -10,6 +10,7 @@ from .models import (
     Task,
     WorkspaceFolder,
     WorkspaceMessage,
+    ProjectHealthReviewRecord
 )
 
 @admin.register(Project)
@@ -92,3 +93,4 @@ class ProjectChangeAdmin(admin.ModelAdmin):
         "summary",
         "user_message",
     )
+admin.site.register(ProjectHealthReviewRecord)

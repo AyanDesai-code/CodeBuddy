@@ -10,10 +10,13 @@ from .ai.services import (
     generate_workspace_content,
     regenerate_affected_workspace_sections_combined,
     regenerate_workspace_section,
+    review_project,
 )
 from .models import (
     Project,
     ProjectChange,
+    ProjectConflict,
+    ProjectHealthReviewRecord,
     ProjectMessage,
     ProjectState,
     Task,
@@ -23,6 +26,7 @@ from .models import (
 from django.views.decorators.http import require_POST
 from django.db import transaction
 import time
+from django.utils import timezone
 def build_text_diff(before_text, after_text):
     before_lines = (before_text or "").splitlines()
     after_lines = (after_text or "").splitlines()
@@ -64,7 +68,15 @@ def build_text_diff(before_text, after_text):
 
     return result
 def task_snapshot_key(task_data):
-    return task_data.get("title", "").strip().lower()
+    task_id = task_data.get("id")
+
+    if task_id is not None:
+        return f"id:{task_id}"
+
+    return (
+        "title:"
+        + task_data.get("title", "").strip().lower()
+    )
 
 def normalize_task_title(title):
     ignored_words = {
@@ -772,6 +784,223 @@ def apply_task_synchronization(
         "updated": updated_count,
         "removed": removed_count,
     }
+def apply_workspace_change(
+    *,
+    project,
+    content,
+):
+    project_state, _ = ProjectState.objects.get_or_create(
+        project=project,
+        defaults={"facts": {}},
+    )
+
+    WorkspaceMessage.objects.create(
+        project=project,
+        role=WorkspaceMessage.Role.USER,
+        content=content,
+    )
+
+    analysis = analyze_workspace_change(project)
+
+    print("\n===== Workspace Change Analysis =====")
+    print(analysis.model_dump_json(indent=4))
+    print("=====================================\n")
+
+    facts_before = project_state.facts.copy()
+
+    sections_before = {
+        folder.folder_type: folder.description
+        for folder in project.folders.all()
+    }
+
+    tasks_before = [
+        {
+            "id": task.pk,
+            "title": task.title,
+            "description": task.description,
+            "priority": task.priority,
+            "completed": task.completed,
+            "order": task.order,
+        }
+        for task in project.tasks.order_by("order")
+    ]
+
+    updated_facts = apply_canonical_updates(
+        current_facts=project_state.facts,
+        analysis=analysis,
+    )
+
+    cascade_started_at = time.monotonic()
+
+    regenerated_sections = (
+        regenerate_affected_workspace_sections_combined(
+            project=project,
+            analysis=analysis,
+            updated_facts=updated_facts,
+        )
+    )
+
+    cascade_seconds = (
+        time.monotonic()
+        - cascade_started_at
+    )
+
+    print(
+        "Combined workspace regeneration took "
+        f"{cascade_seconds:.2f} seconds."
+    )
+
+    tasks_affected = (
+        "tasks" in analysis.affected_sections
+    )
+
+    synchronization = None
+
+    if tasks_affected:
+        synchronization = generate_task_synchronization(
+            project=project,
+            analysis=analysis,
+            updated_facts=updated_facts,
+            regenerated_sections=regenerated_sections,
+        )
+        print(regenerated_sections.keys())
+
+        print("\n===== Task Synchronization Plan =====")
+        print(synchronization.model_dump_json(indent=4))
+        print("=====================================\n")
+
+    with transaction.atomic():
+        project_state.facts = updated_facts
+        project_state.save(
+            update_fields=[
+                "facts",
+                "updated_at",
+            ]
+        )
+
+        updated_section_names = []
+
+        for section_type, new_content in regenerated_sections.items():
+            folder = project.folders.filter(
+                folder_type=section_type,
+            ).first()
+
+            if folder is None:
+                continue
+
+            folder.description = new_content
+            folder.save(
+                update_fields=[
+                    "description",
+                    "updated_at",
+                ]
+            )
+
+            updated_section_names.append(folder.name)
+
+        if updated_section_names:
+            section_summary = ", ".join(
+                updated_section_names
+            )
+        else:
+            section_summary = (
+                "No text sections required changes"
+            )
+
+        task_changes = {
+            "added": 0,
+            "updated": 0,
+            "removed": 0,
+        }
+
+        task_sync_summary = ""
+
+        if tasks_affected and synchronization is not None:
+            task_changes = apply_task_synchronization(
+                project=project,
+                synchronization=synchronization,
+            )
+
+            task_sync_summary = synchronization.summary
+
+        task_note = ""
+
+        if tasks_affected:
+            task_note = (
+                "\n\nTask synchronization:\n"
+                f"- Added: {task_changes['added']}\n"
+                f"- Updated: {task_changes['updated']}\n"
+                f"- Removed: {task_changes['removed']}"
+            )
+
+            if task_sync_summary:
+                task_note += (
+                    f"\n\n{task_sync_summary}"
+                )
+
+        sections_after = {
+            folder.folder_type: folder.description
+            for folder in project.folders.all()
+        }
+
+        tasks_after = [
+            {
+                "id": task.pk,
+                "title": task.title,
+                "description": task.description,
+                "priority": task.priority,
+                "completed": task.completed,
+                "order": task.order,
+            }
+            for task in project.tasks.order_by("order")
+        ]
+
+        change = ProjectChange.objects.create(
+            project=project,
+            user_message=content,
+            summary=analysis.summary,
+            facts_before=facts_before,
+            facts_after=updated_facts,
+            sections_before=sections_before,
+            sections_after=sections_after,
+            tasks_before=tasks_before,
+            tasks_after=tasks_after,
+        )
+
+        WorkspaceMessage.objects.create(
+            project=project,
+            role=WorkspaceMessage.Role.ASSISTANT,
+            content=(
+                f"{analysis.assistant_message}\n\n"
+                f"Why this matters:\n"
+                f"{analysis.impact_explanation}\n\n"
+                f"Updated workspace sections: "
+                f"{section_summary}."
+                f"{task_note}"
+            ),
+        )
+
+    facts_changed = [
+        update.key
+        for update in analysis.canonical_updates
+    ]
+
+    print("\n===== Cascade Update Complete =====")
+    print("Updated facts:", updated_facts)
+    print("Updated sections:", updated_section_names)
+    print("Task changes:", task_changes)
+    print("Change history record created.")
+    print("===================================\n")
+
+    return {
+        "analysis": analysis,
+        "change": change,
+        "updated_facts": updated_facts,
+        "sections": updated_section_names,
+        "task_changes": task_changes,
+        "facts_changed": facts_changed,
+    }
+@login_required
 @login_required
 def workspace_assistant(request, project_pk):
     project = get_object_or_404(
@@ -780,206 +1009,47 @@ def workspace_assistant(request, project_pk):
         owner=request.user,
     )
 
-    project_state, _ = ProjectState.objects.get_or_create(
+    ProjectState.objects.get_or_create(
         project=project,
         defaults={"facts": {}},
     )
 
     if request.method == "POST":
-        content = request.POST.get("message", "").strip()
+        content = request.POST.get(
+            "message",
+            "",
+        ).strip()
 
         if content:
-            WorkspaceMessage.objects.create(
-                project=project,
-                role=WorkspaceMessage.Role.USER,
-                content=content,
-            )
-
             try:
-                # AI calls happen before the transaction.
-                analysis = analyze_workspace_change(project)
+                result = apply_workspace_change(
+                    project=project,
+                    content=content,
+                )
 
-                print("\n===== Workspace Change Analysis =====")
-                print(analysis.model_dump_json(indent=4))
-                print("=====================================\n")
+                try:
+                    review_result = run_project_review(project)
 
-                facts_before = project_state.facts.copy()
+                    latest_health_score = (
+                        review_result["review"].health_score
+                    )
 
-                sections_before = {
-                    folder.folder_type: folder.description
-                    for folder in project.folders.all()
+                except Exception as review_error:
+                    print(
+                        "Automatic project review failed:",
+                        review_error,
+                    )
+
+                    latest_health_score = None
+
+                request.session[
+                    "workspace_update_summary"
+                ] = {
+                    "sections": result["sections"],
+                    "task_changes": result["task_changes"],
+                    "facts_changed": result["facts_changed"],
+                    "health_score": latest_health_score,
                 }
-
-                tasks_before = [
-                    {
-                        "title": task.title,
-                        "description": task.description,
-                        "priority": task.priority,
-                        "completed": task.completed,
-                        "order": task.order,
-                    }
-                    for task in project.tasks.order_by("order")
-                ]
-
-                updated_facts = apply_canonical_updates(
-                    current_facts=project_state.facts,
-                    analysis=analysis,
-                )
-                cascade_started_at = time.monotonic()
-                
-                regenerated_sections = (
-                    regenerate_affected_workspace_sections_combined(
-                        project=project,
-                        analysis=analysis,
-                        updated_facts=updated_facts,
-                    )
-                )
-                cascade_seconds = time.monotonic() - cascade_started_at
-
-                print(
-                    f"Combined workspace regeneration took "
-                    f"{cascade_seconds:.2f} seconds."
-                )
-                tasks_affected = "tasks" in analysis.affected_sections
-
-                synchronization = None
-
-                if tasks_affected:
-                    synchronization = generate_task_synchronization(
-                        project=project,
-                        analysis=analysis,
-                        updated_facts=updated_facts,
-                        regenerated_sections=regenerated_sections,
-                    )
-
-                    print("\n===== Task Synchronization Plan =====")
-                    print(synchronization.model_dump_json(indent=4))
-                    print("=====================================\n")
-
-                # All database updates happen together.
-                with transaction.atomic():
-                    project_state.facts = updated_facts
-                    project_state.save(
-                        update_fields=[
-                            "facts",
-                            "updated_at",
-                        ]
-                    )
-
-                    updated_section_names = []
-
-                    for section_type, new_content in regenerated_sections.items():
-                        folder = project.folders.filter(
-                            folder_type=section_type,
-                        ).first()
-
-                        if folder is None:
-                            continue
-
-                        folder.description = new_content
-                        folder.save(
-                            update_fields=[
-                                "description",
-                                "updated_at",
-                            ]
-                        )
-
-                        updated_section_names.append(folder.name)
-
-                    if updated_section_names:
-                        section_summary = ", ".join(updated_section_names)
-                    else:
-                        section_summary = (
-                            "No text sections required changes"
-                        )
-
-                    task_changes = {
-                        "added": 0,
-                        "updated": 0,
-                        "removed": 0,
-                    }
-
-                    task_sync_summary = ""
-
-                    if tasks_affected and synchronization is not None:
-                        task_changes = apply_task_synchronization(
-                            project=project,
-                            synchronization=synchronization,
-                        )
-
-                        task_sync_summary = synchronization.summary
-
-                    task_note = ""
-
-                    if tasks_affected:
-                        task_note = (
-                            "\n\nTask synchronization:\n"
-                            f"- Added: {task_changes['added']}\n"
-                            f"- Updated: {task_changes['updated']}\n"
-                            f"- Removed: {task_changes['removed']}"
-                        )
-
-                        if task_sync_summary:
-                            task_note += f"\n\n{task_sync_summary}"
-
-                    sections_after = {
-                        folder.folder_type: folder.description
-                        for folder in project.folders.all()
-                    }
-
-                    tasks_after = [
-                        {
-                            "title": task.title,
-                            "description": task.description,
-                            "priority": task.priority,
-                            "completed": task.completed,
-                            "order": task.order,
-                        }
-                        for task in project.tasks.order_by("order")
-                    ]
-
-                    ProjectChange.objects.create(
-                        project=project,
-                        user_message=content,
-                        summary=analysis.summary,
-                        facts_before=facts_before,
-                        facts_after=updated_facts,
-                        sections_before=sections_before,
-                        sections_after=sections_after,
-                        tasks_before=tasks_before,
-                        tasks_after=tasks_after,
-                    )
-
-                    facts_changed = [
-                        update.key
-                        for update in analysis.canonical_updates
-                    ]
-
-                    request.session["workspace_update_summary"] = {
-                        "sections": updated_section_names,
-                        "task_changes": task_changes,
-                        "facts_changed": facts_changed,
-                    }
-
-
-                    WorkspaceMessage.objects.create(
-                        project=project,
-                        role=WorkspaceMessage.Role.ASSISTANT,
-                        content=(
-                            f"{analysis.assistant_message}\n\n"
-                            f"Why this matters:\n"
-                            f"{analysis.impact_explanation}\n\n"
-                            f"Updated workspace sections: "
-                            f"{section_summary}."
-                            f"{task_note}"
-                        ),
-                    )
-                print("\n===== Cascade Update Complete =====")
-                print("Updated facts:", updated_facts)
-                print("Updated sections:", updated_section_names)
-                print("Task changes:", task_changes)
-                print("Change history record created.")
-                print("===================================\n")
 
             except Exception as error:
                 print(
@@ -1291,3 +1361,310 @@ def undo_project_change(request, project_pk, change_pk):
         "project_change_history",
         project_pk=project.pk,
     )
+
+def run_project_review(project):
+    review = review_project(project)
+
+    current_critical_issues = [
+        finding
+        for finding in review.findings
+        if finding.severity == "critical"
+    ]
+
+    current_warnings = [
+        finding
+        for finding in review.findings
+        if finding.severity == "warning"
+    ]
+
+    with transaction.atomic():
+        saved_review = ProjectHealthReviewRecord.objects.create(
+            project=project,
+            health_score=review.health_score,
+            critical_issues=[
+                finding.description
+                for finding in current_critical_issues
+            ],
+            warnings=[
+                finding.description
+                for finding in current_warnings
+            ],
+            strengths=review.strengths,
+            summary=review.summary,
+        )
+
+        for finding in review.findings:
+            conflict_key = (
+                finding.key
+                .strip()
+                .lower()
+                .replace(" ", "_")
+            )
+
+            if not conflict_key:
+                raise ValueError(
+                    "Project health finding returned an empty key."
+                )
+
+            existing_conflict = ProjectConflict.objects.filter(
+                project=project,
+                key=conflict_key,
+                status=ProjectConflict.Status.OPEN,
+            ).first()
+
+            if existing_conflict:
+                existing_conflict.review = saved_review
+                existing_conflict.title = finding.title
+                existing_conflict.description = finding.description
+                existing_conflict.severity = finding.severity
+                existing_conflict.source_type = finding.source_type
+                existing_conflict.source_reference = (
+                    finding.source_reference
+                )
+                existing_conflict.suggested_fix = (
+                    finding.suggested_fix
+                )
+
+                existing_conflict.save(
+                    update_fields=[
+                        "review",
+                        "title",
+                        "description",
+                        "severity",
+                        "source_type",
+                        "source_reference",
+                        "suggested_fix",
+                    ]
+                )
+
+            else:
+                ProjectConflict.objects.create(
+                    project=project,
+                    review=saved_review,
+                    key=conflict_key,
+                    title=finding.title,
+                    description=finding.description,
+                    severity=finding.severity,
+                    source_type=finding.source_type,
+                    source_reference=finding.source_reference,
+                    suggested_fix=finding.suggested_fix,
+                )
+
+    print("\n===== Project Health Review =====")
+    print(review.model_dump_json(indent=4))
+    print("=================================\n")
+
+    return {
+        "review": review,
+        "saved_review": saved_review,
+        "critical_issues": current_critical_issues,
+        "warnings": current_warnings,
+    }
+
+@login_required
+def project_review(request, project_pk):
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+        owner=request.user,
+    )
+
+    review = None
+    current_critical_issues = []
+    current_warnings = []
+    error_message = ""
+
+    if request.method == "POST":
+        try:
+            result = run_project_review(project)
+
+            review = result["review"]
+            current_critical_issues = result[
+                "critical_issues"
+            ]
+            current_warnings = result["warnings"]
+
+        except Exception as error:
+            print(
+                "Project health review failed:",
+                error,
+            )
+
+            error_message = (
+                "BuilderOS could not review this project. "
+                "Please try again."
+            )
+
+    previous_reviews = project.health_reviews.all()
+
+    open_conflicts = project.conflicts.filter(
+        status=ProjectConflict.Status.OPEN,
+    )
+
+    return render(
+        request,
+        "projects/project_review.html",
+        {
+            "project": project,
+            "review": review,
+            "current_critical_issues": (
+                current_critical_issues
+            ),
+            "current_warnings": current_warnings,
+            "error_message": error_message,
+            "previous_reviews": previous_reviews,
+            "open_conflicts": open_conflicts,
+        },
+    )@login_required
+@require_POST
+def resolve_project_conflict(request, project_pk, conflict_pk):
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+        owner=request.user,
+    )
+
+    conflict = get_object_or_404(
+        ProjectConflict,
+        pk=conflict_pk,
+        project=project,
+    )
+
+    conflict.status = ProjectConflict.Status.RESOLVED
+    conflict.resolved_at = timezone.now()
+
+    conflict.save(
+        update_fields=[
+            "status",
+            "resolved_at",
+        ]
+    )
+
+    return redirect(
+        "project_review",
+        project_pk=project.pk,
+    )
+
+
+@login_required
+@require_POST
+def ignore_project_conflict(request, project_pk, conflict_pk):
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+        owner=request.user,
+    )
+
+    conflict = get_object_or_404(
+        ProjectConflict,
+        pk=conflict_pk,
+        project=project,
+    )
+
+    conflict.status = ProjectConflict.Status.IGNORED
+    conflict.resolved_at = timezone.now()
+
+    conflict.save(
+        update_fields=[
+            "status",
+            "resolved_at",
+        ]
+    )
+
+    return redirect(
+        "project_review",
+        project_pk=project.pk,
+    )
+@login_required
+@require_POST
+def apply_project_conflict_fix(
+    request,
+    project_pk,
+    conflict_pk,
+):
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+        owner=request.user,
+    )
+
+    conflict = get_object_or_404(
+        ProjectConflict,
+        pk=conflict_pk,
+        project=project,
+        status=ProjectConflict.Status.OPEN,
+    )
+
+    fix_request = (
+        "Apply the following project-health conflict fix.\n\n"
+        f"Conflict key: {conflict.key}\n"
+        f"Conflict title: {conflict.title}\n"
+        f"Problem: {conflict.description}\n"
+        f"Source type: {conflict.source_type}\n"
+        f"Source reference: {conflict.source_reference}\n\n"
+        f"Requested fix:\n{conflict.suggested_fix}\n\n"
+        "Update only the project facts, workspace sections, and tasks "
+        "that are meaningfully affected. Preserve unrelated content."
+    )
+
+    try:
+        result = apply_workspace_change(
+            project=project,
+            content=fix_request,
+        )
+        try:
+            review_result = run_project_review(project)
+
+            latest_health_score = (
+                review_result["review"].health_score
+            )
+
+        except Exception as review_error:
+            print(
+                "Automatic review after AI fix failed:",
+                review_error,
+            )
+
+            latest_health_score = None
+
+        remaining_conflict = ProjectConflict.objects.filter(
+            project=project,
+            key=conflict.key,
+            status=ProjectConflict.Status.OPEN,
+        ).exclude(
+            pk=conflict.pk,
+        ).exists()
+
+        if not remaining_conflict:
+            conflict.status = ProjectConflict.Status.RESOLVED
+            conflict.resolved_at = timezone.now()
+
+            conflict.save(
+                update_fields=[
+                    "status",
+                    "resolved_at",
+                ]
+            )
+
+        request.session["workspace_update_summary"] = {
+            "sections": result["sections"],
+            "task_changes": result["task_changes"],
+            "facts_changed": result["facts_changed"],
+            "health_score": latest_health_score,
+        }
+
+        return redirect(
+            "workspace_assistant",
+            project_pk=project.pk,
+        )
+
+    except Exception as error:
+        print(
+            f"Failed to apply conflict #{conflict.pk}:",
+            error,
+        )
+    
+        return redirect(
+            "project_review",
+            project_pk=project.pk,
+        )

@@ -8,10 +8,13 @@
 <h1>{{ project.name|default:"Untitled Project" }}</h1>
 
 <a href="{% url 'workspace_assistant' project.pk %}">
-    Open Workspace Assistant
+    Open Workspace Assistant 
 </a>
 <a href="{% url 'project_change_history' project.pk %}">
-    View Change History
+    View Change History 
+</a>
+<a href="{% url 'project_review' project.pk %}">
+    Review Project 
 </a>
 <h2>Workspace</h2>
 

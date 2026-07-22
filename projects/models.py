@@ -194,3 +194,122 @@ class ProjectChange(models.Model):
 
     def __str__(self):
         return f"Change {self.pk} — {self.project}"
+
+class ProjectHealthReviewRecord(models.Model):
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="health_reviews",
+    )
+
+    health_score = models.PositiveSmallIntegerField()
+
+    critical_issues = models.JSONField(
+        default=list,
+        blank=True,
+    )
+
+    warnings = models.JSONField(
+        default=list,
+        blank=True,
+    )
+
+    strengths = models.JSONField(
+        default=list,
+        blank=True,
+    )
+
+    summary = models.TextField(
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return (
+            f"{self.project.name} — "
+            f"{self.health_score}%"
+        )
+
+class ProjectConflict(models.Model):
+    class Severity(models.TextChoices):
+        WARNING = "warning", "Warning"
+        CRITICAL = "critical", "Critical"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        RESOLVED = "resolved", "Resolved"
+        IGNORED = "ignored", "Ignored"
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="conflicts",
+    )
+    key = models.CharField(
+            max_length=100,
+            db_index=True,
+    )
+
+    review = models.ForeignKey(
+        ProjectHealthReviewRecord,
+        on_delete=models.CASCADE,
+        related_name="conflicts",
+    )
+
+    title = models.CharField(
+        max_length=255,
+    )
+
+    description = models.TextField()
+
+    severity = models.CharField(
+        max_length=20,
+        choices=Severity.choices,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.OPEN,
+    )
+
+    source_type = models.CharField(
+        max_length=50,
+        blank=True,
+    )
+
+    source_reference = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    suggested_fix = models.TextField(
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    resolved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = [
+            "-created_at",
+        ]
+    
+
+    def __str__(self):
+        return (
+            f"{self.project.name}: "
+            f"{self.title}"
+        )

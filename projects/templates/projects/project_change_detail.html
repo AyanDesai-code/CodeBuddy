@@ -2,21 +2,7 @@
 <html>
 <head>
     <title>Change #{{ change.pk }} | {{ project.name }}</title>
-    <form
-        method="POST"
-        action="{% url 'undo_project_change' project.pk change.pk %}"
-    >
-        {% csrf_token %}
-
-        <button
-            type="submit"
-            onclick="return confirm(
-                'Undo this change and restore the previous project state?'
-            )"
-        >
-            Undo This Change
-        </button>
-    </form>
+    
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -122,6 +108,72 @@
         font-weight: bold;
         user-select: none;
     }
+    .diff-card {
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 20px;
+}
+
+.diff-added {
+    background: #edf9ed;
+    border-left: 4px solid #3a9b49;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    white-space: pre-wrap;
+}
+
+.diff-removed {
+    background: #fff0f0;
+    border-left: 4px solid #c94b4b;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    white-space: pre-wrap;
+}
+
+.diff-unchanged {
+    color: #777;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    white-space: pre-wrap;
+}
+
+.before-value {
+    background: #fff0f0;
+    border-left: 4px solid #c94b4b;
+    padding: 10px;
+    border-radius: 6px;
+    white-space: pre-wrap;
+}
+
+.after-value {
+    background: #edf9ed;
+    border-left: 4px solid #3a9b49;
+    padding: 10px;
+    border-radius: 6px;
+    white-space: pre-wrap;
+}
+
+.change-label {
+    text-transform: capitalize;
+    font-weight: bold;
+}
+
+.diff-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.diff-column h4 {
+    margin-bottom: 6px;
+}
+
+@media (max-width: 700px) {
+    .diff-grid {
+        grid-template-columns: 1fr;
+    }
+}
         </style>
 </head>
 <body>
@@ -137,6 +189,21 @@
         Back to Workspace
     </a>
 </div>
+<form
+        method="POST"
+        action="{% url 'undo_project_change' project.pk change.pk %}"
+    >
+        {% csrf_token %}
+
+        <button
+            type="submit"
+            onclick="return confirm(
+                'Undo this change and restore the previous project state?'
+            )"
+        >
+            Undo This Change
+        </button>
+    </form>
 
 <h1>Change #{{ change.pk }}</h1>
 
@@ -182,8 +249,6 @@
 {% empty %}
     <p>No canonical facts changed.</p>
 {% endfor %}
-
-<h2>Workspace section changes</h2>
 
 <h2>Workspace section changes</h2>
 
@@ -234,62 +299,86 @@
 <h2>Task changes</h2>
 
 {% for item in task_changes %}
-    <div class="change-card">
-        <span class="badge">{{ item.change_type }}</span>
+    <div class="diff-card">
+        <span class="badge">
+            {{ item.change_type }}
+        </span>
 
         <h3>{{ item.title }}</h3>
 
-        <div class="before-after">
-            <div class="snapshot">
-                <strong>Before</strong>
+        {% if item.change_type == "updated" %}
+            {% for field_change in item.field_changes %}
+                <h4>{{ field_change.field|title }}</h4>
 
-                {% if item.before %}
-                    <p>
-                        <strong>Description:</strong>
-                        {{ item.before.description|default:"—" }}
-                    </p>
+                <div class="diff-grid">
+                    <div class="diff-column">
+                        <h4>Before</h4>
 
-                    <p>
-                        <strong>Priority:</strong>
-                        {{ item.before.priority }}
-                    </p>
+                        <div class="before-value">
+                            {% if field_change.before is not None %}
+                                {{ field_change.before }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </div>
+                    </div>
 
-                    <p>
-                        <strong>Completed:</strong>
-                        {{ item.before.completed }}
-                    </p>
-                {% else %}
-                    <p>Task did not exist.</p>
-                {% endif %}
+                    <div class="diff-column">
+                        <h4>After</h4>
+
+                        <div class="after-value">
+                            {% if field_change.after is not None %}
+                                {{ field_change.after }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% empty %}
+                <p>No field-level changes found.</p>
+            {% endfor %}
+
+        {% elif item.change_type == "added" %}
+            <div class="after-value">
+                <p>
+                    <strong>Description:</strong>
+                    {{ item.after.description|default:"—" }}
+                </p>
+
+                <p>
+                    <strong>Priority:</strong>
+                    {{ item.after.priority }}
+                </p>
+
+                <p>
+                    <strong>Completed:</strong>
+                    {{ item.after.completed }}
+                </p>
             </div>
 
-            <div class="snapshot">
-                <strong>After</strong>
+        {% elif item.change_type == "removed" %}
+            <div class="before-value">
+                <p>
+                    <strong>Description:</strong>
+                    {{ item.before.description|default:"—" }}
+                </p>
 
-                {% if item.after %}
-                    <p>
-                        <strong>Description:</strong>
-                        {{ item.after.description|default:"—" }}
-                    </p>
+                <p>
+                    <strong>Priority:</strong>
+                    {{ item.before.priority }}
+                </p>
 
-                    <p>
-                        <strong>Priority:</strong>
-                        {{ item.after.priority }}
-                    </p>
-
-                    <p>
-                        <strong>Completed:</strong>
-                        {{ item.after.completed }}
-                    </p>
-                {% else %}
-                    <p>Task was removed.</p>
-                {% endif %}
+                <p>
+                    <strong>Completed:</strong>
+                    {{ item.before.completed }}
+                </p>
             </div>
-        </div>
+        {% endif %}
     </div>
+
 {% empty %}
     <p>No tasks changed.</p>
 {% endfor %}
-
 </body>
 </html>

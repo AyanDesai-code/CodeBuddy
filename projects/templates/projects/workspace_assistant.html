@@ -124,6 +124,19 @@
                 <p>No canonical facts changed.</p>
             {% endif %}
         </div>
+
+        {% if update_summary.health_score != None %}
+            <div class="summary-section">
+                <h3>Project health</h3>
+
+                <p>
+                    Latest score:
+                    <strong>
+                        {{ update_summary.health_score }}%
+                    </strong>
+                </p>
+            </div>
+        {% endif %}
     </div>
 {% endif %}
 <div class="toolbar">

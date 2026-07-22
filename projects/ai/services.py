@@ -944,6 +944,7 @@ def regenerate_affected_workspace_sections_combined(
         "learning",
         "documentation",
         "testing",
+        "tasks",
     }
 
     affected_sections = [
@@ -1064,4 +1065,189 @@ SECTIONS TO REWRITE:
         )
 
     return returned_sections
+
+class ProjectHealthFinding(BaseModel):
+    key: str
+    title: str
+    description: str
+    severity: Literal[
+        "critical",
+        "warning",
+    ]
+    source_type: str
+    source_reference: str
+    suggested_fix: str
+
+class ProjectHealthReview(BaseModel):
+    health_score: int
+    findings: list[ProjectHealthFinding]
+    strengths: list[str]
+    summary: str
+
+PROJECT_HEALTH_PROMPT = """
+You are BuilderOS.
+
+Review the project.
+
+You are NOT modifying anything.
+
+Evaluate:
+
+- consistency
+- missing information
+- contradictions
+- project risk
+- testing coverage
+- documentation quality
+- task quality
+
+Health score:
+
+0-100
+
+Return:
+
+- health_score
+- findings
+- strengths
+- summary
+
+Every finding must contain:
+
+- title
+- description
+- severity
+- source_type
+- source_reference
+- suggested_fix
+
+Severity must be exactly:
+
+- critical
+- warning
+
+source_type should identify where the issue was found, such as:
+
+- task
+- requirement
+- budget
+- testing
+- roadmap
+- documentation
+- canonical_fact
+- cross_section
+
+source_reference should be a useful identifier, such as:
+
+- task ID and task title
+- workspace section name
+- canonical fact key
+- multiple section names for a cross-section conflict
+
+Do not create duplicate findings for the same underlying problem.
+
+Never invent problems.
+
+Only report issues supported by the workspace.
+
+Every finding must include a stable key.
+
+The key must:
+
+- identify the underlying issue, not the exact wording
+- use lowercase snake_case
+- remain exactly the same across future reviews for the same issue
+- be short and specific
+- not include task database IDs unless the issue is unique to that exact task
+
+Examples:
+
+- g0_portability_unresolved
+- heater_scope_conflict
+- retail_price_infeasible
+- missing_task_owners
+- invalid_task_content
+- thermal_feasibility_incomplete
+- missing_completed_task_evidence
+
+Every finding must contain:
+
+- key
+- title
+- description
+- severity
+- source_type
+- source_reference
+- suggested_fix
+"""
+
+def review_project(project) -> ProjectHealthReview:
+    project_state = getattr(project, "state", None)
+
+    facts = (
+        project_state.facts
+        if project_state is not None
+        else {}
+    )
+
+    sections_text = "\n\n".join(
+        (
+            f"SECTION TYPE: {folder.folder_type}\n"
+            f"SECTION NAME: {folder.name}\n"
+            f"CONTENT:\n{folder.description}"
+        )
+        for folder in project.folders.order_by("order")
+    )
+
+    tasks_text = "\n\n".join(
+        (
+            f"TASK ID: {task.pk}\n"
+            f"TITLE: {task.title}\n"
+            f"DESCRIPTION: {task.description}\n"
+            f"PRIORITY: {task.get_priority_display()}\n"
+            f"COMPLETED: {task.completed}\n"
+            f"ORDER: {task.order}"
+        )
+        for task in project.tasks.order_by("order")
+    )
+
+    discovery_text = "\n\n".join(
+        f"{message.role.upper()}: {message.content}"
+        for message in project.messages.order_by("created_at")
+    )
+
+    review_input = f"""
+PROJECT NAME:
+
+{project.name}
+
+
+ORIGINAL PROJECT DISCOVERY:
+
+{discovery_text}
+
+
+CANONICAL PROJECT FACTS:
+
+{facts}
+
+
+CURRENT WORKSPACE:
+
+{sections_text}
+
+
+CURRENT TASKS:
+
+{tasks_text}
+"""
+
+    response = client.responses.parse(
+        model="gpt-5-mini",
+        instructions=PROJECT_HEALTH_PROMPT,
+        input=review_input,
+        text_format=ProjectHealthReview,
+    )
+
+    return response.output_parsed
 
