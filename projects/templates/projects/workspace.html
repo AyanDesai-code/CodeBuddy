@@ -1,38 +1,421 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>{{ project.name|default:"BuilderOS Workspace" }}</title>
+    <title>
+        {{ project.name|default:"BuilderOS Workspace" }}
+    </title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 0 20px;
+            line-height: 1.5;
+            background: #f7f8fa;
+        }
+
+        a {
+            color: #3157a4;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+
+        .page-header h1 {
+            margin: 0;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .quick-actions a {
+            display: inline-block;
+            text-decoration: none;
+            border: 1px solid #ccd4e3;
+            border-radius: 8px;
+            padding: 9px 12px;
+            background: white;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(4, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .metric-card,
+        .panel,
+        .folder-card {
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            background: white;
+            padding: 18px;
+        }
+
+        .metric-card h3 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            color: #666;
+            font-weight: normal;
+        }
+
+        .metric-value {
+            font-size: 34px;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .metric-detail {
+            color: #666;
+            font-size: 13px;
+            margin-top: 6px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns:
+                minmax(0, 2fr)
+                minmax(280px, 1fr);
+            gap: 20px;
+            align-items: start;
+        }
+
+        .panel {
+            margin-bottom: 20px;
+        }
+
+        .panel h2 {
+            margin-top: 0;
+        }
+
+        .progress-track {
+            height: 14px;
+            background: #e7e7e7;
+            border-radius: 999px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #4f70c7;
+        }
+
+        .task-list,
+        .activity-list,
+        .change-list {
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .task-list li,
+        .activity-list li,
+        .change-list li {
+            border-bottom: 1px solid #eee;
+            padding: 11px 0;
+        }
+
+        .task-list li:last-child,
+        .activity-list li:last-child,
+        .change-list li:last-child {
+            border-bottom: none;
+        }
+
+        .timestamp {
+            color: #777;
+            font-size: 12px;
+            display: block;
+            margin-top: 4px;
+        }
+
+        .folder-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .folder-card h3 {
+            margin-top: 0;
+        }
+
+        .folder-card p {
+            color: #555;
+        }
+
+        .empty {
+            color: #777;
+        }
+
+        @media (max-width: 850px) {
+            .dashboard-grid {
+                grid-template-columns:
+                    repeat(2, minmax(0, 1fr));
+            }
+
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .page-header {
+                flex-direction: column;
+            }
+
+            .dashboard-grid,
+            .folder-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
+
 <body>
 
-<h1>{{ project.name|default:"Untitled Project" }}</h1>
+<div class="page-header">
+    <div>
+        <h1>
+            {{ project.name|default:"Untitled Project" }}
+        </h1>
 
-<a href="{% url 'workspace_assistant' project.pk %}">
-    Open Workspace Assistant 
-</a>
-<a href="{% url 'project_change_history' project.pk %}">
-    View Change History 
-</a>
-<a href="{% url 'project_review' project.pk %}">
-    Review Project 
-</a>
-<h2>Workspace</h2>
-
-{% for folder in folders %}
-    <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px;">
-        <h3>
-            <a href="{% url 'workspace_folder' project.pk folder.pk %}">
-                {{ folder.name }}
-            </a>
-        </h3>
-
-        {% if folder.description %}
-            <p>{{ folder.description }}</p>
-        {% else %}
-            <p><em>Empty folder</em></p>
-        {% endif %}
+        <p>
+            Project dashboard and workspace overview.
+        </p>
     </div>
-{% endfor %}
+
+    <nav class="quick-actions">
+        <a href="{% url 'workspace_assistant' project.pk %}">
+            Open Assistant
+        </a>
+
+        <a href="{% url 'project_review' project.pk %}">
+            Review Project
+        </a>
+
+        <a href="{% url 'project_change_history' project.pk %}">
+            Change History
+        </a>
+
+        <a href="{% url 'project_activity' project.pk %}">
+            Activity
+        </a>
+        
+        <a href="{% url 'project_board' project.pk %}">
+            Kanban Board
+        </a>
+    </nav>
+</div>
+
+<div class="dashboard-grid">
+    <div class="metric-card">
+        <h3>Project health</h3>
+
+        <p class="metric-value">
+            {% if health_score != None %}
+                {{ health_score }}%
+            {% else %}
+                —
+            {% endif %}
+        </p>
+
+        <p class="metric-detail">
+            Latest saved review
+        </p>
+    </div>
+
+    <div class="metric-card">
+        <h3>Open conflicts</h3>
+
+        <p class="metric-value">
+            {{ open_conflict_count }}
+        </p>
+
+        <p class="metric-detail">
+            {{ critical_conflict_count }}
+            critical
+        </p>
+    </div>
+
+    <div class="metric-card">
+        <h3>Task progress</h3>
+
+        <p class="metric-value">
+            {{ task_progress }}%
+        </p>
+
+        <p class="metric-detail">
+            {{ completed_tasks }} of
+            {{ total_tasks }} completed
+        </p>
+    </div>
+
+    <div class="metric-card">
+        <h3>Workspace sections</h3>
+
+        <p class="metric-value">
+            {{ folders|length }}
+        </p>
+
+        <p class="metric-detail">
+            Active project sections
+        </p>
+    </div>
+</div>
+
+<div class="main-grid">
+    <main>
+        <div class="panel">
+            <h2>Task Progress</h2>
+
+            <p>
+                {{ completed_tasks }} of
+                {{ total_tasks }} tasks complete.
+            </p>
+
+            <progress
+                value="{{ task_progress }}"
+                max="100"
+                style="width: 100%; height: 16px;"
+            >
+                {{ task_progress }}%
+            </progress>
+        </div>
+
+        <div class="panel">
+            <h2>High-Priority Tasks</h2>
+
+            <ul class="task-list">
+                {% for task in high_priority_tasks %}
+                    <li>
+                        <strong>
+                            {{ task.title }}
+                        </strong>
+
+                        {% if task.description %}
+                            <div>
+                                {{ task.description }}
+                            </div>
+                        {% endif %}
+                    </li>
+
+                {% empty %}
+                    <li class="empty">
+                        No incomplete high-priority tasks.
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="panel">
+            <h2>Workspace</h2>
+
+            <div class="folder-grid">
+                {% for folder in folders %}
+                    <div class="folder-card">
+                        <h3>
+                            <a href="{% url 'workspace_folder' project.pk folder.pk %}">
+                                {{ folder.name }}
+                            </a>
+                        </h3>
+
+                        {% if folder.description %}
+                            <p>
+                                {{ folder.description|truncatechars:220 }}
+                            </p>
+                        {% else %}
+                            <p class="empty">
+                                Empty section
+                            </p>
+                        {% endif %}
+                    </div>
+                {% empty %}
+                    <p class="empty">
+                        No workspace sections exist yet.
+                    </p>
+                {% endfor %}
+            </div>
+        </div>
+    </main>
+
+    <aside>
+        <div class="panel">
+            <h2>Recent Activity</h2>
+
+            <ul class="activity-list">
+                {% for event in recent_events %}
+                    <li>
+                        <strong>
+                            {{ event.title }}
+                        </strong>
+
+                        {% if event.description %}
+                            <div>
+                                {{ event.description }}
+                            </div>
+                        {% endif %}
+
+                        <span class="timestamp">
+                            {{ event.created_at|date:"M j, g:i A" }}
+                        </span>
+                    </li>
+
+                {% empty %}
+                    <li class="empty">
+                        No project activity yet.
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <p>
+                <a href="{% url 'project_activity' project.pk %}">
+                    View all activity
+                </a>
+            </p>
+        </div>
+
+        <div class="panel">
+            <h2>Recent Changes</h2>
+
+            <ul class="change-list">
+                {% for change in recent_changes %}
+                    <li>
+                        <a href="{% url 'project_change_detail' project.pk change.pk %}">
+                            {{ change.summary|default:change.user_message|truncatechars:90 }}
+                        </a>
+
+                        <span class="timestamp">
+                            {{ change.created_at|date:"M j, g:i A" }}
+                        </span>
+                    </li>
+
+                {% empty %}
+                    <li class="empty">
+                        No recorded changes yet.
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <p>
+                <a href="{% url 'project_change_history' project.pk %}">
+                    View complete history
+                </a>
+            </p>
+        </div>
+    </aside>
+</div>
 
 </body>
 </html>

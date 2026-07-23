@@ -4,6 +4,58 @@
     <title>Project Review | {{ project.name }}</title>
 
     <style>
+        .review-delta-card {
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 18px;
+    margin: 20px 0;
+}
+
+.delta-health {
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 18px;
+    background: #f5f5f5;
+    font-size: 18px;
+}
+
+.delta-group {
+    margin-top: 18px;
+}
+
+.delta-group h3 {
+    margin-bottom: 8px;
+}
+
+.delta-list {
+    padding-left: 22px;
+}
+
+.delta-list li {
+    margin-bottom: 8px;
+}
+
+.delta-resolved {
+    border-left: 4px solid #287a35;
+    background: #edf9ed;
+    padding: 8px 10px;
+}
+
+.delta-new-warning {
+    border-left: 4px solid #b17a00;
+    background: #fff8e5;
+    padding: 8px 10px;
+}
+
+.delta-new-critical {
+    border-left: 4px solid #a43636;
+    background: #fff0f0;
+    padding: 8px 10px;
+}
+
+.delta-empty {
+    color: #666;
+}
         body {
             font-family: Arial, sans-serif;
             max-width: 950px;
@@ -54,6 +106,81 @@
 .conflict-actions form {
     margin: 0;
 }
+
+.health-trend-card {
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 18px;
+    margin: 20px 0;
+}
+
+.health-summary {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.health-metric {
+    min-width: 130px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 12px;
+    background: #fafafa;
+}
+
+.health-metric strong {
+    display: block;
+    font-size: 28px;
+}
+
+.health-metric span {
+    color: #666;
+    font-size: 13px;
+}
+
+.trend-improving {
+    color: #287a35;
+}
+
+.trend-declining {
+    color: #a43636;
+}
+
+.trend-unchanged {
+    color: #666;
+}
+
+.health-history-list {
+    margin-top: 18px;
+}
+
+.health-history-row {
+    display: grid;
+    grid-template-columns: 190px 70px 1fr;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.health-bar-track {
+    height: 14px;
+    background: #eee;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.health-bar-fill {
+    height: 100%;
+    background: #5d79c8;
+    border-radius: 999px;
+}
+
+@media (max-width: 700px) {
+    .health-history-row {
+        grid-template-columns: 1fr;
+    }
+}
     </style>
 </head>
 <body>
@@ -70,7 +197,209 @@
     BuilderOS will inspect the project for contradictions, risks,
     missing information, task problems, testing gaps, and documentation quality.
 </p>
+<div class="health-trend-card">
+    <h2>Project Health Trend</h2>
 
+    {% if latest_saved_score != None %}
+        <div class="health-summary">
+            <div class="health-metric">
+                <strong>
+                    {{ latest_saved_score }}%
+                </strong>
+
+                <span>Current health</span>
+            </div>
+
+            <div class="health-metric">
+                {% if previous_saved_score != None %}
+                    <strong>
+                        {{ previous_saved_score }}%
+                    </strong>
+                {% else %}
+                    <strong>—</strong>
+                {% endif %}
+
+                <span>Previous health</span>
+            </div>
+
+            <div class="health-metric">
+                {% if health_change != None %}
+                    {% if health_change > 0 %}
+                        <strong class="trend-improving">
+                            +{{ health_change }}
+                        </strong>
+                    {% elif health_change < 0 %}
+                        <strong class="trend-declining">
+                            {{ health_change }}
+                        </strong>
+                    {% else %}
+                        <strong class="trend-unchanged">
+                            0
+                        </strong>
+                    {% endif %}
+                {% else %}
+                    <strong>—</strong>
+                {% endif %}
+
+                <span>Change</span>
+            </div>
+
+            <div class="health-metric">
+                {% if health_trend == "improving" %}
+                    <strong class="trend-improving">
+                        Improving
+                    </strong>
+                {% elif health_trend == "declining" %}
+                    <strong class="trend-declining">
+                        Declining
+                    </strong>
+                {% elif health_trend == "unchanged" %}
+                    <strong class="trend-unchanged">
+                        Unchanged
+                    </strong>
+                {% else %}
+                    <strong>Unknown</strong>
+                {% endif %}
+
+                <span>Current trend</span>
+            </div>
+        </div>
+
+        <h3>Health History</h3>
+
+        <div class="health-history-list">
+            {% for saved_review in health_history %}
+                <div class="health-history-row">
+                    <span>
+                        {{ saved_review.created_at|date:"M j, Y, g:i A" }}
+                    </span>
+
+                    <strong>
+                        {{ saved_review.health_score }}%
+                    </strong>
+
+                    <div class="health-bar-track">
+                        <div
+                            class="health-bar-fill"
+                            style="width: {{ saved_review.health_score }}%;"
+                        ></div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+    {% else %}
+        <p>
+            No health reviews have been saved yet.
+            Run the first project review to begin tracking health.
+        </p>
+    {% endif %}
+</div>
+{% if review_delta %}
+    <div class="review-delta-card">
+        <h2>Changes Since Last Review</h2>
+
+        {% if review_delta.has_previous_review %}
+            <div class="delta-health">
+                <strong>Health score:</strong>
+
+                {% if review_delta.health_change > 0 %}
+                    <span class="trend-improving">
+                        +{{ review_delta.health_change }}
+                    </span>
+
+                {% elif review_delta.health_change < 0 %}
+                    <span class="trend-declining">
+                        {{ review_delta.health_change }}
+                    </span>
+
+                {% else %}
+                    <span class="trend-unchanged">
+                        No change
+                    </span>
+                {% endif %}
+            </div>
+
+            <div class="delta-group">
+                <h3>Resolved critical issues</h3>
+
+                {% if review_delta.resolved_critical_issues %}
+                    <ul class="delta-list">
+                        {% for issue in review_delta.resolved_critical_issues %}
+                            <li class="delta-resolved">
+                                ✓ {{ issue }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="delta-empty">
+                        No critical issues were resolved.
+                    </p>
+                {% endif %}
+            </div>
+
+            <div class="delta-group">
+                <h3>Resolved warnings</h3>
+
+                {% if review_delta.resolved_warnings %}
+                    <ul class="delta-list">
+                        {% for warning in review_delta.resolved_warnings %}
+                            <li class="delta-resolved">
+                                ✓ {{ warning }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="delta-empty">
+                        No warnings were resolved.
+                    </p>
+                {% endif %}
+            </div>
+
+            <div class="delta-group">
+                <h3>New critical issues</h3>
+
+                {% if review_delta.new_critical_issues %}
+                    <ul class="delta-list">
+                        {% for issue in review_delta.new_critical_issues %}
+                            <li class="delta-new-critical">
+                                ⚠ {{ issue }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="delta-empty">
+                        No new critical issues were detected.
+                    </p>
+                {% endif %}
+            </div>
+
+            <div class="delta-group">
+                <h3>New warnings</h3>
+
+                {% if review_delta.new_warnings %}
+                    <ul class="delta-list">
+                        {% for warning in review_delta.new_warnings %}
+                            <li class="delta-new-warning">
+                                ⚠ {{ warning }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="delta-empty">
+                        No new warnings were detected.
+                    </p>
+                {% endif %}
+            </div>
+
+        {% else %}
+            <p>
+                This is the first saved review. Run another review
+                after changing the project to begin comparing results.
+            </p>
+        {% endif %}
+    </div>
+{% endif %}
 <form id="review-form" method="POST">
     {% csrf_token %}
 
@@ -226,26 +555,6 @@
 
 {% empty %}
     <p>No open conflicts.</p>
-{% endfor %}
-<h2>Review History</h2>
-
-{% for saved_review in previous_reviews %}
-    <div class="review-card">
-        <h3>
-            {{ saved_review.created_at|date:"F j, Y, g:i A" }}
-        </h3>
-
-        <p>
-            <strong>Health score:</strong>
-            {{ saved_review.health_score }}%
-        </p>
-
-        <p>
-            {{ saved_review.summary }}
-        </p>
-    </div>
-{% empty %}
-    <p>No saved reviews yet.</p>
 {% endfor %}
 
 

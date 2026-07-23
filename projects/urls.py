@@ -24,4 +24,8 @@ urlpatterns = [
     path("<int:project_pk>/conflicts/<int:conflict_pk>/resolve/",views.resolve_project_conflict,name="resolve_project_conflict",),
     path("<int:project_pk>/conflicts/<int:conflict_pk>/ignore/",views.ignore_project_conflict,name="ignore_project_conflict",),   
     path("<int:project_pk>/conflicts/<int:conflict_pk>/apply-fix/",views.apply_project_conflict_fix,name="apply_project_conflict_fix",),
+    path("<int:project_pk>/activity/",views.project_activity,name="project_activity",),
+    path("<int:project_pk>/board/",views.project_board,name="project_board",),
+    path("<int:project_pk>/tasks/<int:task_pk>/status/",views.update_task_status,name="update_task_status",),
+    path("<int:project_pk>/tasks/""<int:task_pk>/board-move/",views.move_task_on_board,name="move_task_on_board",),
 ]

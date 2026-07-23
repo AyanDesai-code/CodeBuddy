@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Board | {{ project.name }}</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 30px;
+            background: #f7f8fa;
+            line-height: 1.5;
+        }
+
+        .page-header {
+            max-width: 1400px;
+            margin: 0 auto 24px;
+        }
+
+        .toolbar {
+            margin-bottom: 16px;
+        }
+
+        .board {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns:
+                repeat(4, minmax(250px, 1fr));
+            gap: 16px;
+            align-items: start;
+        }
+
+        .column {
+            background: #eef1f5;
+            border-radius: 12px;
+            padding: 14px;
+            min-height: 420px;
+        }
+
+        .column-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .column-header h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .task-count {
+            display: inline-block;
+            min-width: 24px;
+            padding: 2px 7px;
+            border-radius: 999px;
+            background: white;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .task-list {
+            min-height: 330px;
+        }
+
+        .task-card {
+            background: white;
+            border: 1px solid #d9dde5;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 12px;
+            cursor: grab;
+            transition:
+                opacity 0.15s ease,
+                transform 0.15s ease,
+                box-shadow 0.15s ease;
+        }
+
+        .task-card:active {
+            cursor: grabbing;
+        }
+
+        .task-card.dragging {
+            opacity: 0.45;
+            transform: scale(0.98);
+        }
+
+        .task-card h3 {
+            margin: 0 0 8px;
+            font-size: 16px;
+        }
+
+        .task-description {
+            color: #555;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .priority {
+            display: inline-block;
+            border-radius: 999px;
+            padding: 3px 8px;
+            background: #eee;
+            font-size: 12px;
+        }
+
+        .status-form {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .status-form label {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .status-form select,
+        .status-form button {
+            padding: 6px 8px;
+            font: inherit;
+        }
+
+        .status-form select {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .status-form button {
+            cursor: pointer;
+        }
+
+        .empty-column {
+            color: #777;
+            font-size: 14px;
+        }
+
+        .column.drag-over {
+            outline: 2px dashed #4f70c7;
+            outline-offset: -5px;
+            background: #e5eaf5;
+        }
+
+        .board-status {
+            max-width: 1400px;
+            margin: 0 auto 16px;
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        .board-status-success {
+            background: #edf9ed;
+            border: 1px solid #a8d5ad;
+        }
+
+        .board-status-error {
+            background: #fff0f0;
+            border: 1px solid #e0a0a0;
+        }
+
+        @media (max-width: 1100px) {
+            .board {
+                grid-template-columns:
+                    repeat(2, minmax(250px, 1fr));
+            }
+        }
+
+        @media (max-width: 620px) {
+            body {
+                padding: 18px;
+            }
+
+            .board {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="page-header">
+    <div class="toolbar">
+        <a href="{% url 'workspace' project.pk %}">
+            ← Back to Workspace
+        </a>
+    </div>
+
+    <h1>{{ project.name }} Board</h1>
+
+    <p>
+        Drag tasks between columns or use the status dropdown.
+    </p>
+</div>
+
+<div
+    id="board-status"
+    class="board-status"
+    hidden
+></div>
+
+<div class="board">
+
+    <!-- TO DO -->
+    <section
+        class="column"
+        data-status="todo"
+    >
+        <div class="column-header">
+            <h2>To Do</h2>
+
+            <span class="task-count">
+                {{ todo_tasks|length }}
+            </span>
+        </div>
+
+        <div class="task-list">
+            {% for task in todo_tasks %}
+                <div
+                    class="task-card"
+                    draggable="true"
+                    data-task-id="{{ task.pk }}"
+                    data-move-url="{% url 'move_task_on_board' project.pk task.pk %}"
+                >
+                    <h3>{{ task.title }}</h3>
+
+                    {% if task.description %}
+                        <div class="task-description">
+                            {{ task.description }}
+                        </div>
+                    {% endif %}
+
+                    <span class="priority">
+                        {{ task.get_priority_display }}
+                    </span>
+
+                    <form
+                        method="POST"
+                        action="{% url 'update_task_status' project.pk task.pk %}"
+                        class="status-form"
+                    >
+                        {% csrf_token %}
+
+                        <label for="status-{{ task.pk }}">
+                            Move to
+                        </label>
+
+                        <select
+                            id="status-{{ task.pk }}"
+                            name="status"
+                        >
+                            {% for value, label in status_choices %}
+                                <option
+                                    value="{{ value }}"
+                                    {% if task.status == value %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        <button type="submit">
+                            Move
+                        </button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+
+        <p
+            class="empty-column"
+            {% if todo_tasks %}
+                hidden
+            {% endif %}
+        >
+            No tasks in To Do.
+        </p>
+    </section>
+
+    <!-- IN PROGRESS -->
+    <section
+        class="column"
+        data-status="in_progress"
+    >
+        <div class="column-header">
+            <h2>In Progress</h2>
+
+            <span class="task-count">
+                {{ in_progress_tasks|length }}
+            </span>
+        </div>
+
+        <div class="task-list">
+            {% for task in in_progress_tasks %}
+                <div
+                    class="task-card"
+                    draggable="true"
+                    data-task-id="{{ task.pk }}"
+                    data-move-url="{% url 'move_task_on_board' project.pk task.pk %}"
+                >
+                    <h3>{{ task.title }}</h3>
+
+                    {% if task.description %}
+                        <div class="task-description">
+                            {{ task.description }}
+                        </div>
+                    {% endif %}
+
+                    <span class="priority">
+                        {{ task.get_priority_display }}
+                    </span>
+
+                    <form
+                        method="POST"
+                        action="{% url 'update_task_status' project.pk task.pk %}"
+                        class="status-form"
+                    >
+                        {% csrf_token %}
+
+                        <label for="status-{{ task.pk }}">
+                            Move to
+                        </label>
+
+                        <select
+                            id="status-{{ task.pk }}"
+                            name="status"
+                        >
+                            {% for value, label in status_choices %}
+                                <option
+                                    value="{{ value }}"
+                                    {% if task.status == value %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        <button type="submit">
+                            Move
+                        </button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+
+        <p
+            class="empty-column"
+            {% if in_progress_tasks %}
+                hidden
+            {% endif %}
+        >
+            No tasks in progress.
+        </p>
+    </section>
+
+    <!-- REVIEW -->
+    <section
+        class="column"
+        data-status="review"
+    >
+        <div class="column-header">
+            <h2>Review</h2>
+
+            <span class="task-count">
+                {{ review_tasks|length }}
+            </span>
+        </div>
+
+        <div class="task-list">
+            {% for task in review_tasks %}
+                <div
+                    class="task-card"
+                    draggable="true"
+                    data-task-id="{{ task.pk }}"
+                    data-move-url="{% url 'move_task_on_board' project.pk task.pk %}"
+                >
+                    <h3>{{ task.title }}</h3>
+
+                    {% if task.description %}
+                        <div class="task-description">
+                            {{ task.description }}
+                        </div>
+                    {% endif %}
+
+                    <span class="priority">
+                        {{ task.get_priority_display }}
+                    </span>
+
+                    <form
+                        method="POST"
+                        action="{% url 'update_task_status' project.pk task.pk %}"
+                        class="status-form"
+                    >
+                        {% csrf_token %}
+
+                        <label for="status-{{ task.pk }}">
+                            Move to
+                        </label>
+
+                        <select
+                            id="status-{{ task.pk }}"
+                            name="status"
+                        >
+                            {% for value, label in status_choices %}
+                                <option
+                                    value="{{ value }}"
+                                    {% if task.status == value %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        <button type="submit">
+                            Move
+                        </button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+
+        <p
+            class="empty-column"
+            {% if review_tasks %}
+                hidden
+            {% endif %}
+        >
+            No tasks awaiting review.
+        </p>
+    </section>
+
+    <!-- DONE -->
+    <section
+        class="column"
+        data-status="done"
+    >
+        <div class="column-header">
+            <h2>Done</h2>
+
+            <span class="task-count">
+                {{ done_tasks|length }}
+            </span>
+        </div>
+
+        <div class="task-list">
+            {% for task in done_tasks %}
+                <div
+                    class="task-card"
+                    draggable="true"
+                    data-task-id="{{ task.pk }}"
+                    data-move-url="{% url 'move_task_on_board' project.pk task.pk %}"
+                >
+                    <h3>{{ task.title }}</h3>
+
+                    {% if task.description %}
+                        <div class="task-description">
+                            {{ task.description }}
+                        </div>
+                    {% endif %}
+
+                    <span class="priority">
+                        {{ task.get_priority_display }}
+                    </span>
+
+                    <form
+                        method="POST"
+                        action="{% url 'update_task_status' project.pk task.pk %}"
+                        class="status-form"
+                    >
+                        {% csrf_token %}
+
+                        <label for="status-{{ task.pk }}">
+                            Move to
+                        </label>
+
+                        <select
+                            id="status-{{ task.pk }}"
+                            name="status"
+                        >
+                            {% for value, label in status_choices %}
+                                <option
+                                    value="{{ value }}"
+                                    {% if task.status == value %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        <button type="submit">
+                            Move
+                        </button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+
+        <p
+            class="empty-column"
+            {% if done_tasks %}
+                hidden
+            {% endif %}
+        >
+            No completed tasks.
+        </p>
+    </section>
+
+</div>
+
+<script>
+    const taskCards = document.querySelectorAll(
+        ".task-card"
+    );
+
+    const columns = document.querySelectorAll(
+        ".column"
+    );
+
+    const boardStatus = document.getElementById(
+        "board-status"
+    );
+
+    let draggedCard = null;
+    let originalContainer = null;
+    let originalNextSibling = null;
+
+    function getCookie(name) {
+        const cookies = document.cookie
+            ? document.cookie.split(";")
+            : [];
+
+        for (const cookie of cookies) {
+            const trimmedCookie = cookie.trim();
+
+            if (
+                trimmedCookie.startsWith(
+                    name + "="
+                )
+            ) {
+                return decodeURIComponent(
+                    trimmedCookie.substring(
+                        name.length + 1
+                    )
+                );
+            }
+        }
+
+        return null;
+    }
+
+    function showBoardStatus(
+        message,
+        isError = false,
+    ) {
+        boardStatus.textContent = message;
+
+        boardStatus.className = (
+            "board-status "
+            + (
+                isError
+                    ? "board-status-error"
+                    : "board-status-success"
+            )
+        );
+
+        boardStatus.hidden = false;
+
+        window.clearTimeout(
+            showBoardStatus.timeoutId
+        );
+
+        showBoardStatus.timeoutId =
+            window.setTimeout(
+                function () {
+                    boardStatus.hidden = true;
+                },
+                3000,
+            );
+    }
+
+    function getTaskIds(taskList) {
+        return Array.from(
+            taskList.querySelectorAll(
+                ".task-card"
+            )
+        ).map(
+            function (card) {
+                return Number(
+                    card.dataset.taskId
+                );
+            }
+        );
+    }
+
+    function updateColumnDisplay(column) {
+        const cards = column.querySelectorAll(
+            ".task-card"
+        );
+
+        const taskCount = column.querySelector(
+            ".task-count"
+        );
+
+        const emptyMessage = column.querySelector(
+            ".empty-column"
+        );
+
+        taskCount.textContent = cards.length;
+
+        if (emptyMessage) {
+            emptyMessage.hidden = (
+                cards.length > 0
+            );
+        }
+    }
+
+    function updateCardStatusSelect(
+        card,
+        newStatus,
+    ) {
+        const select = card.querySelector(
+            'select[name="status"]'
+        );
+
+        if (select) {
+            select.value = newStatus;
+        }
+    }
+
+    function getCardAfterPointer(
+        taskList,
+        pointerY,
+    ) {
+        const cards = [
+            ...taskList.querySelectorAll(
+                ".task-card:not(.dragging)"
+            ),
+        ];
+
+        let closest = {
+            offset: Number.NEGATIVE_INFINITY,
+            card: null,
+        };
+
+        for (const card of cards) {
+            const box =
+                card.getBoundingClientRect();
+
+            const offset = (
+                pointerY
+                - box.top
+                - box.height / 2
+            );
+
+            if (
+                offset < 0
+                && offset > closest.offset
+            ) {
+                closest = {
+                    offset: offset,
+                    card: card,
+                };
+            }
+        }
+
+        return closest.card;
+    }
+
+    async function saveTaskMove(
+        card,
+        destinationColumn,
+    ) {
+        const taskList =
+            destinationColumn.querySelector(
+                ".task-list"
+            );
+
+        const payload = {
+            status:
+                destinationColumn.dataset.status,
+            ordered_task_ids:
+                getTaskIds(taskList),
+        };
+
+        const response = await fetch(
+            card.dataset.moveUrl,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type":
+                        "application/json",
+                    "X-CSRFToken":
+                        getCookie("csrftoken"),
+                },
+                body: JSON.stringify(payload),
+            }
+        );
+
+        let result;
+
+        try {
+            result = await response.json();
+        } catch (error) {
+            throw new Error(
+                "The server returned an invalid response."
+            );
+        }
+
+        if (!response.ok || !result.success) {
+            throw new Error(
+                result.error
+                || "The task could not be moved."
+            );
+        }
+
+        return result;
+    }
+
+    for (const card of taskCards) {
+        card.addEventListener(
+            "dragstart",
+            function (event) {
+                draggedCard = card;
+                originalContainer =
+                    card.parentElement;
+                originalNextSibling =
+                    card.nextElementSibling;
+
+                event.dataTransfer.effectAllowed =
+                    "move";
+
+                event.dataTransfer.setData(
+                    "text/plain",
+                    card.dataset.taskId,
+                );
+
+                window.setTimeout(
+                    function () {
+                        card.classList.add(
+                            "dragging"
+                        );
+                    },
+                    0,
+                );
+            }
+        );
+
+        card.addEventListener(
+            "dragend",
+            function () {
+                card.classList.remove(
+                    "dragging"
+                );
+
+                for (const column of columns) {
+                    column.classList.remove(
+                        "drag-over"
+                    );
+                }
+            }
+        );
+    }
+
+    for (const column of columns) {
+        const taskList = column.querySelector(
+            ".task-list"
+        );
+
+        column.addEventListener(
+            "dragover",
+            function (event) {
+                event.preventDefault();
+
+                if (!draggedCard) {
+                    return;
+                }
+
+                event.dataTransfer.dropEffect =
+                    "move";
+
+                column.classList.add(
+                    "drag-over"
+                );
+
+                const nextCard =
+                    getCardAfterPointer(
+                        taskList,
+                        event.clientY,
+                    );
+
+                if (nextCard === null) {
+                    taskList.appendChild(
+                        draggedCard
+                    );
+                } else {
+                    taskList.insertBefore(
+                        draggedCard,
+                        nextCard,
+                    );
+                }
+            }
+        );
+
+        column.addEventListener(
+            "dragleave",
+            function (event) {
+                if (
+                    !column.contains(
+                        event.relatedTarget
+                    )
+                ) {
+                    column.classList.remove(
+                        "drag-over"
+                    );
+                }
+            }
+        );
+
+        column.addEventListener(
+            "drop",
+            async function (event) {
+                event.preventDefault();
+
+                column.classList.remove(
+                    "drag-over"
+                );
+
+                if (!draggedCard) {
+                    return;
+                }
+
+                const movedCard = draggedCard;
+                const previousColumn =
+                    originalContainer.closest(
+                        ".column"
+                    );
+
+                const newStatus =
+                    column.dataset.status;
+
+                try {
+                    await saveTaskMove(
+                        movedCard,
+                        column,
+                    );
+
+                    updateCardStatusSelect(
+                        movedCard,
+                        newStatus,
+                    );
+
+                    updateColumnDisplay(column);
+
+                    if (
+                        previousColumn
+                        && previousColumn !== column
+                    ) {
+                        updateColumnDisplay(
+                            previousColumn
+                        );
+                    }
+
+                    showBoardStatus(
+                        "Task position saved."
+                    );
+
+                } catch (error) {
+                    if (
+                        originalNextSibling
+                        && originalNextSibling.parentElement
+                            === originalContainer
+                    ) {
+                        originalContainer.insertBefore(
+                            movedCard,
+                            originalNextSibling,
+                        );
+                    } else {
+                        originalContainer.appendChild(
+                            movedCard
+                        );
+                    }
+
+                    updateColumnDisplay(column);
+
+                    if (previousColumn) {
+                        updateColumnDisplay(
+                            previousColumn
+                        );
+                    }
+
+                    showBoardStatus(
+                        error.message,
+                        true,
+                    );
+                } finally {
+                    draggedCard = null;
+                    originalContainer = null;
+                    originalNextSibling = null;
+                }
+            }
+        );
+    }
+</script>
+
+</body>
+</html>

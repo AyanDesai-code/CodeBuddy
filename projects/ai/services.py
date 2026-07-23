@@ -69,6 +69,12 @@ Make the whole interaction short and cordial,
 Return only the structured response required by ProjectInterviewReply.
 """
 
+TaskStatus = Literal[
+    "todo",
+    "in_progress",
+    "review",
+    "done",
+]
 
 def generate_reply(project) -> ProjectInterviewReply:
     messages = [
@@ -184,6 +190,17 @@ For every task return:
 - title: a short, actionable task title
 - description: practical details explaining the task
 - priority: exactly 1, 2, or 3
+-status
+
+status must be exactly one of:
+
+todo
+in_progress
+review
+done
+
+New tasks should normally use "todo" unless the project context clearly
+indicates the work is already underway or completed.
 
 Priority meanings:
 
@@ -209,6 +226,7 @@ class GeneratedTask(BaseModel):
     title: str
     description: str
     priority: int
+    status: TaskStatus = "todo"
 
 class GeneratedWorkspace(BaseModel):
     project_name: str
@@ -324,6 +342,18 @@ Requirements:
   1 = Low
   2 = Medium
   3 = High
+  Every generated task must also include:
+
+status
+
+Status must be one of:
+
+todo
+in_progress
+review
+done
+
+New tasks should almost always use "todo".
 """
 def generate_additional_tasks(project) -> AdditionalTasks:
     conversation_text = "\n\n".join(
@@ -773,7 +803,7 @@ class TaskToUpdate(BaseModel):
     new_title: str
     description: str
     priority: int
-
+    status: TaskStatus | None = None
 
 class TaskSynchronization(BaseModel):
     tasks_to_add: list[GeneratedTask]
@@ -818,6 +848,25 @@ Rules:
   1 = Low
   2 = Medium
   3 = High
+
+  Each task also has a workflow status.
+
+Allowed values:
+
+todo
+in_progress
+review
+done
+
+When updating a task:
+
+- Preserve its current status unless the project change clearly requires
+  moving it.
+- Use review only if the work is awaiting testing, validation, or
+  approval.
+- Use done only if the project clearly states the work is complete.
+
+Return status for every added and updated task.
 
 Return only the structured response required by TaskSynchronization.
 """

@@ -217,6 +217,7 @@
         <strong>User request</strong>
         <p>{{ change.user_message|linebreaksbr }}</p>
     </div>
+    
 
     {% if change.summary %}
         <p>
@@ -350,6 +351,10 @@
                     <strong>Priority:</strong>
                     {{ item.after.priority }}
                 </p>
+                <p>
+                    <strong>Status:</strong>
+                    {{ item.after.status|default:"todo" }}
+                </p>
 
                 <p>
                     <strong>Completed:</strong>
@@ -368,7 +373,10 @@
                     <strong>Priority:</strong>
                     {{ item.before.priority }}
                 </p>
-
+                <p>
+                    <strong>Status:</strong>
+                    {{ item.before.status|default:"todo" }}
+                </p>
                 <p>
                     <strong>Completed:</strong>
                     {{ item.before.completed }}

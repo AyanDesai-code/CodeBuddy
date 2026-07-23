@@ -1,4 +1,3 @@
-from django.db import models
 
 # Create your models here.
 from django.conf import settings
@@ -75,31 +74,59 @@ class Task(models.Model):
         MEDIUM = 2, "Medium"
         HIGH = 3, "High"
 
+    class Status(models.TextChoices):
+        TODO = "todo", "To Do"
+        IN_PROGRESS = "in_progress", "In Progress"
+        REVIEW = "review", "Review"
+        DONE = "done", "Done"
+
     project = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
         related_name="tasks",
     )
 
-    title = models.CharField(max_length=200)
+    title = models.CharField(
+        max_length=200,
+    )
 
-    description = models.TextField(blank=True)
+    description = models.TextField(
+        blank=True,
+    )
 
-    completed = models.BooleanField(default=False)
+    completed = models.BooleanField(
+        default=False,
+    )
 
     priority = models.IntegerField(
         choices=Priority.choices,
         default=Priority.MEDIUM,
     )
 
-    order = models.PositiveIntegerField(default=0)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.TODO,
+    )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    order = models.PositiveIntegerField(
+        default=0,
+    )
 
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
 
     class Meta:
-        ordering = ["order", "-priority", "created_at"]
+        ordering = [
+            "order",
+            "-priority",
+            "created_at",
+        ]
 
     def __str__(self):
         return self.title
@@ -312,4 +339,88 @@ class ProjectConflict(models.Model):
         return (
             f"{self.project.name}: "
             f"{self.title}"
+        )
+
+class ProjectEvent(models.Model):
+    class EventType(models.TextChoices):
+        PROJECT_CREATED = (
+            "project_created",
+            "Project Created",
+        )
+        WORKSPACE_GENERATED = (
+            "workspace_generated",
+            "Workspace Generated",
+        )
+        WORKSPACE_UPDATED = (
+            "workspace_updated",
+            "Workspace Updated",
+        )
+        PROJECT_REVIEWED = (
+            "project_reviewed",
+            "Project Reviewed",
+        )
+        CONFLICT_FIXED = (
+            "conflict_fixed",
+            "Conflict Fixed",
+        )
+        CONFLICT_RESOLVED = (
+            "conflict_resolved",
+            "Conflict Resolved",
+        )
+        CONFLICT_IGNORED = (
+            "conflict_ignored",
+            "Conflict Ignored",
+        )
+        CHANGE_UNDONE = (
+            "change_undone",
+            "Change Undone",
+        )
+        TASK_COMPLETED = (
+            "task_completed",
+            "Task Completed",
+        )
+        TASK_REOPENED = (
+            "task_reopened",
+            "Task Reopened",
+        )
+        TASK_STATUS_CHANGED = (
+            "task_status_changed",
+            "Task Status Changed",
+        )
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="events",
+    )
+
+    event_type = models.CharField(
+        max_length=40,
+        choices=EventType.choices,
+    )
+
+    title = models.CharField(
+        max_length=200,
+    )
+
+    description = models.TextField(
+        blank=True,
+    )
+
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return (
+            f"{self.project.name}: "
+            f"{self.get_event_type_display()}"
         )

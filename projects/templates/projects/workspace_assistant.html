@@ -55,32 +55,101 @@
             color: #666;
             font-size: 12px;
         }
+
         .update-summary {
-    border: 1px solid #b8d8b8;
-    background: #f1faf1;
-    border-radius: 10px;
-    padding: 18px;
-    margin: 20px 0 28px;
-}
+            border: 1px solid #b8d8b8;
+            background: #f1faf1;
+            border-radius: 10px;
+            padding: 18px;
+            margin: 20px 0 28px;
+        }
 
-.update-summary h2 {
-    margin-top: 0;
-}
+        .update-summary h2 {
+            margin-top: 0;
+        }
 
-.summary-section {
-    margin-top: 16px;
-}
+        .summary-section {
+            margin-top: 16px;
+        }
 
-.summary-section h3 {
-    margin-bottom: 6px;
-}
+        .summary-section h3 {
+            margin-bottom: 6px;
+        }
 
-.summary-section ul {
-    margin-top: 6px;
-}
+        .summary-section ul {
+            margin-top: 6px;
+        }
+
+        .summary-list {
+            padding-left: 20px;
+        }
+
+        .summary-list li {
+            margin-bottom: 5px;
+        }
+
+        .summary-metrics {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .metric {
+            min-width: 100px;
+            border: 1px solid #d8e5d8;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            background: white;
+        }
+
+        .metric strong {
+            display: block;
+            font-size: 22px;
+        }
+
+        .metric span {
+            color: #666;
+            font-size: 13px;
+        }
+
+        .metric-added,
+        .positive-change {
+            color: #287a35;
+        }
+
+        .metric-updated {
+            color: #805d00;
+        }
+
+        .metric-removed,
+        .negative-change {
+            color: #a43636;
+        }
+
+        .neutral-change {
+            color: #666;
+        }
+
+        .score-change {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            font-size: 18px;
+        }
+
+        .review-status {
+            margin-top: 18px;
+            border-top: 1px solid #d8e5d8;
+            padding-top: 14px;
+            font-weight: bold;
+        }
     </style>
 </head>
+
 <body>
+
 {% if update_summary %}
     <div class="update-summary">
         <h2>✓ Project Updated</h2>
@@ -89,9 +158,9 @@
             <h3>Workspace sections</h3>
 
             {% if update_summary.sections %}
-                <ul>
+                <ul class="summary-list">
                     {% for section in update_summary.sections %}
-                        <li>{{ section }}</li>
+                        <li>✓ {{ section }}</li>
                     {% endfor %}
                 </ul>
             {% else %}
@@ -100,24 +169,12 @@
         </div>
 
         <div class="summary-section">
-            <h3>Tasks</h3>
-
-            <p>
-                Added: {{ update_summary.task_changes.added }}
-                &nbsp;|&nbsp;
-                Updated: {{ update_summary.task_changes.updated }}
-                &nbsp;|&nbsp;
-                Removed: {{ update_summary.task_changes.removed }}
-            </p>
-        </div>
-
-        <div class="summary-section">
-            <h3>Facts changed</h3>
+            <h3>Canonical facts</h3>
 
             {% if update_summary.facts_changed %}
-                <ul>
+                <ul class="summary-list">
                     {% for fact in update_summary.facts_changed %}
-                        <li>{{ fact }}</li>
+                        <li>✓ {{ fact }}</li>
                     {% endfor %}
                 </ul>
             {% else %}
@@ -125,20 +182,111 @@
             {% endif %}
         </div>
 
-        {% if update_summary.health_score != None %}
-            <div class="summary-section">
-                <h3>Project health</h3>
+        <div class="summary-section">
+            <h3>Tasks</h3>
 
-                <p>
-                    Latest score:
+            <div class="summary-metrics">
+                <div class="metric">
+                    <strong class="metric-added">
+                        +{{ update_summary.task_changes.added }}
+                    </strong>
+                    <span>Added</span>
+                </div>
+
+                <div class="metric">
+                    <strong class="metric-updated">
+                        ~{{ update_summary.task_changes.updated }}
+                    </strong>
+                    <span>Updated</span>
+                </div>
+
+                <div class="metric">
+                    <strong class="metric-removed">
+                        -{{ update_summary.task_changes.removed }}
+                    </strong>
+                    <span>Removed</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-section">
+            <h3>Project health</h3>
+
+            {% if update_summary.health_score != None %}
+                <p class="score-change">
+                    {% if update_summary.previous_health_score != None %}
+                        <strong>
+                            {{ update_summary.previous_health_score }}%
+                        </strong>
+
+                        <span>→</span>
+                    {% endif %}
+
                     <strong>
                         {{ update_summary.health_score }}%
                     </strong>
+
+                    {% if update_summary.health_score_change != None %}
+                        {% if update_summary.health_score_change > 0 %}
+                            <span class="positive-change">
+                                (+{{ update_summary.health_score_change }})
+                            </span>
+                        {% elif update_summary.health_score_change < 0 %}
+                            <span class="negative-change">
+                                ({{ update_summary.health_score_change }})
+                            </span>
+                        {% else %}
+                            <span class="neutral-change">
+                                (no change)
+                            </span>
+                        {% endif %}
+                    {% endif %}
                 </p>
-            </div>
-        {% endif %}
+            {% else %}
+                <p>Health score unavailable.</p>
+            {% endif %}
+        </div>
+
+        <div class="summary-section">
+            <h3>Open conflicts</h3>
+
+            <p class="score-change">
+                <strong>
+                    {{ update_summary.previous_open_conflicts }}
+                </strong>
+
+                <span>→</span>
+
+                <strong>
+                    {{ update_summary.open_conflicts }}
+                </strong>
+
+                {% if update_summary.conflict_count_change < 0 %}
+                    <span class="positive-change">
+                        ({{ update_summary.conflict_count_change }})
+                    </span>
+                {% elif update_summary.conflict_count_change > 0 %}
+                    <span class="negative-change">
+                        (+{{ update_summary.conflict_count_change }})
+                    </span>
+                {% else %}
+                    <span class="neutral-change">
+                        (no change)
+                    </span>
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="review-status">
+            {% if update_summary.review_completed %}
+                ✓ Automatic project review completed.
+            {% else %}
+                ⚠ Workspace updated, but the automatic review failed.
+            {% endif %}
+        </div>
     </div>
 {% endif %}
+
 <div class="toolbar">
     <a href="{% url 'workspace' project.pk %}">
         ← Back to Workspace
@@ -153,7 +301,6 @@
 
 <div class="messages">
     {% for message in messages %}
-
         <div
             class="
                 message
@@ -174,11 +321,10 @@
         </div>
 
     {% empty %}
-
         <p>No assistant messages yet.</p>
-
     {% endfor %}
 </div>
+
 <form id="assistant-form" method="POST">
     {% csrf_token %}
 
@@ -193,6 +339,7 @@
         Send
     </button>
 </form>
+
 <div id="update-status" hidden>
     <h3>BuilderOS is updating your project...</h3>
 
@@ -200,9 +347,11 @@
     <p>Regenerating affected workspace sections</p>
     <p>Synchronizing tasks</p>
     <p>Saving change history</p>
+    <p>Running automatic project review</p>
 
     <p>This may take around 1–2 minutes.</p>
 </div>
+
 <script>
     const assistantForm =
         document.getElementById("assistant-form");
@@ -220,5 +369,6 @@
         updateStatus.hidden = false;
     });
 </script>
+
 </body>
 </html>
