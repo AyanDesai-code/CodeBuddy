@@ -1,18 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Activity | {{ project.name }}</title>
+{% extends "projects/base.html" %}
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 850px;
-            margin: 40px auto;
-            padding: 0 20px;
-            line-height: 1.5;
-        }
+{% block title %}
+    Activity | {{ project.name }}
+{% endblock %}
 
-        .toolbar {
+{% block extra_css %}
+<style>
+.toolbar {
             margin-bottom: 24px;
         }
 
@@ -64,17 +58,10 @@
         .event-description {
             margin-bottom: 8px;
         }
-    </style>
-</head>
+</style>
+{% endblock %}
 
-<body>
-
-<div class="toolbar">
-    <a href="{% url 'workspace' project.pk %}">
-        ← Back to Workspace
-    </a>
-</div>
-
+{% block content %}
 <h1>{{ project.name }} Activity</h1>
 
 <p>
@@ -109,6 +96,4 @@
         </p>
     {% endfor %}
 </div>
-
-</body>
-</html>
+{% endblock %}

@@ -1,17 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Add Task | {{ project.name }}</title>
+{% extends "projects/base.html" %}
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 700px;
-            margin: 40px auto;
-            padding: 0 20px;
-        }
+{% block title %}
+    Add Task | {{ project.name }}
+{% endblock %}
 
-        label {
+{% block extra_css %}
+<style>
+label {
             display: block;
             margin-top: 18px;
             margin-bottom: 6px;
@@ -31,10 +26,10 @@
             padding: 10px 16px;
             cursor: pointer;
         }
-    </style>
-</head>
-<body>
+</style>
+{% endblock %}
 
+{% block content %}
 <h1>Add Task</h1>
 
 <form method="POST">
@@ -75,6 +70,4 @@
         Cancel
     </a>
 </p>
-
-</body>
-</html>
+{% endblock %}

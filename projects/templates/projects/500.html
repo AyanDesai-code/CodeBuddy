@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>Server Error | BuilderOS</title>
+
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background: #0d1117;
+            color: #e6edf3;
+            font-family: Arial, sans-serif;
+            line-height: 1.5;
+        }
+
+        .error-card {
+            width: 100%;
+            max-width: 620px;
+            padding: 48px 28px;
+            text-align: center;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 16px;
+            box-shadow:
+                0 8px 24px rgba(0, 0, 0, 0.28);
+        }
+
+        .error-code {
+            margin: 0;
+            color: #f85149;
+            font-size: clamp(72px, 15vw, 130px);
+            line-height: 1;
+        }
+
+        h1 {
+            margin: 18px 0 10px;
+        }
+
+        p {
+            color: #8b949e;
+            margin-bottom: 24px;
+        }
+
+        a {
+            display: inline-block;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: #238636;
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        a:hover {
+            background: #2ea043;
+        }
+    </style>
+</head>
+
+<body>
+    <section class="error-card">
+        <p class="error-code">500</p>
+
+        <h1>Something went wrong</h1>
+
+        <p>
+            BuilderOS encountered an unexpected error.
+            Your saved project data should still be safe.
+            Please return to your projects and try again.
+        </p>
+
+        <a href="/projects/">
+            Return to My Projects
+        </a>
+    </section>
+</body>
+</html>

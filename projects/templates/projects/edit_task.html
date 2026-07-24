@@ -1,11 +1,10 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Edit Task</title>
-</head>
+{% extends "projects/base.html" %}
 
-<body>
+{% block title %}
+    Edit Task
+{% endblock %}
 
+{% block content %}
 <h1>Edit Task</h1>
 
 <form method="POST">
@@ -60,6 +59,4 @@
     </button>
 
 </form>
-
-</body>
-</html>
+{% endblock %}

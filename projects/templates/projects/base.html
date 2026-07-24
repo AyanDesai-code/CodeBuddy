@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>
+        {% block title %}
+            BuilderOS
+        {% endblock %}
+    </title>
+
+    <style>
+        :root {
+            color-scheme: dark;
+
+            --background: #0d1117;
+            --surface: #161b22;
+            --surface-raised: #1c2128;
+            --surface-soft: #21262d;
+
+            --border: #30363d;
+            --border-strong: #484f58;
+
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+
+            --accent: #58a6ff;
+            --accent-hover: #79c0ff;
+            --accent-surface: #1f3a5f;
+
+            --success: #3fb950;
+            --success-background: #122b1a;
+            --success-border: #2f6f3e;
+
+            --warning: #d29922;
+            --warning-background: #2d240e;
+            --warning-border: #7c5d16;
+
+            --danger: #f85149;
+            --danger-background: #32191d;
+            --danger-border: #8e353a;
+
+            --info-background: #152943;
+            --info-border: #285786;
+
+            --shadow:
+                0 8px 24px rgba(0, 0, 0, 0.28);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            background: var(--background);
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family:
+                Inter,
+                Arial,
+                sans-serif;
+            line-height: 1.5;
+            background: var(--background);
+            color: var(--text);
+        }
+
+        a {
+            color: var(--accent);
+        }
+
+        a:hover {
+            color: var(--accent-hover);
+        }
+
+        button,
+        input,
+        textarea,
+        select {
+            font: inherit;
+        }
+
+        input,
+        textarea,
+        select {
+            color: var(--text);
+            background: var(--surface-soft);
+            border: 1px solid var(--border-strong);
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: 1px;
+            border-color: var(--accent);
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        hr {
+            border: 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(22, 27, 34, 0.96);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+        }
+
+        .site-header-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 14px 20px;
+
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .brand {
+            color: var(--text);
+            font-size: 21px;
+            font-weight: 700;
+            text-decoration: none;
+            letter-spacing: -0.02em;
+        }
+
+        .brand:hover {
+            color: var(--accent-hover);
+        }
+
+        .account-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .username {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .logout-form {
+            margin: 0;
+        }
+
+        .logout-button {
+            border: 1px solid var(--border-strong);
+            background: var(--surface-soft);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 7px 11px;
+            cursor: pointer;
+        }
+
+        .logout-button:hover {
+            background: var(--surface-raised);
+            border-color: var(--accent);
+        }
+
+        .project-navigation {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .project-navigation-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 10px 20px;
+
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+        }
+
+        .project-name {
+            margin-right: 8px;
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        .project-navigation a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            border-radius: 6px;
+            padding: 5px 7px;
+        }
+
+        .project-navigation a:hover {
+            color: var(--text);
+            background: var(--surface-soft);
+        }
+
+        .page-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 20px 50px;
+        }
+
+        .page-heading {
+            margin-top: 0;
+            color: var(--text);
+        }
+
+        .button {
+            display: inline-block;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            padding: 9px 14px;
+            background: #238636;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .button:hover {
+            color: white;
+            background: #2ea043;
+        }
+
+        .secondary-button {
+            background: var(--surface-soft);
+            color: var(--text);
+            border-color: var(--border-strong);
+        }
+
+        .secondary-button:hover {
+            color: var(--text);
+            background: var(--surface-raised);
+            border-color: var(--accent);
+        }
+
+        .danger-button {
+            background: var(--danger-background);
+            color: #ff7b72;
+            border-color: var(--danger-border);
+        }
+
+        .danger-button:hover {
+            background: #482126;
+            color: #ffa198;
+            border-color: var(--danger);
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .messages {
+            margin-bottom: 20px;
+        }
+
+        .message {
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+            border: 1px solid;
+        }
+
+        .message-success {
+            color: #7ee787;
+            background: var(--success-background);
+            border-color: var(--success-border);
+        }
+
+        .message-error {
+            color: #ff7b72;
+            background: var(--danger-background);
+            border-color: var(--danger-border);
+        }
+
+        .message-warning {
+            color: #e3b341;
+            background: var(--warning-background);
+            border-color: var(--warning-border);
+        }
+
+        .message-info {
+            color: #79c0ff;
+            background: var(--info-background);
+            border-color: var(--info-border);
+        }
+
+        pre,
+        code {
+            color: var(--text);
+            background: var(--surface-soft);
+        }
+
+        details {
+            border-color: var(--border);
+        }
+
+        ::selection {
+            color: white;
+            background: #264f78;
+        }
+
+        ::placeholder {
+            color: #6e7681;
+        }
+
+        @media (max-width: 700px) {
+            .site-header-inner {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .account-area {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .project-navigation-inner {
+                gap: 6px;
+            }
+
+            .project-name {
+                width: 100%;
+                margin-bottom: 4px;
+            }
+
+            .page-container {
+                padding: 20px 14px 40px;
+            }
+        }
+        .empty-state {
+            background: var(--surface);
+            border: 1px dashed var(--border-strong);
+            border-radius: 12px;
+            padding: 32px 24px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .empty-state h2,
+        .empty-state h3 {
+            margin-top: 0;
+            color: var(--text);
+        }
+
+        .empty-state p {
+            max-width: 560px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .empty-state-actions {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+        img,
+svg,
+video,
+canvas {
+    max-width: 100%;
+    height: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+button,
+.button,
+input,
+select,
+textarea {
+    max-width: 100%;
+}
+
+button,
+.button {
+    min-height: 42px;
+}
+
+textarea {
+    resize: vertical;
+}
+
+.page-container {
+    width: 100%;
+}
+
+@media (max-width: 700px) {
+    .site-header {
+        position: static;
+    }
+
+    .site-header-inner {
+        padding: 12px 14px;
+        gap: 12px;
+    }
+
+    .brand {
+        font-size: 19px;
+    }
+
+    .account-area {
+        width: 100%;
+        align-items: center;
+    }
+
+    .username {
+        overflow-wrap: anywhere;
+    }
+
+    .project-navigation-inner {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        padding: 10px 14px;
+    }
+
+    .project-name {
+        grid-column: 1 / -1;
+        margin: 0 0 4px;
+        overflow-wrap: anywhere;
+    }
+
+    .project-navigation a {
+        display: block;
+        width: 100%;
+        padding: 9px 10px;
+        text-align: center;
+        background: var(--surface-soft);
+        border: 1px solid var(--border);
+    }
+
+    .page-container {
+        padding: 18px 12px 36px;
+    }
+
+    h1 {
+        font-size: 1.7rem;
+        overflow-wrap: anywhere;
+    }
+
+    h2 {
+        font-size: 1.3rem;
+        overflow-wrap: anywhere;
+    }
+
+    h3 {
+        overflow-wrap: anywhere;
+    }
+
+    .card {
+        padding: 16px;
+        border-radius: 10px;
+    }
+
+    .button,
+    button {
+        width: 100%;
+        text-align: center;
+    }
+
+    .empty-state-actions {
+        flex-direction: column;
+    }
+
+    .empty-state-actions form,
+    .empty-state-actions a,
+    .empty-state-actions button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 420px) {
+    .project-navigation-inner {
+        grid-template-columns: 1fr;
+    }
+
+    .project-name {
+        grid-column: auto;
+    }
+
+    .page-container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+}
+a,
+button,
+.button,
+.card,
+.project-navigation a,
+input,
+textarea,
+select {
+    transition:
+        background-color 0.18s ease,
+        border-color 0.18s ease,
+        color 0.18s ease,
+        box-shadow 0.18s ease,
+        transform 0.18s ease;
+}
+
+.button:hover,
+button:hover {
+    transform: translateY(-1px);
+}
+
+.button:active,
+button:active {
+    transform: translateY(0);
+}
+
+.card:hover {
+    border-color: var(--border-strong);
+    box-shadow:
+        0 12px 28px rgba(0, 0, 0, 0.34);
+}
+
+.project-navigation a:hover {
+    color: var(--text);
+    background: var(--surface-soft);
+    border-color: var(--border-strong);
+}
+
+input:hover,
+textarea:hover,
+select:hover {
+    border-color: var(--accent);
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+button:focus-visible,
+a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+button:disabled:hover {
+    transform: none;
+}
+    </style>
+
+    {% block extra_css %}
+    {% endblock %}
+    
+</head>
+
+<body>
+
+<header class="site-header">
+    <div class="site-header-inner">
+        <a
+            href="{% url 'project_list' %}"
+            class="brand"
+        >
+            BuilderOS
+        </a>
+
+        {% if request.user.is_authenticated %}
+            <div class="account-area">
+                <span class="username">
+                    {{ request.user.username }}
+                </span>
+
+                <form
+                    method="POST"
+                    action="{% url 'logout' %}"
+                    class="logout-form"
+                >
+                    {% csrf_token %}
+
+                    <button
+                        type="submit"
+                        class="logout-button"
+                    >
+                        Log Out
+                    </button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+</header>
+
+{% if project %}
+    <nav class="project-navigation">
+        <div class="project-navigation-inner">
+            <span class="project-name">
+                {{ project.name|default:"Untitled Project" }}
+            </span>
+
+            <a href="{% url 'workspace' project.pk %}">
+                Workspace
+            </a>
+
+            <a href="{% url 'workspace_assistant' project.pk %}">
+                Assistant
+            </a>
+
+            <a href="{% url 'project_board' project.pk %}">
+                Board
+            </a>
+
+            <a href="{% url 'project_timeline' project.pk %}">
+                Timeline
+            </a>
+
+            <a href="{% url 'project_review' project.pk %}">
+                Review
+            </a>
+
+            <a href="{% url 'project_activity' project.pk %}">
+                Activity
+            </a>
+
+            <a href="{% url 'project_change_history' project.pk %}">
+                History
+            </a>
+        </div>
+    </nav>
+{% endif %}
+
+<main class="page-container">
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div
+                    class="
+                        message
+                        message-{{ message.tags|default:'info' }}
+                    "
+                >
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% block content %}
+    {% endblock %}
+</main>
+
+{% block extra_js %}
+<script>
+    document.addEventListener(
+        "submit",
+        function (event) {
+            const form = event.target;
+
+            if (!form.classList.contains("loading-form")) {
+                return;
+            }
+
+            const button = form.querySelector(
+                'button[type="submit"]'
+            );
+
+            if (!button || button.disabled) {
+                return;
+            }
+
+            button.disabled = true;
+
+            button.dataset.originalText =
+                button.textContent;
+
+            button.textContent =
+                button.dataset.loadingText
+                || "Working...";
+        }
+    );
+</script>
+{% endblock %}
+
+</body>
+</html>

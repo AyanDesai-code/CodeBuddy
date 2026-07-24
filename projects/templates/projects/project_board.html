@@ -1,18 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Board | {{ project.name }}</title>
+{% extends "projects/base.html" %}
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 30px;
-            background: #f7f8fa;
-            line-height: 1.5;
-        }
+{% block title %}
+    Board | {{ project.name }}
+{% endblock %}
 
-        .page-header {
+{% block extra_css %}
+<style>
+.page-header {
             max-width: 1400px;
             margin: 0 auto 24px;
         }
@@ -169,11 +163,7 @@
         }
 
         @media (max-width: 620px) {
-            body {
-                padding: 18px;
-            }
-
-            .board {
+.board {
                 grid-template-columns: 1fr;
             }
         }
@@ -187,17 +177,12 @@
             font-size: 12px;
             font-weight: bold;
         }
-    </style>
-</head>
+</style>
+{% endblock %}
 
-<body>
-
+{% block content %}
 <div class="page-header">
-    <div class="toolbar">
-        <a href="{% url 'workspace' project.pk %}">
-            ← Back to Workspace
-        </a>
-    </div>
+    
 
     <h1>{{ project.name }} Board</h1>
 
@@ -544,9 +529,11 @@
     </section>
 
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-    const taskCards = document.querySelectorAll(
+const taskCards = document.querySelectorAll(
         ".task-card"
     );
 
@@ -939,6 +926,4 @@
         );
     }
 </script>
-
-</body>
-</html>
+{% endblock %}

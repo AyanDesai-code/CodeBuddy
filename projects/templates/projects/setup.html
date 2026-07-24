@@ -1,54 +1,149 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>BuilderOS</title>
-</head>
-<body>
+{% extends "projects/base.html" %}
 
-<h1>BuilderOS</h1>
-<h2>What would you like to build today?</h2>
+{% block title %}
+    Project Setup | BuilderOS
+{% endblock %}
 
-<div>
-    {% for message in messages %}
-        <p>
-            <strong>{{ message.get_role_display }}:</strong>
-            {{ message.content }}
-        </p>
-    {% empty %}
-        <p>No messages yet.</p>
-    {% endfor %}
-</div>
+{% block extra_css %}
+<style>
+    .setup-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 20px;
+        max-width: 850px;
+    }
 
-{% if project.status == "generating" %}
+    .conversation {
+        display: grid;
+        gap: 12px;
+    }
+
+    .message {
+        padding: 14px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+    }
+
+    .message-user {
+        background: var(--surface-soft);
+    }
+
+    .message-assistant {
+        background: var(--info-background);
+        border-color: var(--info-border);
+    }
+
+    textarea {
+        width: 100%;
+        min-height: 160px;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border-strong);
+        background: var(--surface-soft);
+        color: var(--text);
+        resize: vertical;
+    }
+
+    .setup-actions {
+        margin-top: 14px;
+    }
+
+    .generation-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="setup-layout">
     <div>
-        <h3>Project discovery complete</h3>
-        <p>BuilderOS is ready to generate your workspace.</p>
+        <h1 class="page-heading">
+            What would you like to build today?
+        </h1>
 
-        <form method="POST" action="{% url 'generate_workspace' project.pk %}">
-            {% csrf_token %}
-
-            <button type="submit">
-                Generate Workspace
-            </button>
-        </form>
+        <p>
+            Describe your idea and BuilderOS will help turn it
+            into a structured project.
+        </p>
     </div>
-{% else %}
-    <form method="POST">
-        {% csrf_token %}
 
-        <textarea
-            name="message"
-            rows="8"
-            cols="70"
-            placeholder="Describe your idea..."
-            required
-        ></textarea>
+    <div class="conversation">
+        {% for message in messages %}
+            <div
+                class="
+                    message
+                    {% if message.role == 'user' %}
+                        message-user
+                    {% else %}
+                        message-assistant
+                    {% endif %}
+                "
+            >
+                <strong>
+                    {{ message.get_role_display }}
+                </strong>
 
-        <br><br>
+                <p>
+                    {{ message.content|linebreaksbr }}
+                </p>
+            </div>
+        {% empty %}
+            <div class="card">
+                No setup messages yet.
+            </div>
+        {% endfor %}
+    </div>
 
-        <button type="submit">Send</button>
-    </form>
-{% endif %}
+    {% if project.status == "generating" %}
+        <div class="generation-card">
+            <h2>Project discovery complete</h2>
 
-</body>
-</html>
+            <p>
+                BuilderOS is ready to generate your workspace.
+            </p>
+
+            <form
+                method="POST"
+                action="{% url 'generate_workspace' project.pk %}"
+                class="loading-form"
+            >
+                {% csrf_token %}
+
+                <button
+                    type="submit"
+                    class="button"
+                    data-loading-text="Generating Workspace..."
+                >
+                    Generate Workspace
+                </button>
+            </form>
+        </div>
+    {% else %}
+        <section class="card">
+            <form method="POST">
+                {% csrf_token %}
+
+                <label for="message">
+                    <strong>Describe your idea</strong>
+                </label>
+
+                <textarea
+                    id="message"
+                    name="message"
+                    placeholder="Example: I want to build a low-cost automatic grass-seeding robot..."
+                    required
+                ></textarea>
+
+                <div class="setup-actions">
+                    <button type="submit" class="button">
+                        Send
+                    </button>
+                </div>
+            </form>
+        </section>
+    {% endif %}
+</div>
+{% endblock %}

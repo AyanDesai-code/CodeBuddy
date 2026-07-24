@@ -1,18 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Change #{{ change.pk }} | {{ project.name }}</title>
-    
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1000px;
-            margin: 40px auto;
-            padding: 0 20px;
-            line-height: 1.5;
-        }
+{% extends "projects/base.html" %}
 
-        .toolbar {
+{% block title %}
+    Change #{{ change.pk }} | {{ project.name }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.toolbar {
             margin-bottom: 24px;
         }
 
@@ -174,10 +168,10 @@
         grid-template-columns: 1fr;
     }
 }
-        </style>
-</head>
-<body>
+</style>
+{% endblock %}
 
+{% block content %}
 <div class="toolbar">
     <a href="{% url 'project_change_history' project.pk %}">
         ← Back to Change History
@@ -388,5 +382,4 @@
 {% empty %}
     <p>No tasks changed.</p>
 {% endfor %}
-</body>
-</html>
+{% endblock %}

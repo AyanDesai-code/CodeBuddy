@@ -1,18 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Change History | {{ project.name }}</title>
+{% extends "projects/base.html" %}
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 950px;
-            margin: 40px auto;
-            padding: 0 20px;
-            line-height: 1.5;
-        }
+{% block title %}
+    Change History | {{ project.name }}
+{% endblock %}
 
-        .toolbar {
+{% block extra_css %}
+<style>
+.toolbar {
             margin-bottom: 24px;
         }
 
@@ -46,16 +40,10 @@
             padding: 12px;
             border-radius: 6px;
         }
-    </style>
-</head>
-<body>
+</style>
+{% endblock %}
 
-<div class="toolbar">
-    <a href="{% url 'workspace' project.pk %}">
-        ← Back to Workspace
-    </a>
-</div>
-
+{% block content %}
 <h1>{{ project.name }} Change History</h1>
 
 <p>
@@ -127,6 +115,4 @@
     <p>No project changes have been recorded yet.</p>
 
 {% endfor %}
-
-</body>
-</html>
+{% endblock %}

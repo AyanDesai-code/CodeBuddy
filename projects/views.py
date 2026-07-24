@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 import difflib
-
+from django.contrib import messages
 from .ai.services import (
     analyze_workspace_change,
     apply_canonical_updates,
@@ -234,14 +234,32 @@ def rename_project(
         "",
     ).strip()
 
-    if new_name:
-        project.name = new_name
-        project.save(
-            update_fields=[
-                "name",
-                "updated_at",
-            ]
+    if not new_name:
+        messages.error(
+            request,
+            "Project name cannot be blank.",
         )
+
+        return redirect("project_list")
+
+    old_name = (
+        project.name
+        or "Untitled Project"
+    )
+
+    project.name = new_name
+
+    project.save(
+        update_fields=[
+            "name",
+            "updated_at",
+        ]
+    )
+
+    messages.success(
+        request,
+        f'"{old_name}" was renamed to "{new_name}".',
+    )
 
     return redirect("project_list")
 @login_required
@@ -256,13 +274,25 @@ def archive_project(
         owner=request.user,
     )
 
-    project.status = Project.Status.ARCHIVED
+    project_name = (
+        project.name
+        or "Untitled Project"
+    )
+
+    project.status = (
+        Project.Status.ARCHIVED
+    )
 
     project.save(
         update_fields=[
             "status",
             "updated_at",
         ]
+    )
+
+    messages.success(
+        request,
+        f'"{project_name}" was archived.',
     )
 
     return redirect("project_list")
@@ -279,6 +309,11 @@ def restore_project(
         status=Project.Status.ARCHIVED,
     )
 
+    project_name = (
+        project.name
+        or "Untitled Project"
+    )
+
     project.status = Project.Status.ACTIVE
 
     project.save(
@@ -288,7 +323,14 @@ def restore_project(
         ]
     )
 
-    return redirect("project_list")
+    messages.success(
+        request,
+        f'"{project_name}" was restored.',
+    )
+
+    return redirect(
+        f"{reverse('project_list')}?archived=1"
+    )
 @login_required
 @require_POST
 def delete_project(
@@ -301,7 +343,27 @@ def delete_project(
         owner=request.user,
     )
 
+    project_name = (
+        project.name
+        or "Untitled Project"
+    )
+
+    was_archived = (
+        project.status
+        == Project.Status.ARCHIVED
+    )
+
     project.delete()
+
+    messages.success(
+        request,
+        f'"{project_name}" was permanently deleted.',
+    )
+
+    if was_archived:
+        return redirect(
+            f"{reverse('project_list')}?archived=1"
+        )
 
     return redirect("project_list")
 @login_required
@@ -309,6 +371,10 @@ def new_project(request):
     project = Project.objects.create(
         owner=request.user,
         status=Project.Status.DRAFT,
+    )
+    messages.success(
+        request,
+        "New project created.",
     )
 
     ProjectState.objects.create(
@@ -768,6 +834,10 @@ def edit_workspace_folder(
                     ),
                 },
             )
+            messages.success(
+                request,
+                f'"{folder.name}" was updated.',
+            )
 
         return redirect(
             "workspace_folder",
@@ -803,9 +873,7 @@ def regenerate_workspace_folder(
     )
 
     try:
-        previous_description = (
-            folder.description
-        )
+        previous_description = folder.description
 
         result = regenerate_workspace_section(
             project=project,
@@ -849,28 +917,34 @@ def regenerate_workspace_folder(
                     ProjectEvent.EventType
                     .WORKSPACE_UPDATED
                 ),
-                title=(
-                    "Workspace section regenerated"
-                ),
+                title="Workspace section regenerated",
                 description=folder.name,
                 metadata={
                     "folder_id": folder.pk,
-                    "folder_type": (
-                        folder.folder_type
-                    ),
+                    "folder_type": folder.folder_type,
                 },
             )
 
-        print(
-            f"Regenerated section: "
-            f"{folder.name}"
-        )
+            messages.success(
+                request,
+                f'"{folder.name}" was regenerated successfully.',
+            )
+
+        else:
+            messages.info(
+                request,
+                f'"{folder.name}" did not need any changes.',
+            )
 
     except Exception as error:
         print(
-            f"Failed to regenerate "
-            f"{folder.name}:",
+            f"Failed to regenerate {folder.name}:",
             error,
+        )
+
+        messages.error(
+            request,
+            f'BuilderOS could not regenerate "{folder.name}".',
         )
 
     return redirect(
@@ -1032,6 +1106,10 @@ def new_task(request, project_pk):
                     f"Task added: {task.title}."
                 ),
             )
+            messages.success(
+                request,
+                f'Task "{task.title}" was created.',
+            )
 
             return redirect(
                 "workspace_folder",
@@ -1129,6 +1207,11 @@ def edit_task(
                 ),
             )
 
+        messages.success(
+            request,
+            f'Task "{task.title}" was updated.',
+        )
+
         return redirect(
             "workspace_folder",
             project_pk=project.pk,
@@ -1183,12 +1266,16 @@ def delete_task(
         ),
     )
 
+    messages.success(
+        request,
+        f'Task "{deleted_task_title}" was deleted.',
+    )
+
     return redirect(
         "workspace_folder",
         project_pk=project.pk,
         folder_pk=tasks_folder.pk,
     )
-
 def apply_task_synchronization(
     project,
     synchronization,
@@ -1739,6 +1826,10 @@ def workspace_assistant(request, project_pk):
                     project=project,
                     content=content,
                 )
+                messages.success(
+                    request,
+                    "Your project was updated successfully.",
+                )
 
                 try:
                     review_result = run_project_review(
@@ -1765,6 +1856,13 @@ def workspace_assistant(request, project_pk):
                     print(
                         "Automatic project review failed:",
                         review_error,
+                    )
+                    messages.error(
+                        request,
+                        (
+                            "BuilderOS could not apply that "
+                            "project update. No changes were saved."
+                        ),
                     )
 
                     latest_health_score = None
@@ -2211,6 +2309,10 @@ def undo_project_change(
             f"ProjectChange #{change.pk}:",
             error,
         )
+        messages.error(
+            request,
+            f"Change #{change.pk} could not be undone.",
+        )
 
     return redirect(
         "project_change_history",
@@ -2615,6 +2717,14 @@ def project_review(request, project_pk):
     if request.method == "POST":
         try:
             result = run_project_review(project)
+            messages.success(
+                request,
+                (
+                    "Project review completed. "
+                    f"Health score: "
+                    f"{result['review'].health_score}%."
+                ),
+            )
 
             review = result["review"]
             current_critical_issues = result[
@@ -2628,9 +2738,13 @@ def project_review(request, project_pk):
                 error,
             )
 
-            error_message = (
-                "BuilderOS could not review this project. "
-                "Please try again."
+            messages.success(
+                request,
+                (
+                    "Project review completed. "
+                    f"Health score: "
+                    f"{result['review'].health_score}%."
+                ),
             )
 
     previous_reviews = (
@@ -2737,7 +2851,9 @@ def resolve_project_conflict(
         project=project,
     )
 
-    conflict.status = ProjectConflict.Status.RESOLVED
+    conflict.status = (
+        ProjectConflict.Status.RESOLVED
+    )
     conflict.resolved_at = timezone.now()
 
     conflict.save(
@@ -2750,14 +2866,19 @@ def resolve_project_conflict(
     record_project_event(
         project=project,
         event_type=(
-            ProjectEvent.EventType.CONFLICT_RESOLVED
+            ProjectEvent.EventType
+            .CONFLICT_RESOLVED
         ),
-        title="Conflict marked resolved",
+        title="Conflict resolved",
         description=conflict.title,
         metadata={
             "conflict_id": conflict.pk,
-            "conflict_key": conflict.key,
         },
+    )
+
+    messages.success(
+        request,
+        f'Conflict "{conflict.title}" was marked resolved.',
     )
 
     return redirect(
@@ -2783,7 +2904,9 @@ def ignore_project_conflict(
         project=project,
     )
 
-    conflict.status = ProjectConflict.Status.IGNORED
+    conflict.status = (
+        ProjectConflict.Status.IGNORED
+    )
     conflict.resolved_at = timezone.now()
 
     conflict.save(
@@ -2796,21 +2919,25 @@ def ignore_project_conflict(
     record_project_event(
         project=project,
         event_type=(
-            ProjectEvent.EventType.CONFLICT_IGNORED
+            ProjectEvent.EventType
+            .CONFLICT_IGNORED
         ),
         title="Conflict ignored",
         description=conflict.title,
         metadata={
             "conflict_id": conflict.pk,
-            "conflict_key": conflict.key,
         },
+    )
+
+    messages.warning(
+        request,
+        f'Conflict "{conflict.title}" was ignored.',
     )
 
     return redirect(
         "project_review",
         project_pk=project.pk,
     )
-
 @login_required
 @require_POST
 def apply_project_conflict_fix(
@@ -2903,6 +3030,10 @@ def apply_project_conflict_fix(
                         result["task_changes"]
                     ),
                 },
+            )
+            messages.success(
+                request,
+                f'AI fix applied for "{conflict.title}".',
             )
 
         request.session[
@@ -3478,6 +3609,10 @@ def edit_task_dependencies(
                         ),
                     },
                 )
+                messages.success(
+                    request,
+                    f'Dependencies for "{task.title}" were updated.',
+                )
 
             return redirect(
                 "project_timeline",
@@ -3764,9 +3899,7 @@ def generate_more_tasks(
     new_tasks = []
 
     try:
-        result = generate_additional_tasks(
-            project
-        )
+        result = generate_additional_tasks(project)
 
         existing_tasks = list(
             project.tasks.all()
@@ -3800,15 +3933,7 @@ def generate_more_tasks(
         }
 
         for generated_task in result.tasks[:5]:
-            title = (
-                generated_task.title.strip()
-            )
-
-            description = (
-                generated_task
-                .description
-                .strip()
-            )
+            title = generated_task.title.strip()
 
             if not title:
                 continue
@@ -3818,8 +3943,8 @@ def generate_more_tasks(
             if normalized_title in existing_titles:
                 continue
 
-            new_title_words = (
-                normalize_task_title(title)
+            new_title_words = normalize_task_title(
+                title
             )
 
             is_similar = any(
@@ -3841,12 +3966,8 @@ def generate_more_tasks(
             if is_similar:
                 continue
 
-            priority = max(
-                Task.Priority.LOW,
-                min(
-                    Task.Priority.HIGH,
-                    generated_task.priority,
-                ),
+            priority = normalize_task_priority(
+                generated_task.priority
             )
 
             new_status = generated_task.status
@@ -3858,7 +3979,11 @@ def generate_more_tasks(
                 Task(
                     project=project,
                     title=title,
-                    description=description,
+                    description=(
+                        generated_task
+                        .description
+                        .strip()
+                    ),
                     priority=priority,
                     status=new_status,
                     completed=(
@@ -3892,15 +4017,32 @@ def generate_more_tasks(
                 ),
             )
 
-        print(
-            f"Generated {len(new_tasks)} "
-            "additional tasks."
-        )
+            messages.success(
+                request,
+                (
+                    f"{len(new_tasks)} new tasks "
+                    "were generated."
+                ),
+            )
+
+        else:
+            messages.info(
+                request,
+                (
+                    "No new non-duplicate tasks "
+                    "were generated."
+                ),
+            )
 
     except Exception as error:
         print(
             "Additional task generation failed:",
             error,
+        )
+
+        messages.error(
+            request,
+            "BuilderOS could not generate more tasks.",
         )
 
     return redirect(

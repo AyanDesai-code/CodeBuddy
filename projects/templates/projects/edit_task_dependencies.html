@@ -1,21 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>
-        Dependencies | {{ task.title }}
-    </title>
+{% extends "projects/base.html" %}
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 750px;
-            margin: 40px auto;
-            padding: 0 20px;
-            line-height: 1.5;
-            background: #f7f8fa;
-        }
+{% block title %}
+    Dependencies | {{ task.title }}
+{% endblock %}
 
-        .panel {
+{% block extra_css %}
+<style>
+.panel {
             border: 1px solid #ddd;
             border-radius: 12px;
             background: white;
@@ -55,11 +46,10 @@
         .toolbar {
             margin-bottom: 22px;
         }
-    </style>
-</head>
+</style>
+{% endblock %}
 
-<body>
-
+{% block content %}
 <div class="toolbar">
     <a href="{% url 'project_timeline' project.pk %}">
         ← Back to Timeline
@@ -116,6 +106,4 @@
         </button>
     </form>
 </div>
-
-</body>
-</html>
+{% endblock %}

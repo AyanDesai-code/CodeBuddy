@@ -1,281 +1,301 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Timeline | {{ project.name }}</title>
+{% extends "projects/base.html" %}
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1100px;
-            margin: 40px auto;
-            padding: 0 20px;
-            line-height: 1.5;
-            background: #f7f8fa;
+{% block title %}
+    Timeline | {{ project.name }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .toolbar {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 22px;
+    }
+
+    .toolbar a {
+        text-decoration: none;
+    }
+
+    .timeline-summary {
+        color: var(--text-muted);
+        margin-bottom: 28px;
+    }
+
+    .milestone,
+    .unscheduled {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: var(--shadow);
+    }
+
+    .milestone {
+        margin-bottom: 24px;
+    }
+
+    .unscheduled {
+        margin-top: 30px;
+    }
+
+    .milestone-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+
+    .milestone-header h2 {
+        margin: 0;
+    }
+
+    .milestone-date {
+        white-space: nowrap;
+        color: var(--text-muted);
+        font-size: 14px;
+    }
+
+    .completed-label {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: var(--success-background);
+        border: 1px solid var(--success-border);
+        color: #7ee787;
+        font-size: 12px;
+    }
+
+    .task-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .task-card {
+        border-top: 1px solid var(--border);
+        padding: 16px 0;
+    }
+
+    .task-card:first-child {
+        border-top: none;
+    }
+
+    .task-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    .task-heading h3 {
+        margin: 0;
+        font-size: 17px;
+        color: var(--text);
+    }
+
+    .status {
+        flex-shrink: 0;
+        display: inline-block;
+        border-radius: 999px;
+        padding: 3px 8px;
+        background: var(--surface-soft);
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        font-size: 12px;
+    }
+
+    .task-description {
+        color: var(--text-muted);
+        margin: 8px 0;
+    }
+
+    .task-details {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 18px;
+        color: var(--text-muted);
+        font-size: 13px;
+        margin-top: 10px;
+    }
+
+    .dependencies,
+    .blocked-warning,
+    .blocking-info {
+        padding: 10px 12px;
+        margin-top: 12px;
+        border-left: 4px solid;
+        border-radius: 6px;
+    }
+
+    .dependencies,
+    .blocked-warning {
+        border-color: var(--warning);
+        background: var(--warning-background);
+        color: #e3b341;
+    }
+
+    .blocking-info {
+        border-color: var(--accent);
+        background: var(--info-background);
+        color: #79c0ff;
+    }
+
+    .dependencies ul,
+    .blocked-warning ul,
+    .blocking-info ul {
+        margin: 6px 0 0;
+        padding-left: 20px;
+    }
+
+    .blocked-warning p {
+        margin: 6px 0 4px;
+    }
+
+    .overdue-warning {
+        display: inline-block;
+        margin-top: 12px;
+        border-radius: 999px;
+        background: var(--danger-background);
+        border: 1px solid var(--danger-border);
+        color: #ff7b72;
+        padding: 4px 9px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .task-actions {
+        margin-top: 12px;
+    }
+
+    .empty {
+        color: var(--text-muted);
+    }
+
+    .timeline-metrics {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+    }
+
+    .timeline-metrics div {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 14px;
+        color: var(--text);
+        box-shadow: var(--shadow);
+    }
+
+    .inline-form {
+        display: inline;
+        margin: 0;
+    }
+
+    .inline-form button,
+    .toolbar button {
+        padding: 7px 11px;
+        cursor: pointer;
+        font: inherit;
+        border-radius: 8px;
+        border: 1px solid var(--border-strong);
+        background: var(--surface-soft);
+        color: var(--text);
+    }
+
+    .inline-form button:hover,
+    .toolbar button:hover {
+        background: var(--surface-raised);
+        border-color: var(--accent);
+    }
+
+    .schedule-message {
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin-bottom: 20px;
+        border: 1px solid;
+    }
+
+    .schedule-message-success {
+        background: var(--success-background);
+        border-color: var(--success-border);
+        color: #7ee787;
+    }
+
+    .schedule-message-error {
+        background: var(--danger-background);
+        border-color: var(--danger-border);
+        color: #ff7b72;
+    }
+
+    .schedule-refresh-warning {
+        border: 1px solid var(--warning-border);
+        border-left: 5px solid var(--warning);
+        background: var(--warning-background);
+        color: #e3b341;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 22px;
+    }
+
+    .schedule-refresh-warning h2 {
+        margin-top: 0;
+        font-size: 18px;
+    }
+
+    .schedule-refresh-warning p {
+        margin-bottom: 8px;
+    }
+
+    .schedule-generated-time {
+        color: var(--text-muted);
+        font-size: 13px;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 650px) {
+        .milestone-header,
+        .task-heading {
+            flex-direction: column;
         }
 
-        a {
-            color: #3157a4;
+        .milestone-date,
+        .status {
+            white-space: normal;
         }
 
         .toolbar {
-            margin-bottom: 22px;
-        }
-
-        .timeline-summary {
-            color: #555;
-            margin-bottom: 28px;
-        }
-
-        .milestone {
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 24px;
-        }
-
-        .milestone-header {
-            display: flex;
-            justify-content: space-between;
-            gap: 18px;
             align-items: flex-start;
-            margin-bottom: 16px;
+            flex-direction: column;
         }
+    }
+</style>
+{% endblock %}
 
-        .milestone-header h2 {
-            margin: 0;
-        }
-
-        .milestone-date {
-            white-space: nowrap;
-            color: #666;
-            font-size: 14px;
-        }
-
-        .completed-label {
-            display: inline-block;
-            margin-top: 8px;
-            padding: 3px 8px;
-            border-radius: 999px;
-            background: #edf9ed;
-            font-size: 12px;
-        }
-
-        .task-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .task-card {
-            border-top: 1px solid #eee;
-            padding: 16px 0;
-        }
-
-        .task-card:first-child {
-            border-top: none;
-        }
-
-        .task-heading {
-            display: flex;
-            justify-content: space-between;
-            gap: 16px;
-            align-items: flex-start;
-        }
-
-        .task-heading h3 {
-            margin: 0;
-            font-size: 17px;
-        }
-
-        .status {
-            flex-shrink: 0;
-            display: inline-block;
-            border-radius: 999px;
-            padding: 3px 8px;
-            background: #eee;
-            font-size: 12px;
-        }
-
-        .task-description {
-            color: #555;
-            margin: 8px 0;
-        }
-
-        .task-details {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px 18px;
-            color: #666;
-            font-size: 13px;
-            margin-top: 10px;
-        }
-
-        .dependencies {
-            margin-top: 12px;
-            padding: 10px 12px;
-            border-left: 4px solid #d2a100;
-            background: #fff8e5;
-        }
-
-        .dependencies ul {
-            margin: 6px 0 0;
-            padding-left: 20px;
-        }
-
-        .blocked-warning {
-            border-left: 4px solid #b17a00;
-            background: #fff8e5;
-            padding: 10px 12px;
-            margin-top: 12px;
-        }
-
-        .blocked-warning p {
-            margin: 6px 0 4px;
-        }
-
-        .blocked-warning ul {
-            margin: 6px 0 0;
-            padding-left: 20px;
-        }
-
-        .blocking-info {
-            border-left: 4px solid #4f70c7;
-            background: #eef3ff;
-            padding: 10px 12px;
-            margin-top: 12px;
-        }
-
-        .blocking-info ul {
-            margin: 6px 0 0;
-            padding-left: 20px;
-        }
-
-        .overdue-warning {
-            display: inline-block;
-            margin-top: 12px;
-            border-radius: 999px;
-            background: #fff0f0;
-            color: #9c2e2e;
-            padding: 4px 9px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        .task-actions {
-            margin-top: 12px;
-        }
-
-        .empty {
-            color: #777;
-        }
-
-        .unscheduled {
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 30px;
-        }
-
-        @media (max-width: 650px) {
-            .milestone-header,
-            .task-heading {
-                flex-direction: column;
-            }
-
-            .milestone-date,
-            .status {
-                white-space: normal;
-            }
-        }
-        .timeline-metrics {
-            display: flex;
-            gap: 14px;
-            flex-wrap: wrap;
-            margin-bottom: 24px;
-        }
-
-        .timeline-metrics div {
-            border: 1px solid #ddd;
-            background: white;
-            border-radius: 8px;
-            padding: 10px 14px;
-        }
-        .inline-form {
-            display: inline;
-        }
-
-        .inline-form button {
-            padding: 7px 11px;
-            cursor: pointer;
-            font: inherit;
-        }
-
-        .schedule-message {
-            border-radius: 8px;
-            padding: 12px 14px;
-            margin-bottom: 20px;
-        }
-
-        .schedule-message-success {
-            background: #edf9ed;
-            border: 1px solid #a8d5ad;
-        }
-
-        .schedule-message-error {
-            background: #fff0f0;
-            border: 1px solid #e0a0a0;
-        }
-        .schedule-refresh-warning {
-            border: 1px solid #e1bd68;
-            border-left: 5px solid #b17a00;
-            background: #fff8e5;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 22px;
-        }
-
-        .schedule-refresh-warning h2 {
-            margin-top: 0;
-            font-size: 18px;
-        }
-
-        .schedule-refresh-warning p {
-            margin-bottom: 8px;
-        }
-
-        .schedule-generated-time {
-            color: #666;
-            font-size: 13px;
-            margin-bottom: 20px;
-        }
-    </style>
-</head>
-
-<body>
+{% block content %}
 <div class="toolbar">
     <a href="{% url 'workspace' project.pk %}">
         ← Back to Workspace
     </a>
 
-    &nbsp;|&nbsp;
-
     <a href="{% url 'project_board' project.pk %}">
         Kanban Board
     </a>
 
-    &nbsp;|&nbsp;
-
     <form
         method="POST"
         action="{% url 'generate_project_schedule' project.pk %}"
-        class="inline-form"
+        class="loading-form"
     >
         {% csrf_token %}
 
         <button
             type="submit"
+            data-loading-text="Generating Schedule..."
             onclick="return confirm(
                 'Generate a new AI schedule for this project?'
             )"
@@ -284,6 +304,7 @@
         </button>
     </form>
 </div>
+
 {% if schedule_message %}
     <div
         class="
@@ -298,6 +319,7 @@
         {{ schedule_message }}
     </div>
 {% endif %}
+
 {% if project.schedule_needs_refresh %}
     <div class="schedule-refresh-warning">
         <h2>Schedule May Be Out of Date</h2>
@@ -316,21 +338,35 @@
         <form
             method="POST"
             action="{% url 'generate_project_schedule' project.pk %}"
-            class="inline-form"
+            class="inline-form loading-form"
         >
             {% csrf_token %}
 
-            <button type="submit">
+            <button
+                type="submit"
+                data-loading-text="Refreshing Schedule..."
+            >
                 Refresh AI Schedule
             </button>
         </form>
     </div>
 {% endif %}
-<h1>{{ project.name }} Timeline</h1>
+
+{% if project.schedule_last_generated_at %}
+    <p class="schedule-generated-time">
+        Schedule last generated:
+        {{ project.schedule_last_generated_at|date:"F j, Y, g:i A" }}
+    </p>
+{% endif %}
+
+<h1 class="page-heading">
+    {{ project.name }} Timeline
+</h1>
 
 <p class="timeline-summary">
     Tasks grouped by milestone, schedule, and dependency.
 </p>
+
 <div class="timeline-metrics">
     <div>
         <strong>{{ blocked_tasks|length }}</strong>
@@ -634,6 +670,4 @@
         {% endfor %}
     </ul>
 </section>
-
-</body>
-</html>
+{% endblock %}

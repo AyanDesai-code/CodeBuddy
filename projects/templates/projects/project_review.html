@@ -1,10 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Project Review | {{ project.name }}</title>
+{% extends "projects/base.html" %}
 
-    <style>
-        .review-delta-card {
+{% block title %}
+    Project Review | {{ project.name }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.review-delta-card {
     border: 1px solid #ddd;
     border-radius: 10px;
     padding: 18px;
@@ -56,15 +58,7 @@
 .delta-empty {
     color: #666;
 }
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 950px;
-            margin: 40px auto;
-            padding: 0 20px;
-            line-height: 1.5;
-        }
-
-        .toolbar {
+.toolbar {
             margin-bottom: 24px;
         }
 
@@ -181,16 +175,10 @@
         grid-template-columns: 1fr;
     }
 }
-    </style>
-</head>
-<body>
+</style>
+{% endblock %}
 
-<div class="toolbar">
-    <a href="{% url 'workspace' project.pk %}">
-        ← Back to Workspace
-    </a>
-</div>
-
+{% block content %}
 <h1>{{ project.name }} Project Review</h1>
 
 <p>
@@ -400,10 +388,16 @@
         {% endif %}
     </div>
 {% endif %}
-<form id="review-form" method="POST">
+<form
+    method="POST"
+    class="loading-form"
+>
     {% csrf_token %}
 
-    <button id="review-button" type="submit">
+    <button
+        type="submit"
+        data-loading-text="Reviewing Project..."
+    >
         Review Project
     </button>
 </form>
@@ -511,14 +505,13 @@
     <form
         method="POST"
         action="{% url 'apply_project_conflict_fix' project.pk conflict.pk %}"
+        class="loading-form"
     >
         {% csrf_token %}
 
         <button
             type="submit"
-            onclick="return confirm(
-                'Apply BuilderOS’s suggested fix? This may update project facts, workspace sections, and tasks.'
-            )"
+            data-loading-text="Applying Fix..."
         >
             Apply AI Fix
         </button>
@@ -556,10 +549,11 @@
 {% empty %}
     <p>No open conflicts.</p>
 {% endfor %}
+{% endblock %}
 
-
+{% block extra_js %}
 <script>
-    const reviewForm =
+const reviewForm =
         document.getElementById("review-form");
 
     const reviewButton =
@@ -575,6 +569,4 @@
         reviewStatus.hidden = false;
     });
 </script>
-
-</body>
-</html>
+{% endblock %}

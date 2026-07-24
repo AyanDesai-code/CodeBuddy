@@ -1,18 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>{{ folder.name }} | {{ project.name }}</title>
+{% extends "projects/base.html" %}
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 900px;
-            margin: 40px auto;
-            padding: 0 20px;
-            line-height: 1.6;
-        }
+{% block title %}
+    {{ folder.name }} | {{ project.name }}
+{% endblock %}
 
-        .toolbar {
+{% block extra_css %}
+<style>
+.toolbar {
             display: flex;
             gap: 10px;
             align-items: center;
@@ -66,10 +60,10 @@
     margin-top: 8px;
     color: #555;
 }
-    </style>
-</head>
-<body>
+</style>
+{% endblock %}
 
+{% block content %}
 <div class="toolbar">
     <a href="{% url 'workspace' project.pk %}">
         ← Back to Workspace
@@ -80,13 +74,16 @@
     </a>
 
     <form
-        id="regenerate-form"
         method="POST"
         action="{% url 'regenerate_workspace_folder' project.pk folder.pk %}"
+        class="loading-form"
     >
         {% csrf_token %}
 
-        <button id="regenerate-button" type="submit">
+        <button
+            type="submit"
+            data-loading-text="Regenerating..."
+        >
             Regenerate with AI
         </button>
     </form>
@@ -103,14 +100,17 @@
     </a>
 
     <form
-        id="generate-tasks-form"
         method="POST"
         action="{% url 'generate_more_tasks' project.pk %}"
+        class="loading-form"
     >
         {% csrf_token %}
 
-        <button id="generate-tasks-button" type="submit">
-            ✨ Generate More Tasks
+        <button
+            type="submit"
+            data-loading-text="Generating Tasks..."
+        >
+            Generate More Tasks
         </button>
     </form>
 </div>
@@ -224,8 +224,11 @@
 
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
-    const regenerateForm = document.getElementById("regenerate-form");
+const regenerateForm = document.getElementById("regenerate-form");
     const regenerateButton = document.getElementById("regenerate-button");
 
     regenerateForm.addEventListener("submit", function () {
@@ -233,6 +236,4 @@
         regenerateButton.textContent = "Regenerating...";
     });
 </script>
-
-</body>
-</html>
+{% endblock %}

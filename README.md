@@ -76,6 +76,10 @@ Then open your browser at:
 5. Explore the generated workspace sections and tasks.
 6. Edit folder content or regenerate an individual section if needed.
 
+## New user guide
+
+A copy-and-paste friendly onboarding guide is available in [USER_GUIDE.md](USER_GUIDE.md).
+
 ## Key app structure
 
 - `manage.py` — Django command-line entry point

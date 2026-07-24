@@ -1,18 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Assistant | {{ project.name }}</title>
+{% extends "projects/base.html" %}
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 850px;
-            margin: 40px auto;
-            padding: 0 20px;
-            line-height: 1.5;
-        }
+{% block title %}
+    Assistant | {{ project.name }}
+{% endblock %}
 
-        .toolbar {
+{% block extra_css %}
+<style>
+.toolbar {
             margin-bottom: 24px;
         }
 
@@ -145,11 +139,10 @@
             padding-top: 14px;
             font-weight: bold;
         }
-    </style>
-</head>
+</style>
+{% endblock %}
 
-<body>
-
+{% block content %}
 {% if update_summary %}
     <div class="update-summary">
         <h2>✓ Project Updated</h2>
@@ -287,11 +280,7 @@
     </div>
 {% endif %}
 
-<div class="toolbar">
-    <a href="{% url 'workspace' project.pk %}">
-        ← Back to Workspace
-    </a>
-</div>
+
 
 <h1>{{ project.name }} Assistant</h1>
 
@@ -325,21 +314,24 @@
     {% endfor %}
 </div>
 
-<form id="assistant-form" method="POST">
+<form
+    method="POST"
+    class="loading-form"
+>
     {% csrf_token %}
 
     <textarea
         name="message"
-        rows="5"
         required
-        placeholder="Example: Switch this project from Raspberry Pi 4 to Raspberry Pi 5."
     ></textarea>
 
-    <button id="assistant-button" type="submit">
+    <button
+        type="submit"
+        data-loading-text="Applying Changes..."
+    >
         Send
     </button>
 </form>
-
 <div id="update-status" hidden>
     <h3>BuilderOS is updating your project...</h3>
 
@@ -351,9 +343,11 @@
 
     <p>This may take around 1–2 minutes.</p>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-    const assistantForm =
+const assistantForm =
         document.getElementById("assistant-form");
 
     const assistantButton =
@@ -369,6 +363,4 @@
         updateStatus.hidden = false;
     });
 </script>
-
-</body>
-</html>
+{% endblock %}

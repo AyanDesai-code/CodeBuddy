@@ -1,10 +1,10 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Edit {{ folder.name }}</title>
-</head>
-<body>
+{% extends "projects/base.html" %}
 
+{% block title %}
+    Edit {{ folder.name }}
+{% endblock %}
+
+{% block content %}
 <h1>Edit {{ folder.name }}</h1>
 
 <form method="POST">
@@ -29,6 +29,4 @@
 <a href="{% url 'workspace_folder' project.pk folder.pk %}">
     Cancel
 </a>
-
-</body>
-</html>
+{% endblock %}
