@@ -28,4 +28,7 @@ urlpatterns = [
     path("<int:project_pk>/board/",views.project_board,name="project_board",),
     path("<int:project_pk>/tasks/<int:task_pk>/status/",views.update_task_status,name="update_task_status",),
     path("<int:project_pk>/tasks/""<int:task_pk>/board-move/",views.move_task_on_board,name="move_task_on_board",),
+    path("<int:project_pk>/timeline/",views.project_timeline,name="project_timeline",),
+    path("<int:project_pk>/tasks/""<int:task_pk>/dependencies/",views.edit_task_dependencies,name="edit_task_dependencies",),
+    path("<int:project_pk>/timeline/generate/",views.generate_project_schedule_view,name="generate_project_schedule",),
 ]

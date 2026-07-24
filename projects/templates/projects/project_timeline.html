@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Timeline | {{ project.name }}</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 0 20px;
+            line-height: 1.5;
+            background: #f7f8fa;
+        }
+
+        a {
+            color: #3157a4;
+        }
+
+        .toolbar {
+            margin-bottom: 22px;
+        }
+
+        .timeline-summary {
+            color: #555;
+            margin-bottom: 28px;
+        }
+
+        .milestone {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .milestone-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .milestone-header h2 {
+            margin: 0;
+        }
+
+        .milestone-date {
+            white-space: nowrap;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .completed-label {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: #edf9ed;
+            font-size: 12px;
+        }
+
+        .task-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .task-card {
+            border-top: 1px solid #eee;
+            padding: 16px 0;
+        }
+
+        .task-card:first-child {
+            border-top: none;
+        }
+
+        .task-heading {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .task-heading h3 {
+            margin: 0;
+            font-size: 17px;
+        }
+
+        .status {
+            flex-shrink: 0;
+            display: inline-block;
+            border-radius: 999px;
+            padding: 3px 8px;
+            background: #eee;
+            font-size: 12px;
+        }
+
+        .task-description {
+            color: #555;
+            margin: 8px 0;
+        }
+
+        .task-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 18px;
+            color: #666;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
+        .dependencies {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-left: 4px solid #d2a100;
+            background: #fff8e5;
+        }
+
+        .dependencies ul {
+            margin: 6px 0 0;
+            padding-left: 20px;
+        }
+
+        .blocked-warning {
+            border-left: 4px solid #b17a00;
+            background: #fff8e5;
+            padding: 10px 12px;
+            margin-top: 12px;
+        }
+
+        .blocked-warning p {
+            margin: 6px 0 4px;
+        }
+
+        .blocked-warning ul {
+            margin: 6px 0 0;
+            padding-left: 20px;
+        }
+
+        .blocking-info {
+            border-left: 4px solid #4f70c7;
+            background: #eef3ff;
+            padding: 10px 12px;
+            margin-top: 12px;
+        }
+
+        .blocking-info ul {
+            margin: 6px 0 0;
+            padding-left: 20px;
+        }
+
+        .overdue-warning {
+            display: inline-block;
+            margin-top: 12px;
+            border-radius: 999px;
+            background: #fff0f0;
+            color: #9c2e2e;
+            padding: 4px 9px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .task-actions {
+            margin-top: 12px;
+        }
+
+        .empty {
+            color: #777;
+        }
+
+        .unscheduled {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 650px) {
+            .milestone-header,
+            .task-heading {
+                flex-direction: column;
+            }
+
+            .milestone-date,
+            .status {
+                white-space: normal;
+            }
+        }
+        .timeline-metrics {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+
+        .timeline-metrics div {
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            padding: 10px 14px;
+        }
+        .inline-form {
+            display: inline;
+        }
+
+        .inline-form button {
+            padding: 7px 11px;
+            cursor: pointer;
+            font: inherit;
+        }
+
+        .schedule-message {
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-bottom: 20px;
+        }
+
+        .schedule-message-success {
+            background: #edf9ed;
+            border: 1px solid #a8d5ad;
+        }
+
+        .schedule-message-error {
+            background: #fff0f0;
+            border: 1px solid #e0a0a0;
+        }
+        .schedule-refresh-warning {
+            border: 1px solid #e1bd68;
+            border-left: 5px solid #b17a00;
+            background: #fff8e5;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 22px;
+        }
+
+        .schedule-refresh-warning h2 {
+            margin-top: 0;
+            font-size: 18px;
+        }
+
+        .schedule-refresh-warning p {
+            margin-bottom: 8px;
+        }
+
+        .schedule-generated-time {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+<div class="toolbar">
+    <a href="{% url 'workspace' project.pk %}">
+        ← Back to Workspace
+    </a>
+
+    &nbsp;|&nbsp;
+
+    <a href="{% url 'project_board' project.pk %}">
+        Kanban Board
+    </a>
+
+    &nbsp;|&nbsp;
+
+    <form
+        method="POST"
+        action="{% url 'generate_project_schedule' project.pk %}"
+        class="inline-form"
+    >
+        {% csrf_token %}
+
+        <button
+            type="submit"
+            onclick="return confirm(
+                'Generate a new AI schedule for this project?'
+            )"
+        >
+            Generate AI Schedule
+        </button>
+    </form>
+</div>
+{% if schedule_message %}
+    <div
+        class="
+            schedule-message
+            {% if schedule_message_type == 'error' %}
+                schedule-message-error
+            {% else %}
+                schedule-message-success
+            {% endif %}
+        "
+    >
+        {{ schedule_message }}
+    </div>
+{% endif %}
+{% if project.schedule_needs_refresh %}
+    <div class="schedule-refresh-warning">
+        <h2>Schedule May Be Out of Date</h2>
+
+        {% if project.schedule_refresh_reason %}
+            <p>
+                {{ project.schedule_refresh_reason }}
+            </p>
+        {% endif %}
+
+        <p>
+            Generate a new AI schedule to update dates,
+            milestones, estimates, and dependencies.
+        </p>
+
+        <form
+            method="POST"
+            action="{% url 'generate_project_schedule' project.pk %}"
+            class="inline-form"
+        >
+            {% csrf_token %}
+
+            <button type="submit">
+                Refresh AI Schedule
+            </button>
+        </form>
+    </div>
+{% endif %}
+<h1>{{ project.name }} Timeline</h1>
+
+<p class="timeline-summary">
+    Tasks grouped by milestone, schedule, and dependency.
+</p>
+<div class="timeline-metrics">
+    <div>
+        <strong>{{ blocked_tasks|length }}</strong>
+        blocked tasks
+    </div>
+
+    <div>
+        <strong>{{ overdue_tasks|length }}</strong>
+        overdue tasks
+    </div>
+</div>
+
+{% for milestone in milestones %}
+    <section class="milestone">
+        <div class="milestone-header">
+            <div>
+                <h2>{{ milestone.name }}</h2>
+
+                {% if milestone.description %}
+                    <p>{{ milestone.description }}</p>
+                {% endif %}
+
+                {% if milestone.completed %}
+                    <span class="completed-label">
+                        Completed
+                    </span>
+                {% endif %}
+            </div>
+
+            <div class="milestone-date">
+                {% if milestone.target_date %}
+                    Target:
+                    {{ milestone.target_date|date:"F j, Y" }}
+                {% else %}
+                    No target date
+                {% endif %}
+            </div>
+        </div>
+
+        <ul class="task-list">
+            {% for task in milestone.tasks.all %}
+                <li class="task-card">
+                    <div class="task-heading">
+                        <h3>{{ task.title }}</h3>
+
+                        <span class="status">
+                            {{ task.get_status_display }}
+                        </span>
+                    </div>
+
+                    {% if task.is_blocked %}
+                        <div class="blocked-warning">
+                            <strong>Blocked</strong>
+
+                            <p>
+                                This task cannot proceed until these
+                                tasks are done:
+                            </p>
+
+                            <ul>
+                                {% for dependency in task.incomplete_dependencies %}
+                                    <li>
+                                        {{ dependency.title }}
+                                        —
+                                        {{ dependency.get_status_display }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    {% if task.description %}
+                        <p class="task-description">
+                            {{ task.description }}
+                        </p>
+                    {% endif %}
+
+                    <div class="task-details">
+                        <span>
+                            <strong>Priority:</strong>
+                            {{ task.get_priority_display }}
+                        </span>
+
+                        <span>
+                            <strong>Start:</strong>
+
+                            {% if task.start_date %}
+                                {{ task.start_date|date:"M j, Y" }}
+                            {% else %}
+                                Not scheduled
+                            {% endif %}
+                        </span>
+
+                        <span>
+                            <strong>Due:</strong>
+
+                            {% if task.due_date %}
+                                {{ task.due_date|date:"M j, Y" }}
+                            {% else %}
+                                Not scheduled
+                            {% endif %}
+                        </span>
+
+                        <span>
+                            <strong>Estimate:</strong>
+
+                            {% if task.estimated_hours != None %}
+                                {{ task.estimated_hours }} hours
+                            {% else %}
+                                Not estimated
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    {% if task.dependencies.exists %}
+                        <div class="dependencies">
+                            <strong>Depends on:</strong>
+
+                            <ul>
+                                {% for dependency in task.dependencies.all %}
+                                    <li>
+                                        {{ dependency.title }}
+                                        —
+                                        {{ dependency.get_status_display }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    {% if task.dependents.exists %}
+                        <div class="blocking-info">
+                            <strong>Blocking:</strong>
+
+                            <ul>
+                                {% for dependent in task.dependents.all %}
+                                    <li>
+                                        {{ dependent.title }}
+                                        —
+                                        {{ dependent.get_status_display }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    {% if task.is_overdue %}
+                        <div class="overdue-warning">
+                            Overdue
+                        </div>
+                    {% endif %}
+
+                    <div class="task-actions">
+                        <a href="{% url 'edit_task_dependencies' project.pk task.pk %}">
+                            Edit dependencies
+                        </a>
+                    </div>
+                </li>
+
+            {% empty %}
+                <li class="empty">
+                    No tasks are assigned to this milestone.
+                </li>
+            {% endfor %}
+        </ul>
+    </section>
+
+{% empty %}
+    <p class="empty">
+        No milestones have been created yet.
+    </p>
+{% endfor %}
+
+<section class="unscheduled">
+    <h2>Tasks Without a Milestone</h2>
+
+    <ul class="task-list">
+        {% for task in unscheduled_tasks %}
+            <li class="task-card">
+                <div class="task-heading">
+                    <h3>{{ task.title }}</h3>
+
+                    <span class="status">
+                        {{ task.get_status_display }}
+                    </span>
+                </div>
+
+                {% if task.is_blocked %}
+                    <div class="blocked-warning">
+                        <strong>Blocked</strong>
+
+                        <p>
+                            This task cannot proceed until these
+                            tasks are done:
+                        </p>
+
+                        <ul>
+                            {% for dependency in task.incomplete_dependencies %}
+                                <li>
+                                    {{ dependency.title }}
+                                    —
+                                    {{ dependency.get_status_display }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                {% if task.description %}
+                    <p class="task-description">
+                        {{ task.description }}
+                    </p>
+                {% endif %}
+
+                <div class="task-details">
+                    <span>
+                        <strong>Priority:</strong>
+                        {{ task.get_priority_display }}
+                    </span>
+
+                    <span>
+                        <strong>Start:</strong>
+
+                        {% if task.start_date %}
+                            {{ task.start_date|date:"M j, Y" }}
+                        {% else %}
+                            Not scheduled
+                        {% endif %}
+                    </span>
+
+                    <span>
+                        <strong>Due:</strong>
+
+                        {% if task.due_date %}
+                            {{ task.due_date|date:"M j, Y" }}
+                        {% else %}
+                            Not scheduled
+                        {% endif %}
+                    </span>
+
+                    <span>
+                        <strong>Estimate:</strong>
+
+                        {% if task.estimated_hours != None %}
+                            {{ task.estimated_hours }} hours
+                        {% else %}
+                            Not estimated
+                        {% endif %}
+                    </span>
+                </div>
+
+                {% if task.dependencies.exists %}
+                    <div class="dependencies">
+                        <strong>Depends on:</strong>
+
+                        <ul>
+                            {% for dependency in task.dependencies.all %}
+                                <li>
+                                    {{ dependency.title }}
+                                    —
+                                    {{ dependency.get_status_display }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                {% if task.dependents.exists %}
+                    <div class="blocking-info">
+                        <strong>Blocking:</strong>
+
+                        <ul>
+                            {% for dependent in task.dependents.all %}
+                                <li>
+                                    {{ dependent.title }}
+                                    —
+                                    {{ dependent.get_status_display }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                {% if task.is_overdue %}
+                    <div class="overdue-warning">
+                        Overdue
+                    </div>
+                {% endif %}
+
+                <div class="task-actions">
+                    <a href="{% url 'edit_task_dependencies' project.pk task.pk %}">
+                        Edit dependencies
+                    </a>
+                </div>
+            </li>
+
+        {% empty %}
+            <li class="empty">
+                Every task is assigned to a milestone.
+            </li>
+        {% endfor %}
+    </ul>
+</section>
+
+</body>
+</html>

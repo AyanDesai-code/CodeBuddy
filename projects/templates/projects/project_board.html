@@ -177,6 +177,16 @@
                 grid-template-columns: 1fr;
             }
         }
+        .blocked-badge {
+            display: inline-block;
+            margin-top: 8px;
+            border-radius: 999px;
+            padding: 3px 8px;
+            background: #fff1cf;
+            color: #805700;
+            font-size: 12px;
+            font-weight: bold;
+        }
     </style>
 </head>
 
@@ -236,6 +246,11 @@
                     <span class="priority">
                         {{ task.get_priority_display }}
                     </span>
+                    {% if task.is_blocked %}
+                        <div class="blocked-badge">
+                            Blocked
+                        </div>
+                    {% endif %}
 
                     <form
                         method="POST"
@@ -314,7 +329,11 @@
                     <span class="priority">
                         {{ task.get_priority_display }}
                     </span>
-
+                    {% if task.is_blocked %}
+                        <div class="blocked-badge">
+                            Blocked
+                        </div>
+                    {% endif %}
                     <form
                         method="POST"
                         action="{% url 'update_task_status' project.pk task.pk %}"
@@ -388,7 +407,11 @@
                             {{ task.description }}
                         </div>
                     {% endif %}
-
+                    {% if task.is_blocked %}
+                        <div class="blocked-badge">
+                            Blocked
+                        </div>
+                    {% endif %}
                     <span class="priority">
                         {{ task.get_priority_display }}
                     </span>
@@ -470,7 +493,11 @@
                     <span class="priority">
                         {{ task.get_priority_display }}
                     </span>
-
+                    {% if task.is_blocked %}
+                        <div class="blocked-badge">
+                            Blocked
+                        </div>
+                    {% endif %}
                     <form
                         method="POST"
                         action="{% url 'update_task_status' project.pk task.pk %}"

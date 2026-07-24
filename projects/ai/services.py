@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from openai import OpenAI
 from typing import Literal
+from datetime import date
 
 client = OpenAI()
 
@@ -1300,3 +1301,217 @@ CURRENT TASKS:
 
     return response.output_parsed
 
+class ScheduledMilestone(BaseModel):
+    name: str
+    description: str
+    target_date: date | None
+    order: int
+
+
+class ScheduledTask(BaseModel):
+    task_id: int
+    start_date: date | None
+    due_date: date | None
+    estimated_hours: float | None
+    milestone_name: str | None
+    dependency_ids: list[int]
+
+
+class ProjectSchedule(BaseModel):
+    summary: str
+    milestones: list[ScheduledMilestone]
+    tasks: list[ScheduledTask]
+PROJECT_SCHEDULING_PROMPT = """
+You are BuilderOS, an AI project scheduling assistant.
+
+Create a realistic execution schedule for the existing project.
+
+You will receive:
+
+- today's date
+- canonical project facts
+- current workspace sections
+- current milestones
+- current tasks
+- task priorities
+- task statuses
+- task estimates
+- current dates
+- current dependencies
+
+Return:
+
+- a concise schedule summary
+- a milestone plan
+- scheduling data for every existing task
+
+Milestone rules:
+
+- Create a small number of meaningful project checkpoints.
+- Reuse an existing milestone name when it still makes sense.
+- Do not create duplicate or nearly duplicate milestones.
+- Milestones should represent outcomes, not individual tiny tasks.
+- Assign a realistic target date.
+- Order milestones from earliest to latest.
+
+Task rules:
+
+- Every returned task_id must match an existing task.
+- Return exactly one scheduling entry for every existing task.
+- Do not invent task IDs.
+- Do not remove or rename tasks.
+- Preserve completed work.
+- Completed tasks may keep their existing dates.
+- Do not schedule unfinished work before its unfinished dependencies.
+- dependency_ids must contain only valid task IDs from this project.
+- A task must never depend on itself.
+- Avoid circular dependencies.
+- Use the smallest reasonable number of dependencies.
+- Prefer direct dependencies rather than listing every indirect dependency.
+- start_date must not be after due_date.
+- estimated_hours must be realistic for one clear task.
+- If there is not enough information for a confident estimate, make a
+  clearly reasonable estimate rather than leaving everything empty.
+- milestone_name must either match one returned milestone name or be null.
+
+Status meanings:
+
+- todo: work has not started
+- in_progress: work is actively underway
+- review: implementation is finished but needs validation or approval
+- done: fully completed
+
+Scheduling guidance:
+
+- Schedule high-priority and prerequisite work earlier.
+- Keep work in a logical technical sequence.
+- Respect the project timeline and constraints in the workspace.
+- Use today's date as the earliest normal start date for unfinished work.
+- Do not move completed tasks back into the future.
+- Allow reasonable overlap only where tasks can truly happen in parallel.
+
+Return only the structured response required by ProjectSchedule.
+"""
+def generate_project_schedule(project) -> ProjectSchedule:
+    project_state = getattr(
+        project,
+        "state",
+        None,
+    )
+
+    canonical_facts = (
+        project_state.facts
+        if project_state is not None
+        else {}
+    )
+
+    workspace_text = "\n\n".join(
+        (
+            f"SECTION TYPE: {folder.folder_type}\n"
+            f"SECTION NAME: {folder.name}\n"
+            f"{folder.description}"
+        )
+        for folder in project.folders.order_by(
+            "order"
+        )
+    )
+
+    milestones_text = "\n\n".join(
+        (
+            f"MILESTONE ID: {milestone.pk}\n"
+            f"NAME: {milestone.name}\n"
+            f"DESCRIPTION: {milestone.description}\n"
+            f"TARGET DATE: "
+            f"{milestone.target_date or 'Not scheduled'}\n"
+            f"COMPLETED: {milestone.completed}\n"
+            f"ORDER: {milestone.order}"
+        )
+        for milestone in project.milestones.order_by(
+            "order",
+            "target_date",
+            "created_at",
+        )
+    )
+
+    if not milestones_text:
+        milestones_text = (
+            "No milestones currently exist."
+        )
+
+    tasks_text = "\n\n".join(
+        (
+            f"TASK ID: {task.pk}\n"
+            f"TITLE: {task.title}\n"
+            f"DESCRIPTION: {task.description}\n"
+            f"PRIORITY: {task.get_priority_display()}\n"
+            f"STATUS: {task.status}\n"
+            f"COMPLETED: {task.completed}\n"
+            f"START DATE: "
+            f"{task.start_date or 'Not scheduled'}\n"
+            f"DUE DATE: "
+            f"{task.due_date or 'Not scheduled'}\n"
+            f"ESTIMATED HOURS: "
+            f"{task.estimated_hours or 'Not estimated'}\n"
+            f"MILESTONE: "
+            f"{task.milestone.name if task.milestone else 'None'}\n"
+            f"DEPENDENCY IDS: "
+            f"{list(task.dependencies.values_list('pk', flat=True))}"
+        )
+        for task in project.tasks
+        .select_related("milestone")
+        .prefetch_related("dependencies")
+        .order_by("order")
+    )
+
+    if not tasks_text:
+        raise ValueError(
+            "Cannot generate a project schedule "
+            "because the project has no tasks."
+        )
+
+    scheduling_input = f"""
+TODAY:
+
+{date.today().isoformat()}
+
+
+PROJECT NAME:
+
+{project.name}
+
+
+CANONICAL PROJECT FACTS:
+
+{canonical_facts}
+
+
+CURRENT WORKSPACE:
+
+{workspace_text}
+
+
+CURRENT MILESTONES:
+
+{milestones_text}
+
+
+CURRENT TASKS:
+
+{tasks_text}
+"""
+
+    response = client.responses.parse(
+        model="gpt-5-mini",
+        instructions=PROJECT_SCHEDULING_PROMPT,
+        input=scheduling_input,
+        text_format=ProjectSchedule,
+    )
+
+    schedule = response.output_parsed
+
+    if schedule is None:
+        raise ValueError(
+            "The AI returned no project schedule."
+        )
+
+    return schedule

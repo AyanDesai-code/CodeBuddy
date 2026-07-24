@@ -2,6 +2,7 @@
 # Create your models here.
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class Project(models.Model):
@@ -85,6 +86,13 @@ class Task(models.Model):
         on_delete=models.CASCADE,
         related_name="tasks",
     )
+    milestone = models.ForeignKey(
+        "ProjectMilestone",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tasks",
+    )
 
     title = models.CharField(
         max_length=200,
@@ -109,6 +117,30 @@ class Task(models.Model):
         default=Status.TODO,
     )
 
+    start_date = models.DateField(
+        null=True,
+        blank=True,
+    )
+
+    due_date = models.DateField(
+        null=True,
+        blank=True,
+    )
+
+    estimated_hours = models.DecimalField(
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    dependencies = models.ManyToManyField(
+        "self",
+        symmetrical=False,
+        blank=True,
+        related_name="dependents",
+    )
+
     order = models.PositiveIntegerField(
         default=0,
     )
@@ -127,9 +159,77 @@ class Task(models.Model):
             "-priority",
             "created_at",
         ]
+    @property
+    def incomplete_dependencies(self):
+        return self.dependencies.exclude(
+            status=self.Status.DONE,
+        )
+
+
+    @property
+    def is_blocked(self):
+        return self.incomplete_dependencies.exists()
+
+
+    @property
+    def is_overdue(self):
+        if self.due_date is None:
+            return False
+
+        if self.status == self.Status.DONE:
+            return False
+
+        return self.due_date < timezone.localdate()
 
     def __str__(self):
         return self.title
+
+class ProjectMilestone(models.Model):
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="milestones",
+    )
+
+    name = models.CharField(
+        max_length=200,
+    )
+
+    description = models.TextField(
+        blank=True,
+    )
+
+    target_date = models.DateField(
+        null=True,
+        blank=True,
+    )
+
+    completed = models.BooleanField(
+        default=False,
+    )
+
+    order = models.PositiveIntegerField(
+        default=0,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = [
+            "order",
+            "target_date",
+            "created_at",
+        ]
+
+    def __str__(self):
+        return self.name
+
 class ProjectState(models.Model):
     project = models.OneToOneField(
         Project,
@@ -386,6 +486,14 @@ class ProjectEvent(models.Model):
         TASK_STATUS_CHANGED = (
             "task_status_changed",
             "Task Status Changed",
+        )
+        TASK_DEPENDENCIES_CHANGED = (
+            "task_dependencies_changed",
+            "Task Dependencies Changed",
+        )
+        SCHEDULE_GENERATED = (
+            "schedule_generated",
+            "Schedule Generated",
         )
 
     project = models.ForeignKey(

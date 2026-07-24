@@ -1,10 +1,12 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 import difflib
+
 from .ai.services import (
     analyze_workspace_change,
     apply_canonical_updates,
     generate_additional_tasks,
+    generate_project_schedule,
     generate_reply,
     generate_task_synchronization,
     generate_workspace_content,
@@ -19,6 +21,7 @@ from .models import (
     ProjectEvent,
     ProjectHealthReviewRecord,
     ProjectMessage,
+    ProjectMilestone,
     ProjectState,
     Task,
     WorkspaceFolder,
@@ -30,6 +33,7 @@ import time
 from django.utils import timezone
 import json
 from django.http import JsonResponse
+from decimal import Decimal, InvalidOperation
 
 def record_project_event(
     *,
@@ -45,6 +49,21 @@ def record_project_event(
         title=title,
         description=description,
         metadata=metadata or {},
+    )
+def mark_schedule_for_refresh(
+    *,
+    project,
+    reason,
+):
+    project.schedule_needs_refresh = True
+    project.schedule_refresh_reason = reason
+
+    project.save(
+        update_fields=[
+            "schedule_needs_refresh",
+            "schedule_refresh_reason",
+            "updated_at",
+        ]
     )
 def build_text_diff(before_text, after_text):
     before_lines = (before_text or "").splitlines()
@@ -198,18 +217,48 @@ def generate_workspace(request, pk):
     )
 
     if project.status != Project.Status.GENERATING:
-        return redirect("project_setup", pk=project.pk)
+        return redirect(
+            "project_setup",
+            pk=project.pk,
+        )
 
     default_folders = [
-        {"name": "Overview", "folder_type": "overview"},
-        {"name": "Requirements", "folder_type": "requirements"},
-        {"name": "Roadmap", "folder_type": "roadmap"},
-        {"name": "Tasks", "folder_type": "tasks"},
-        {"name": "Materials & Stack", "folder_type": "resources"},
-        {"name": "Budget", "folder_type": "budget"},
-        {"name": "Learning Resources", "folder_type": "learning"},
-        {"name": "Documentation", "folder_type": "documentation"},
-        {"name": "Testing", "folder_type": "testing"},
+        {
+            "name": "Overview",
+            "folder_type": "overview",
+        },
+        {
+            "name": "Requirements",
+            "folder_type": "requirements",
+        },
+        {
+            "name": "Roadmap",
+            "folder_type": "roadmap",
+        },
+        {
+            "name": "Tasks",
+            "folder_type": "tasks",
+        },
+        {
+            "name": "Materials & Stack",
+            "folder_type": "resources",
+        },
+        {
+            "name": "Budget",
+            "folder_type": "budget",
+        },
+        {
+            "name": "Learning Resources",
+            "folder_type": "learning",
+        },
+        {
+            "name": "Documentation",
+            "folder_type": "documentation",
+        },
+        {
+            "name": "Testing",
+            "folder_type": "testing",
+        },
     ]
 
     if not project.folders.exists():
@@ -218,7 +267,9 @@ def generate_workspace(request, pk):
                 WorkspaceFolder(
                     project=project,
                     name=folder["name"],
-                    folder_type=folder["folder_type"],
+                    folder_type=folder[
+                        "folder_type"
+                    ],
                     order=index,
                 )
                 for index, folder in enumerate(
@@ -229,11 +280,21 @@ def generate_workspace(request, pk):
         )
 
     try:
-        generated = generate_workspace_content(project)
+        generated = generate_workspace_content(
+            project
+        )
 
-        print("\n===== Generated Workspace =====")
-        print(generated.model_dump_json(indent=4))
-        print("===============================\n")
+        print(
+            "\n===== Generated Workspace ====="
+        )
+        print(
+            generated.model_dump_json(
+                indent=4
+            )
+        )
+        print(
+            "===============================\n"
+        )
 
         project.name = generated.project_name
 
@@ -243,9 +304,14 @@ def generate_workspace(request, pk):
         }
 
         for folder in project.folders.all():
-            folder.description = sections_by_type.get(
-                folder.folder_type,
-                "No content was generated for this section.",
+            folder.description = (
+                sections_by_type.get(
+                    folder.folder_type,
+                    (
+                        "No content was generated "
+                        "for this section."
+                    ),
+                )
             )
 
             folder.save(
@@ -256,30 +322,83 @@ def generate_workspace(request, pk):
             )
 
         if not project.tasks.exists():
-            Task.objects.bulk_create(
-                [
+            valid_statuses = {
+                value
+                for value, _ in Task.Status.choices
+            }
+
+            generated_tasks = []
+
+            for index, generated_task in enumerate(
+                generated.tasks,
+                start=1,
+            ):
+                status = getattr(
+                    generated_task,
+                    "status",
+                    Task.Status.TODO,
+                )
+
+                if status not in valid_statuses:
+                    status = Task.Status.TODO
+
+                priority = normalize_task_priority(
+                    generated_task.priority
+                )
+
+                generated_tasks.append(
                     Task(
                         project=project,
-                        title=generated_task.title,
-                        description=generated_task.description,
-                        priority=generated_task.priority,
+                        title=(
+                            generated_task
+                            .title
+                            .strip()
+                        ),
+                        description=(
+                            generated_task
+                            .description
+                            .strip()
+                        ),
+                        priority=priority,
+                        status=status,
+                        completed=(
+                            status
+                            == Task.Status.DONE
+                        ),
                         order=index,
                     )
-                    for index, generated_task in enumerate(
-                        generated.tasks,
-                        start=1,
-                    )
-                ]
-            )
+                )
+
+            if generated_tasks:
+                Task.objects.bulk_create(
+                    generated_tasks
+                )
 
     except Exception as error:
-        print("Workspace generation failed:", error)
-        return redirect("project_setup", pk=project.pk)
+        print(
+            "Workspace generation failed:",
+            error,
+        )
+
+        return redirect(
+            "project_setup",
+            pk=project.pk,
+        )
 
     project.status = Project.Status.ACTIVE
-    project.save(update_fields=["name", "status"])
 
-    return redirect("workspace", pk=project.pk)
+    project.save(
+        update_fields=[
+            "name",
+            "status",
+            "updated_at",
+        ]
+    )
+
+    return redirect(
+        "workspace",
+        pk=project.pk,
+    )
 @login_required
 def workspace(request, pk):
     project = get_object_or_404(
@@ -413,7 +532,11 @@ def workspace_folder(request, project_pk, folder_pk):
         },
     )
 @login_required
-def edit_workspace_folder(request, project_pk, folder_pk):
+def edit_workspace_folder(
+    request,
+    project_pk,
+    folder_pk,
+):
     project = get_object_or_404(
         Project,
         pk=project_pk,
@@ -427,18 +550,60 @@ def edit_workspace_folder(request, project_pk, folder_pk):
     )
 
     if request.method == "POST":
-        folder.description = request.POST.get("description", "")
-        folder.save(update_fields=["description", "updated_at"])
-        record_project_event(
-            project=project,
-            event_type=ProjectEvent.EventType.WORKSPACE_UPDATED,
-            title="Workspace section edited",
-            description=folder.name,
-            metadata={
-                "folder_id": folder.pk,
-                "folder_type": folder.folder_type,
-            },
+        new_description = request.POST.get(
+            "description",
+            "",
         )
+
+        old_description = folder.description
+
+        if old_description != new_description:
+            folder.description = new_description
+
+            folder.save(
+                update_fields=[
+                    "description",
+                    "updated_at",
+                ]
+            )
+
+            schedule_relevant_sections = {
+                "requirements",
+                "roadmap",
+                "tasks",
+                "resources",
+                "budget",
+                "testing",
+            }
+
+            if (
+                folder.folder_type
+                in schedule_relevant_sections
+            ):
+                mark_schedule_for_refresh(
+                    project=project,
+                    reason=(
+                        "Workspace section edited: "
+                        f"{folder.name}."
+                    ),
+                )
+
+            record_project_event(
+                project=project,
+                event_type=(
+                    ProjectEvent.EventType
+                    .WORKSPACE_UPDATED
+                ),
+                title="Workspace section edited",
+                description=folder.name,
+                metadata={
+                    "folder_id": folder.pk,
+                    "folder_type": (
+                        folder.folder_type
+                    ),
+                },
+            )
+
         return redirect(
             "workspace_folder",
             project_pk=project.pk,
@@ -453,10 +618,13 @@ def edit_workspace_folder(request, project_pk, folder_pk):
             "folder": folder,
         },
     )
-
 @login_required
 @require_POST
-def regenerate_workspace_folder(request, project_pk, folder_pk):
+def regenerate_workspace_folder(
+    request,
+    project_pk,
+    folder_pk,
+):
     project = get_object_or_404(
         Project,
         pk=project_pk,
@@ -470,19 +638,73 @@ def regenerate_workspace_folder(request, project_pk, folder_pk):
     )
 
     try:
+        previous_description = (
+            folder.description
+        )
+
         result = regenerate_workspace_section(
             project=project,
             folder=folder,
         )
 
-        folder.description = result.content
-        folder.save(update_fields=["description", "updated_at"])
+        if result.content != previous_description:
+            folder.description = result.content
 
-        print(f"Regenerated section: {folder.name}")
+            folder.save(
+                update_fields=[
+                    "description",
+                    "updated_at",
+                ]
+            )
+
+            schedule_relevant_sections = {
+                "requirements",
+                "roadmap",
+                "tasks",
+                "resources",
+                "budget",
+                "testing",
+            }
+
+            if (
+                folder.folder_type
+                in schedule_relevant_sections
+            ):
+                mark_schedule_for_refresh(
+                    project=project,
+                    reason=(
+                        "Workspace section "
+                        f"regenerated: {folder.name}."
+                    ),
+                )
+
+            record_project_event(
+                project=project,
+                event_type=(
+                    ProjectEvent.EventType
+                    .WORKSPACE_UPDATED
+                ),
+                title=(
+                    "Workspace section regenerated"
+                ),
+                description=folder.name,
+                metadata={
+                    "folder_id": folder.pk,
+                    "folder_type": (
+                        folder.folder_type
+                    ),
+                },
+            )
+
+        print(
+            f"Regenerated section: "
+            f"{folder.name}"
+        )
 
     except Exception as error:
         print(
-            f"Failed to regenerate {folder.name}:",
+            f"Failed to regenerate "
+            f"{folder.name}:",
             error,
         )
 
@@ -493,7 +715,11 @@ def regenerate_workspace_folder(request, project_pk, folder_pk):
     )
 @login_required
 @require_POST
-def toggle_task(request, project_pk, task_pk):
+def toggle_task(
+    request,
+    project_pk,
+    task_pk,
+):
     project = get_object_or_404(
         Project,
         pk=project_pk,
@@ -510,8 +736,16 @@ def toggle_task(request, project_pk, task_pk):
 
     if task.completed:
         task.status = Task.Status.DONE
+        event_type = (
+            ProjectEvent.EventType.TASK_COMPLETED
+        )
+        event_title = "Task completed"
     else:
         task.status = Task.Status.TODO
+        event_type = (
+            ProjectEvent.EventType.TASK_REOPENED
+        )
+        event_title = "Task reopened"
 
     task.save(
         update_fields=[
@@ -520,16 +754,15 @@ def toggle_task(request, project_pk, task_pk):
             "updated_at",
         ]
     )
-    if task.completed:
-        event_type = (
-            ProjectEvent.EventType.TASK_COMPLETED
-        )
-        event_title = "Task completed"
-    else:
-        event_type = (
-            ProjectEvent.EventType.TASK_REOPENED
-        )
-        event_title = "Task reopened"
+
+    mark_schedule_for_refresh(
+        project=project,
+        reason=(
+            f"Completion state changed for "
+            f"{task.title}."
+        ),
+    )
+    
 
     record_project_event(
         project=project,
@@ -539,6 +772,8 @@ def toggle_task(request, project_pk, task_pk):
         metadata={
             "task_id": task.pk,
             "task_title": task.title,
+            "status": task.status,
+            "completed": task.completed,
         },
     )
 
@@ -553,6 +788,24 @@ def toggle_task(request, project_pk, task_pk):
         project_pk=project.pk,
         folder_pk=tasks_folder.pk,
     )
+def normalize_task_priority(
+    raw_priority,
+    default=Task.Priority.MEDIUM,
+):
+    try:
+        priority = int(raw_priority)
+    except (TypeError, ValueError):
+        return default
+
+    valid_priorities = {
+        value
+        for value, _ in Task.Priority.choices
+    }
+
+    if priority not in valid_priorities:
+        return default
+
+    return priority
 @login_required
 def new_task(request, project_pk):
     project = get_object_or_404(
@@ -568,23 +821,51 @@ def new_task(request, project_pk):
     )
 
     if request.method == "POST":
-        title = request.POST.get("title", "").strip()
-        description = request.POST.get("description", "").strip()
-        priority = request.POST.get(
-            "priority",
-            str(Task.Priority.MEDIUM),
+        title = request.POST.get(
+            "title",
+            "",
+        ).strip()
+
+        description = request.POST.get(
+            "description",
+            "",
+        ).strip()
+
+        priority = normalize_task_priority(
+            request.POST.get(
+                "priority",
+                Task.Priority.MEDIUM,
+            )
         )
 
         if title:
-            last_task = project.tasks.order_by("-order").first()
-            next_order = last_task.order + 1 if last_task else 1
+            last_task = (
+                project.tasks
+                .order_by("-order")
+                .first()
+            )
 
-            Task.objects.create(
+            next_order = (
+                last_task.order + 1
+                if last_task is not None
+                else 1
+            )
+
+            task = Task.objects.create(
                 project=project,
                 title=title,
                 description=description,
-                priority=int(priority),
+                priority=priority,
+                status=Task.Status.TODO,
+                completed=False,
                 order=next_order,
+            )
+
+            mark_schedule_for_refresh(
+                project=project,
+                reason=(
+                    f"Task added: {task.title}."
+                ),
             )
 
             return redirect(
@@ -599,11 +880,17 @@ def new_task(request, project_pk):
         {
             "project": project,
             "tasks_folder": tasks_folder,
-            "priorities": Task.Priority.choices,
+            "priorities": (
+                Task.Priority.choices
+            ),
         },
     )
 @login_required
-def edit_task(request, project_pk, task_pk):
+def edit_task(
+    request,
+    project_pk,
+    task_pk,
+):
     project = get_object_or_404(
         Project,
         pk=project_pk,
@@ -623,21 +910,59 @@ def edit_task(request, project_pk, task_pk):
     )
 
     if request.method == "POST":
+        new_title = request.POST.get(
+            "title",
+            "",
+        ).strip()
 
-        task.title = request.POST.get("title", "").strip()
-        task.description = request.POST.get(
+        new_description = request.POST.get(
             "description",
             "",
         ).strip()
 
-        task.priority = int(
+        new_priority = normalize_task_priority(
             request.POST.get(
                 "priority",
                 task.priority,
-            )
+            ),
+            default=task.priority,
         )
 
-        task.save()
+        if not new_title:
+            new_title = task.title
+
+        changed = any(
+            [
+                task.title != new_title,
+                (
+                    task.description
+                    != new_description
+                ),
+                task.priority != new_priority,
+            ]
+        )
+
+        if changed:
+            task.title = new_title
+            task.description = new_description
+            task.priority = new_priority
+
+            task.save(
+                update_fields=[
+                    "title",
+                    "description",
+                    "priority",
+                    "updated_at",
+                ]
+            )
+
+            mark_schedule_for_refresh(
+                project=project,
+                reason=(
+                    f"Task updated: "
+                    f"{task.title}."
+                ),
+            )
 
         return redirect(
             "workspace_folder",
@@ -651,13 +976,18 @@ def edit_task(request, project_pk, task_pk):
         {
             "project": project,
             "task": task,
-            "priorities": Task.Priority.choices,
+            "priorities": (
+                Task.Priority.choices
+            ),
         },
     )
 @login_required
 @require_POST
-def delete_task(request, project_pk, task_pk):
-
+def delete_task(
+    request,
+    project_pk,
+    task_pk,
+):
     project = get_object_or_404(
         Project,
         pk=project_pk,
@@ -670,12 +1000,22 @@ def delete_task(request, project_pk, task_pk):
         project=project,
     )
 
+    tasks_folder = get_object_or_404(
+        WorkspaceFolder,
+        project=project,
+        folder_type="tasks",
+    )
+
+    deleted_task_title = task.title
+
     task.delete()
 
-    tasks_folder = get_object_or_404(
-        WorkspaceFolder,
+    mark_schedule_for_refresh(
         project=project,
-        folder_type="tasks",
+        reason=(
+            f"Task deleted: "
+            f"{deleted_task_title}"
+        ),
     )
 
     return redirect(
@@ -683,116 +1023,7 @@ def delete_task(request, project_pk, task_pk):
         project_pk=project.pk,
         folder_pk=tasks_folder.pk,
     )
-@login_required
-@require_POST
-def generate_more_tasks(request, project_pk):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
-    )
 
-    tasks_folder = get_object_or_404(
-        WorkspaceFolder,
-        project=project,
-        folder_type="tasks",
-    )
-
-    try:
-        result = generate_additional_tasks(project)
-
-        existing_tasks = list(project.tasks.all())
-
-        existing_titles = {
-            task.title.strip().lower()
-            for task in existing_tasks
-        }
-
-        existing_task_words = [
-            normalize_task_title(task.title)
-            for task in existing_tasks
-        ]
-
-        last_task = project.tasks.order_by("-order").first()
-        next_order = last_task.order + 1 if last_task else 1
-
-        new_tasks = []
-
-        for generated_task in result.tasks[:5]:
-            title = generated_task.title.strip()
-            description = generated_task.description.strip()
-
-            if not title:
-                continue
-
-            normalized_title = title.lower()
-
-            # Skip exact duplicate titles.
-            if normalized_title in existing_titles:
-                continue
-
-            new_title_words = normalize_task_title(title)
-
-            # Skip titles that are too similar to existing tasks.
-            is_similar = any(
-                len(new_title_words & existing_words)
-                / max(len(new_title_words), 1)
-                >= 0.6
-                for existing_words in existing_task_words
-            )
-
-            if is_similar:
-                continue
-
-            priority = max(
-                Task.Priority.LOW,
-                min(
-                    Task.Priority.HIGH,
-                    generated_task.priority,
-                ),
-            )
-
-            valid_statuses = {
-                value
-                for value, _ in Task.Status.choices
-            }
-
-            new_status = generated_task.status
-
-            if new_status not in valid_statuses:
-                new_status = Task.Status.TODO
-
-            new_tasks.append(
-                Task(
-                    project=project,
-                    title=title,
-                    description=description,
-                    priority=priority,
-                    status=new_status,
-                    completed=(
-                        new_status == Task.Status.DONE
-                    ),
-                    order=next_order,
-                )
-            )
-            # Prevent duplicates among tasks accepted in this same request.
-            existing_titles.add(normalized_title)
-            existing_task_words.append(new_title_words)
-            next_order += 1
-
-        if new_tasks:
-            Task.objects.bulk_create(new_tasks)
-
-        print(f"Generated {len(new_tasks)} additional tasks.")
-
-    except Exception as error:
-        print("Additional task generation failed:", error)
-
-    return redirect(
-        "workspace_folder",
-        project_pk=project.pk,
-        folder_pk=tasks_folder.pk,
-    )
 def apply_task_synchronization(
     project,
     synchronization,
@@ -801,49 +1032,79 @@ def apply_task_synchronization(
     updated_count = 0
     removed_count = 0
 
-    existing_tasks = list(project.tasks.all())
+    valid_statuses = {
+        value
+        for value, _ in Task.Status.choices
+    }
+
+    existing_tasks = list(
+        project.tasks.all()
+    )
 
     tasks_by_id = {
         task.pk: task
         for task in existing_tasks
     }
 
-    # Update existing tasks by database ID.
-    for task_update in synchronization.tasks_to_update:
-        task = tasks_by_id.get(task_update.task_id)
+    for task_update in (
+        synchronization.tasks_to_update
+    ):
+        task = tasks_by_id.get(
+            task_update.task_id
+        )
 
         if task is None:
             continue
 
-        new_title = task_update.new_title.strip()
+        new_title = (
+            task_update.new_title.strip()
+        )
 
         if not new_title:
             continue
 
-        task.title = new_title
-        task.description = task_update.description.strip()
-        task.priority = max(
-            Task.Priority.LOW,
-            min(
-                Task.Priority.HIGH,
-                task_update.priority,
-            ),
+        new_description = (
+            task_update.description.strip()
         )
-        valid_statuses = {
-            value
-            for value, _ in Task.Status.choices
-        }
+
+        new_priority = normalize_task_priority(
+            task_update.priority,
+            default=task.priority,
+        )
 
         new_status = task_update.status
 
-        if (
-            new_status is not None
-            and new_status in valid_statuses
-        ):
-            task.status = new_status
-            task.completed = (
-                new_status == Task.Status.DONE
-            )
+        if new_status not in valid_statuses:
+            new_status = task.status
+
+        new_completed = (
+            new_status == Task.Status.DONE
+        )
+
+        changed = any(
+            [
+                task.title != new_title,
+                (
+                    task.description
+                    != new_description
+                ),
+                task.priority != new_priority,
+                task.status != new_status,
+                (
+                    task.completed
+                    != new_completed
+                ),
+            ]
+        )
+
+        if not changed:
+            continue
+
+        task.title = new_title
+        task.description = new_description
+        task.priority = new_priority
+        task.status = new_status
+        task.completed = new_completed
 
         task.save(
             update_fields=[
@@ -855,23 +1116,28 @@ def apply_task_synchronization(
                 "updated_at",
             ]
         )
+
         updated_count += 1
 
-    # Remove only unfinished obsolete tasks by database ID.
     removal_ids = set(
         synchronization.task_ids_to_remove
     )
 
-    tasks_to_remove = project.tasks.filter(
-        completed=False,
-        pk__in=removal_ids,
+    tasks_to_remove = (
+        project.tasks.filter(
+            completed=False,
+            pk__in=removal_ids,
+        )
     )
 
     removed_count = tasks_to_remove.count()
-    tasks_to_remove.delete()
 
-    # Refresh comparisons after updates and removals.
-    remaining_tasks = list(project.tasks.all())
+    if removed_count:
+        tasks_to_remove.delete()
+
+    remaining_tasks = list(
+        project.tasks.all()
+    )
 
     existing_titles = {
         task.title.strip().lower()
@@ -883,12 +1149,23 @@ def apply_task_synchronization(
         for task in remaining_tasks
     ]
 
-    last_task = project.tasks.order_by("-order").first()
-    next_order = last_task.order + 1 if last_task else 1
+    last_task = (
+        project.tasks
+        .order_by("-order")
+        .first()
+    )
+
+    next_order = (
+        last_task.order + 1
+        if last_task is not None
+        else 1
+    )
 
     tasks_to_create = []
 
-    for generated_task in synchronization.tasks_to_add:
+    for generated_task in (
+        synchronization.tasks_to_add
+    ):
         title = generated_task.title.strip()
 
         if not title:
@@ -899,24 +1176,31 @@ def apply_task_synchronization(
         if normalized_title in existing_titles:
             continue
 
-        new_title_words = normalize_task_title(title)
+        new_title_words = (
+            normalize_task_title(title)
+        )
 
         is_similar = any(
-            len(new_title_words & existing_words)
-            / max(len(new_title_words), 1)
+            (
+                len(
+                    new_title_words
+                    & existing_words
+                )
+                / max(
+                    len(new_title_words),
+                    1,
+                )
+            )
             >= 0.6
-            for existing_words in existing_task_words
+            for existing_words
+            in existing_task_words
         )
 
         if is_similar:
             continue
 
-        priority = max(
-            Task.Priority.LOW,
-            min(
-                Task.Priority.HIGH,
-                generated_task.priority,
-            ),
+        priority = normalize_task_priority(
+            generated_task.priority
         )
 
         new_status = generated_task.status
@@ -929,25 +1213,35 @@ def apply_task_synchronization(
                 project=project,
                 title=title,
                 description=(
-                    generated_task.description.strip()
+                    generated_task
+                    .description
+                    .strip()
                 ),
                 priority=priority,
                 status=new_status,
                 completed=(
-                    new_status == Task.Status.DONE
+                    new_status
+                    == Task.Status.DONE
                 ),
                 order=next_order,
             )
         )
 
-        existing_titles.add(normalized_title)
-        existing_task_words.append(new_title_words)
+        existing_titles.add(
+            normalized_title
+        )
+
+        existing_task_words.append(
+            new_title_words
+        )
 
         next_order += 1
         added_count += 1
 
     if tasks_to_create:
-        Task.objects.bulk_create(tasks_to_create)
+        Task.objects.bulk_create(
+            tasks_to_create
+        )
 
     return {
         "added": added_count,
@@ -1173,6 +1467,51 @@ def apply_workspace_change(
                 "facts_changed": facts_changed,
                 "task_changes": task_changes,
             },
+        )
+    schedule_relevant_sections = {
+        "requirements",
+        "roadmap",
+        "tasks",
+        "resources",
+        "budget",
+        "testing",
+    }
+
+    affected_schedule_sections = (
+        schedule_relevant_sections
+        & set(analysis.affected_sections)
+    )
+
+    tasks_changed = any(
+        task_changes[key] > 0
+        for key in [
+            "added",
+            "updated",
+            "removed",
+        ]
+    )
+
+    if affected_schedule_sections or tasks_changed:
+        reasons = []
+
+        if affected_schedule_sections:
+            reasons.append(
+                "Updated sections: "
+                + ", ".join(
+                    sorted(
+                        affected_schedule_sections
+                    )
+                )
+            )
+
+        if tasks_changed:
+            reasons.append(
+                "The task list changed."
+            )
+
+        mark_schedule_for_refresh(
+            project=project,
+            reason=" ".join(reasons),
         )
 
     
@@ -1518,7 +1857,11 @@ def project_change_detail(request, project_pk, change_pk):
 
 @login_required
 @require_POST
-def undo_project_change(request, project_pk, change_pk):
+def undo_project_change(
+    request,
+    project_pk,
+    change_pk,
+):
     project = get_object_or_404(
         Project,
         pk=project_pk,
@@ -1533,13 +1876,20 @@ def undo_project_change(request, project_pk, change_pk):
 
     try:
         with transaction.atomic():
-            project_state, _ = ProjectState.objects.get_or_create(
-                project=project,
-                defaults={"facts": {}},
+            project_state, _ = (
+                ProjectState.objects
+                .get_or_create(
+                    project=project,
+                    defaults={
+                        "facts": {},
+                    },
+                )
             )
 
-            # Restore canonical facts.
-            project_state.facts = change.facts_before or {}
+            project_state.facts = (
+                change.facts_before or {}
+            )
+
             project_state.save(
                 update_fields=[
                     "facts",
@@ -1547,14 +1897,23 @@ def undo_project_change(request, project_pk, change_pk):
                 ]
             )
 
-            # Restore workspace sections.
-            sections_before = change.sections_before or {}
+            sections_before = (
+                change.sections_before or {}
+            )
 
             for folder in project.folders.all():
-                if folder.folder_type not in sections_before:
+                if (
+                    folder.folder_type
+                    not in sections_before
+                ):
                     continue
 
-                folder.description = sections_before[folder.folder_type]
+                folder.description = (
+                    sections_before[
+                        folder.folder_type
+                    ]
+                )
+
                 folder.save(
                     update_fields=[
                         "description",
@@ -1562,43 +1921,50 @@ def undo_project_change(request, project_pk, change_pk):
                     ]
                 )
 
-            # Restore tasks from the snapshot.
             project.tasks.all().delete()
 
             restored_tasks = []
 
-            for task_data in change.tasks_before or []:
-                title = task_data.get("title", "").strip()
+            valid_statuses = {
+                value
+                for value, _
+                in Task.Status.choices
+            }
+
+            for task_data in (
+                change.tasks_before or []
+            ):
+                title = (
+                    task_data
+                    .get("title", "")
+                    .strip()
+                )
 
                 if not title:
                     continue
 
-                priority = task_data.get(
-                    "priority",
-                    Task.Priority.MEDIUM,
+                priority = normalize_task_priority(
+                    task_data.get(
+                        "priority",
+                        Task.Priority.MEDIUM,
+                    )
                 )
 
-                priority = max(
-                    Task.Priority.LOW,
-                    min(
-                        Task.Priority.HIGH,
-                        priority,
-                    ),
-                )
                 saved_status = task_data.get(
                     "status",
                     Task.Status.TODO,
                 )
 
-                valid_statuses = {
-                    value
-                    for value, _ in Task.Status.choices
-                }
-
-                if saved_status not in valid_statuses:
+                if (
+                    saved_status
+                    not in valid_statuses
+                ):
                     saved_status = (
                         Task.Status.DONE
-                        if task_data.get("completed", False)
+                        if task_data.get(
+                            "completed",
+                            False,
+                        )
                         else Task.Status.TODO
                     )
 
@@ -1606,14 +1972,17 @@ def undo_project_change(request, project_pk, change_pk):
                     Task(
                         project=project,
                         title=title,
-                        description=task_data.get(
-                            "description",
-                            "",
+                        description=(
+                            task_data.get(
+                                "description",
+                                "",
+                            )
                         ),
                         priority=priority,
                         status=saved_status,
                         completed=(
-                            saved_status == Task.Status.DONE
+                            saved_status
+                            == Task.Status.DONE
                         ),
                         order=task_data.get(
                             "order",
@@ -1623,22 +1992,32 @@ def undo_project_change(request, project_pk, change_pk):
                 )
 
             if restored_tasks:
-                Task.objects.bulk_create(restored_tasks)
+                Task.objects.bulk_create(
+                    restored_tasks
+                )
 
             WorkspaceMessage.objects.create(
                 project=project,
-                role=WorkspaceMessage.Role.ASSISTANT,
+                role=(
+                    WorkspaceMessage.Role
+                    .ASSISTANT
+                ),
                 content=(
-                    f"Undid change #{change.pk}: "
+                    f"Undid change "
+                    f"#{change.pk}: "
                     f"{change.summary or change.user_message}"
                 ),
             )
+
             record_project_event(
                 project=project,
                 event_type=(
-                    ProjectEvent.EventType.CHANGE_UNDONE
+                    ProjectEvent.EventType
+                    .CHANGE_UNDONE
                 ),
-                title="Project change undone",
+                title=(
+                    "Project change undone"
+                ),
                 description=(
                     change.summary
                     or change.user_message
@@ -1648,11 +2027,23 @@ def undo_project_change(request, project_pk, change_pk):
                 },
             )
 
-        print(f"Undid ProjectChange #{change.pk}")
+        mark_schedule_for_refresh(
+            project=project,
+            reason=(
+                f"Project change "
+                f"#{change.pk} was undone."
+            ),
+        )
+
+        print(
+            f"Undid ProjectChange "
+            f"#{change.pk}"
+        )
 
     except Exception as error:
         print(
-            f"Failed to undo ProjectChange #{change.pk}:",
+            f"Failed to undo "
+            f"ProjectChange #{change.pk}:",
             error,
         )
 
@@ -2482,7 +2873,17 @@ def update_task_status(
             "updated_at",
         ]
     )
-
+    if (
+        previous_status == Task.Status.DONE
+        or new_status == Task.Status.DONE
+    ):
+        mark_schedule_for_refresh(
+            project=project,
+            reason=(
+                f"Completion state changed for "
+                f"{task.title}."
+            ),
+        )
     record_project_event(
         project=project,
         event_type=(
@@ -2530,7 +2931,11 @@ def move_task_on_board(
         payload = json.loads(
             request.body.decode("utf-8")
         )
-    except (json.JSONDecodeError, UnicodeDecodeError):
+
+    except (
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+    ):
         return JsonResponse(
             {
                 "success": False,
@@ -2540,7 +2945,10 @@ def move_task_on_board(
         )
 
     new_status = str(
-        payload.get("status", "")
+        payload.get(
+            "status",
+            "",
+        )
     ).strip()
 
     ordered_task_ids = payload.get(
@@ -2567,6 +2975,7 @@ def move_task_on_board(
             int(task_id)
             for task_id in ordered_task_ids
         ]
+
     except (TypeError, ValueError):
         return JsonResponse(
             {
@@ -2592,11 +3001,10 @@ def move_task_on_board(
             ]
         )
 
-        # Only reorder tasks that belong to this project
-        # and are now in the destination column.
         destination_tasks = {
             existing_task.pk: existing_task
-            for existing_task in project.tasks.filter(
+            for existing_task
+            in project.tasks.filter(
                 status=new_status,
                 pk__in=ordered_task_ids,
             )
@@ -2608,8 +3016,10 @@ def move_task_on_board(
             ordered_task_ids,
             start=1,
         ):
-            ordered_task = destination_tasks.get(
-                ordered_task_id
+            ordered_task = (
+                destination_tasks.get(
+                    ordered_task_id
+                )
             )
 
             if ordered_task is None:
@@ -2617,6 +3027,7 @@ def move_task_on_board(
 
             if ordered_task.order != order:
                 ordered_task.order = order
+
                 tasks_to_update.append(
                     ordered_task
                 )
@@ -2625,6 +3036,18 @@ def move_task_on_board(
             Task.objects.bulk_update(
                 tasks_to_update,
                 ["order"],
+            )
+
+        if (
+            previous_status == Task.Status.DONE
+            or new_status == Task.Status.DONE
+        ):
+            mark_schedule_for_refresh(
+                project=project,
+                reason=(
+                    f"Completion state changed for "
+                    f"{task.title}."
+                ),
             )
 
         if previous_status != new_status:
@@ -2647,7 +3070,9 @@ def move_task_on_board(
                 metadata={
                     "task_id": task.pk,
                     "task_title": task.title,
-                    "previous_status": previous_status,
+                    "previous_status": (
+                        previous_status
+                    ),
                     "new_status": new_status,
                 },
             )
@@ -2659,4 +3084,752 @@ def move_task_on_board(
             "status": task.status,
             "completed": task.completed,
         }
+    )
+@login_required
+def project_timeline(
+    request,
+    project_pk,
+):
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+        owner=request.user,
+    )
+
+    milestones = (
+        project.milestones
+        .prefetch_related(
+            "tasks",
+            "tasks__dependencies",
+            "tasks__dependents",
+        )
+        .order_by(
+            "order",
+            "target_date",
+            "created_at",
+        )
+    )
+
+    unscheduled_tasks = (
+        project.tasks
+        .filter(
+            milestone__isnull=True
+        )
+        .prefetch_related(
+            "dependencies",
+            "dependents",
+        )
+        .order_by(
+            "start_date",
+            "due_date",
+            "order",
+        )
+    )
+
+    all_tasks = list(
+        project.tasks
+        .prefetch_related(
+            "dependencies",
+            "dependents",
+        )
+    )
+
+    blocked_tasks = [
+        task
+        for task in all_tasks
+        if task.is_blocked
+    ]
+
+    overdue_tasks = [
+        task
+        for task in all_tasks
+        if task.is_overdue
+    ]
+
+    schedule_message = (
+        request.session.pop(
+            "schedule_message",
+            None,
+        )
+    )
+
+    schedule_message_type = (
+        request.session.pop(
+            "schedule_message_type",
+            None,
+        )
+    )
+
+    return render(
+        request,
+        "projects/project_timeline.html",
+        {
+            "project": project,
+            "milestones": milestones,
+            "unscheduled_tasks": (
+                unscheduled_tasks
+            ),
+            "blocked_tasks": blocked_tasks,
+            "overdue_tasks": overdue_tasks,
+            "schedule_message": (
+                schedule_message
+            ),
+            "schedule_message_type": (
+                schedule_message_type
+            ),
+        },
+    )
+def task_depends_on(
+    *,
+    task,
+    possible_dependency,
+    visited=None,
+):
+    if visited is None:
+        visited = set()
+
+    if task.pk in visited:
+        return False
+
+    visited.add(task.pk)
+
+    direct_dependencies = task.dependencies.all()
+
+    for dependency in direct_dependencies:
+        if dependency.pk == possible_dependency.pk:
+            return True
+
+        if task_depends_on(
+            task=dependency,
+            possible_dependency=possible_dependency,
+            visited=visited,
+        ):
+            return True
+
+    return False
+@login_required
+def edit_task_dependencies(
+    request,
+    project_pk,
+    task_pk,
+):
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+        owner=request.user,
+    )
+
+    task = get_object_or_404(
+        Task,
+        pk=task_pk,
+        project=project,
+    )
+
+    available_tasks = (
+        project.tasks
+        .exclude(pk=task.pk)
+        .order_by("order", "title")
+    )
+
+    error_message = ""
+
+    if request.method == "POST":
+        dependency_ids = request.POST.getlist(
+            "dependencies"
+        )
+
+        selected_dependencies = list(
+            project.tasks
+            .filter(pk__in=dependency_ids)
+            .exclude(pk=task.pk)
+        )
+
+        invalid_dependencies = []
+
+        for dependency in selected_dependencies:
+            if task_depends_on(
+                task=dependency,
+                possible_dependency=task,
+            ):
+                invalid_dependencies.append(
+                    dependency.title
+                )
+
+        if invalid_dependencies:
+            error_message = (
+                "These dependencies would create a "
+                "circular dependency: "
+                + ", ".join(invalid_dependencies)
+            )
+
+        else:
+            previous_dependency_ids = set(
+                task.dependencies.values_list(
+                    "pk",
+                    flat=True,
+                )
+            )
+
+            new_dependency_ids = {
+                dependency.pk
+                for dependency in selected_dependencies
+            }
+
+            if (
+                previous_dependency_ids
+                != new_dependency_ids
+            ):
+                task.dependencies.set(
+                    selected_dependencies
+                )
+
+                mark_schedule_for_refresh(
+                    project=project,
+                    reason=(
+                        f"Dependencies changed for "
+                        f"{task.title}."
+                    ),
+                )
+
+                record_project_event(
+                    project=project,
+                    event_type=(
+                        ProjectEvent.EventType
+                        .TASK_DEPENDENCIES_CHANGED
+                    ),
+                    title="Task dependencies changed",
+                    description=task.title,
+                    metadata={
+                        "task_id": task.pk,
+                        "previous_dependency_ids": (
+                            sorted(
+                                previous_dependency_ids
+                            )
+                        ),
+                        "new_dependency_ids": (
+                            sorted(
+                                new_dependency_ids
+                            )
+                        ),
+                    },
+                )
+
+            return redirect(
+                "project_timeline",
+                project_pk=project.pk,
+            )
+
+    selected_dependency_ids = set(
+        task.dependencies.values_list(
+            "pk",
+            flat=True,
+        )
+    )
+
+    return render(
+        request,
+        "projects/edit_task_dependencies.html",
+        {
+            "project": project,
+            "task": task,
+            "available_tasks": available_tasks,
+            "selected_dependency_ids": (
+                selected_dependency_ids
+            ),
+            "error_message": error_message,
+        },
+    )
+def apply_project_schedule(
+    *,
+    project,
+    schedule,
+):
+    existing_tasks = {
+        task.pk: task
+        for task in project.tasks
+        .select_related("milestone")
+        .prefetch_related("dependencies")
+    }
+
+    valid_task_ids = set(
+        existing_tasks.keys()
+    )
+
+    milestone_map = {}
+
+    with transaction.atomic():
+        returned_milestone_names = set()
+
+        for milestone_data in schedule.milestones:
+            milestone_name = (
+                milestone_data.name.strip()
+            )
+
+            if not milestone_name:
+                continue
+
+            normalized_name = (
+                milestone_name.lower()
+            )
+
+            returned_milestone_names.add(
+                normalized_name
+            )
+
+            existing_milestone = (
+                project.milestones
+                .filter(
+                    name__iexact=milestone_name,
+                )
+                .first()
+            )
+
+            if existing_milestone is None:
+                existing_milestone = (
+                    ProjectMilestone.objects.create(
+                        project=project,
+                        name=milestone_name,
+                        description=(
+                            milestone_data.description.strip()
+                        ),
+                        target_date=(
+                            milestone_data.target_date
+                        ),
+                        order=max(
+                            milestone_data.order,
+                            0,
+                        ),
+                    )
+                )
+
+            else:
+                existing_milestone.name = (
+                    milestone_name
+                )
+                existing_milestone.description = (
+                    milestone_data.description.strip()
+                )
+                existing_milestone.target_date = (
+                    milestone_data.target_date
+                )
+                existing_milestone.order = max(
+                    milestone_data.order,
+                    0,
+                )
+
+                existing_milestone.save(
+                    update_fields=[
+                        "name",
+                        "description",
+                        "target_date",
+                        "order",
+                        "updated_at",
+                    ]
+                )
+
+            milestone_map[
+                normalized_name
+            ] = existing_milestone
+
+        scheduled_task_ids = set()
+        pending_dependencies = {}
+
+        for scheduled_task in schedule.tasks:
+            task = existing_tasks.get(
+                scheduled_task.task_id
+            )
+
+            if task is None:
+                continue
+
+            if task.pk in scheduled_task_ids:
+                continue
+
+            scheduled_task_ids.add(task.pk)
+
+            start_date = (
+                scheduled_task.start_date
+            )
+
+            due_date = (
+                scheduled_task.due_date
+            )
+
+            if (
+                start_date is not None
+                and due_date is not None
+                and start_date > due_date
+            ):
+                raise ValueError(
+                    f"Task #{task.pk} has a start "
+                    "date after its due date."
+                )
+
+            task.start_date = start_date
+            task.due_date = due_date
+
+            if (
+                scheduled_task.estimated_hours
+                is None
+            ):
+                task.estimated_hours = None
+            else:
+                try:
+                    estimated_hours = Decimal(
+                        str(
+                            scheduled_task.estimated_hours
+                        )
+                    )
+                except InvalidOperation as error:
+                    raise ValueError(
+                        f"Task #{task.pk} has an "
+                        "invalid hour estimate."
+                    ) from error
+
+                if estimated_hours < 0:
+                    raise ValueError(
+                        f"Task #{task.pk} has a "
+                        "negative hour estimate."
+                    )
+
+                task.estimated_hours = (
+                    estimated_hours
+                )
+
+            milestone_name = (
+                scheduled_task.milestone_name
+            )
+
+            if milestone_name:
+                task.milestone = (
+                    milestone_map.get(
+                        milestone_name
+                        .strip()
+                        .lower()
+                    )
+                )
+            else:
+                task.milestone = None
+
+            task.save(
+                update_fields=[
+                    "start_date",
+                    "due_date",
+                    "estimated_hours",
+                    "milestone",
+                    "updated_at",
+                ]
+            )
+
+            dependency_ids = []
+
+            for dependency_id in (
+                scheduled_task.dependency_ids
+            ):
+                if dependency_id not in valid_task_ids:
+                    continue
+
+                if dependency_id == task.pk:
+                    continue
+
+                if dependency_id in dependency_ids:
+                    continue
+
+                dependency_ids.append(
+                    dependency_id
+                )
+
+            pending_dependencies[
+                task.pk
+            ] = dependency_ids
+
+        for task_id, dependency_ids in (
+            pending_dependencies.items()
+        ):
+            task = existing_tasks[task_id]
+
+            dependencies = [
+                existing_tasks[dependency_id]
+                for dependency_id in dependency_ids
+            ]
+
+            for dependency in dependencies:
+                if task_depends_on(
+                    task=dependency,
+                    possible_dependency=task,
+                ):
+                    raise ValueError(
+                        "AI schedule would create a "
+                        "circular dependency involving "
+                        f"'{task.title}' and "
+                        f"'{dependency.title}'."
+                    )
+
+            task.dependencies.set(
+                dependencies
+            )
+
+    return {
+        "milestones_created_or_updated": (
+            len(milestone_map)
+        ),
+        "tasks_scheduled": len(
+            scheduled_task_ids
+        ),
+        "summary": schedule.summary,
+    }
+@login_required
+@require_POST
+def generate_more_tasks(
+    request,
+    project_pk,
+):
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+        owner=request.user,
+    )
+
+    tasks_folder = get_object_or_404(
+        WorkspaceFolder,
+        project=project,
+        folder_type="tasks",
+    )
+
+    new_tasks = []
+
+    try:
+        result = generate_additional_tasks(
+            project
+        )
+
+        existing_tasks = list(
+            project.tasks.all()
+        )
+
+        existing_titles = {
+            task.title.strip().lower()
+            for task in existing_tasks
+        }
+
+        existing_task_words = [
+            normalize_task_title(task.title)
+            for task in existing_tasks
+        ]
+
+        last_task = (
+            project.tasks
+            .order_by("-order")
+            .first()
+        )
+
+        next_order = (
+            last_task.order + 1
+            if last_task
+            else 1
+        )
+
+        valid_statuses = {
+            value
+            for value, _ in Task.Status.choices
+        }
+
+        for generated_task in result.tasks[:5]:
+            title = (
+                generated_task.title.strip()
+            )
+
+            description = (
+                generated_task
+                .description
+                .strip()
+            )
+
+            if not title:
+                continue
+
+            normalized_title = title.lower()
+
+            if normalized_title in existing_titles:
+                continue
+
+            new_title_words = (
+                normalize_task_title(title)
+            )
+
+            is_similar = any(
+                (
+                    len(
+                        new_title_words
+                        & existing_words
+                    )
+                    / max(
+                        len(new_title_words),
+                        1,
+                    )
+                )
+                >= 0.6
+                for existing_words
+                in existing_task_words
+            )
+
+            if is_similar:
+                continue
+
+            priority = max(
+                Task.Priority.LOW,
+                min(
+                    Task.Priority.HIGH,
+                    generated_task.priority,
+                ),
+            )
+
+            new_status = generated_task.status
+
+            if new_status not in valid_statuses:
+                new_status = Task.Status.TODO
+
+            new_tasks.append(
+                Task(
+                    project=project,
+                    title=title,
+                    description=description,
+                    priority=priority,
+                    status=new_status,
+                    completed=(
+                        new_status
+                        == Task.Status.DONE
+                    ),
+                    order=next_order,
+                )
+            )
+
+            existing_titles.add(
+                normalized_title
+            )
+
+            existing_task_words.append(
+                new_title_words
+            )
+
+            next_order += 1
+
+        if new_tasks:
+            Task.objects.bulk_create(
+                new_tasks
+            )
+
+            mark_schedule_for_refresh(
+                project=project,
+                reason=(
+                    f"{len(new_tasks)} new tasks "
+                    "were generated."
+                ),
+            )
+
+        print(
+            f"Generated {len(new_tasks)} "
+            "additional tasks."
+        )
+
+    except Exception as error:
+        print(
+            "Additional task generation failed:",
+            error,
+        )
+
+    return redirect(
+        "workspace_folder",
+        project_pk=project.pk,
+        folder_pk=tasks_folder.pk,
+    )
+@login_required
+@require_POST
+def generate_project_schedule_view(
+    request,
+    project_pk,
+):
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+        owner=request.user,
+    )
+
+    try:
+        schedule = generate_project_schedule(
+            project
+        )
+
+        result = apply_project_schedule(
+            project=project,
+            schedule=schedule,
+        )
+
+        project.schedule_needs_refresh = False
+        project.schedule_refresh_reason = ""
+        project.schedule_last_generated_at = (
+            timezone.now()
+        )
+
+        project.save(
+            update_fields=[
+                "schedule_needs_refresh",
+                "schedule_refresh_reason",
+                "schedule_last_generated_at",
+                "updated_at",
+            ]
+        )
+
+        record_project_event(
+            project=project,
+            event_type=(
+                ProjectEvent.EventType
+                .SCHEDULE_GENERATED
+            ),
+            title="AI schedule generated",
+            description=result["summary"],
+            metadata={
+                "milestones_created_or_updated": (
+                    result[
+                        "milestones_created_or_updated"
+                    ]
+                ),
+                "tasks_scheduled": (
+                    result["tasks_scheduled"]
+                ),
+            },
+        )
+
+        request.session[
+            "schedule_message"
+        ] = (
+            "AI schedule generated successfully. "
+            f"{result['tasks_scheduled']} tasks "
+            "were scheduled."
+        )
+
+        request.session[
+            "schedule_message_type"
+        ] = "success"
+
+    except Exception as error:
+        print(
+            "AI schedule generation failed:",
+            error,
+        )
+
+        request.session[
+            "schedule_message"
+        ] = (
+            "BuilderOS could not generate the "
+            "schedule. Please try again."
+        )
+
+        request.session[
+            "schedule_message_type"
+        ] = "error"
+
+    return redirect(
+        "project_timeline",
+        project_pk=project.pk,
     )

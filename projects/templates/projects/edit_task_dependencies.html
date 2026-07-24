@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>
+        Dependencies | {{ task.title }}
+    </title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 750px;
+            margin: 40px auto;
+            padding: 0 20px;
+            line-height: 1.5;
+            background: #f7f8fa;
+        }
+
+        .panel {
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            background: white;
+            padding: 20px;
+        }
+
+        .dependency-option {
+            display: block;
+            border-bottom: 1px solid #eee;
+            padding: 12px 0;
+        }
+
+        .dependency-option:last-child {
+            border-bottom: none;
+        }
+
+        .dependency-status {
+            color: #666;
+            font-size: 13px;
+            margin-left: 8px;
+        }
+
+        .error {
+            border: 1px solid #d99;
+            background: #fff0f0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 18px;
+        }
+
+        button {
+            margin-top: 18px;
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+
+        .toolbar {
+            margin-bottom: 22px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="toolbar">
+    <a href="{% url 'project_timeline' project.pk %}">
+        ← Back to Timeline
+    </a>
+</div>
+
+<div class="panel">
+    <h1>Dependencies</h1>
+
+    <h2>{{ task.title }}</h2>
+
+    <p>
+        Select tasks that must be completed before this task
+        can proceed.
+    </p>
+
+    {% if error_message %}
+        <div class="error">
+            {{ error_message }}
+        </div>
+    {% endif %}
+
+    <form method="POST">
+        {% csrf_token %}
+
+        {% for available_task in available_tasks %}
+            <label class="dependency-option">
+                <input
+                    type="checkbox"
+                    name="dependencies"
+                    value="{{ available_task.pk }}"
+                    {% if available_task.pk in selected_dependency_ids %}
+                        checked
+                    {% endif %}
+                >
+
+                <strong>
+                    {{ available_task.title }}
+                </strong>
+
+                <span class="dependency-status">
+                    {{ available_task.get_status_display }}
+                </span>
+            </label>
+
+        {% empty %}
+            <p>
+                No other tasks are available.
+            </p>
+        {% endfor %}
+
+        <button type="submit">
+            Save Dependencies
+        </button>
+    </form>
+</div>
+
+</body>
+</html>
