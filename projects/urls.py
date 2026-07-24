@@ -31,4 +31,8 @@ urlpatterns = [
     path("<int:project_pk>/timeline/",views.project_timeline,name="project_timeline",),
     path("<int:project_pk>/tasks/""<int:task_pk>/dependencies/",views.edit_task_dependencies,name="edit_task_dependencies",),
     path("<int:project_pk>/timeline/generate/",views.generate_project_schedule_view,name="generate_project_schedule",),
+    path("<int:project_pk>/rename/",views.rename_project,name="rename_project",),
+    path("<int:project_pk>/archive/",views.archive_project,name="archive_project",),
+    path("<int:project_pk>/restore/",views.restore_project,name="restore_project",),
+    path("<int:project_pk>/delete/",views.delete_project,name="delete_project",),
 ]

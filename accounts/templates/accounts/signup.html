@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Account | BuilderOS</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .auth-card {
+            max-width: 480px;
+            margin: 40px auto;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 14px;
+            padding: 28px;
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        form p {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px 12px;
+            border: 1px solid #bbb;
+            border-radius: 8px;
+        }
+
+        button {
+            width: 100%;
+            padding: 11px 14px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font: inherit;
+        }
+
+        .helptext {
+            color: #666;
+            font-size: 13px;
+        }
+
+        ul.errorlist {
+            color: #a52a2a;
+            padding-left: 20px;
+        }
+
+        .login-link {
+            margin-top: 18px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="auth-card">
+    <h1>Create your BuilderOS account</h1>
+
+    <p>
+        Create an account to save and manage your projects.
+    </p>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        {{ form.as_p }}
+
+        <button type="submit">
+            Create Account
+        </button>
+    </form>
+
+    <p class="login-link">
+        Already have an account?
+
+        <a href="{% url 'login' %}">
+            Log in
+        </a>
+    </p>
+</div>
+
+</body>
+</html>

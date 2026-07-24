@@ -10,6 +10,7 @@ class Project(models.Model):
         DRAFT = "draft", "Draft"
         GENERATING = "generating", "Generating"
         ACTIVE = "active", "Active"
+        ARCHIVED = "archived", "Archived"
 
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -23,6 +24,18 @@ class Project(models.Model):
         max_length=20,
         choices=Status.choices,
         default=Status.DRAFT,
+    )
+    schedule_needs_refresh = models.BooleanField(
+        default=False,
+    )
+
+    schedule_refresh_reason = models.TextField(
+        blank=True,
+    )
+
+    schedule_last_generated_at = models.DateTimeField(
+        null=True,
+        blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

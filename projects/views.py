@@ -136,9 +136,174 @@ def normalize_task_title(title):
 
 @login_required
 def project_list(request):
-    return render(request, "projects/list.html")
+    show_archived = (
+        request.GET.get("archived") == "1"
+    )
 
+    projects = (
+        Project.objects
+        .filter(owner=request.user)
+        .prefetch_related(
+            "tasks",
+            "conflicts",
+            "health_reviews",
+        )
+        .order_by("-updated_at")
+    )
 
+    if show_archived:
+        projects = projects.filter(
+            status=Project.Status.ARCHIVED,
+        )
+    else:
+        projects = projects.exclude(
+            status=Project.Status.ARCHIVED,
+        )
+
+    project_cards = []
+
+    for project in projects:
+        total_tasks = project.tasks.count()
+
+        completed_tasks = project.tasks.filter(
+            status=Task.Status.DONE,
+        ).count()
+
+        task_progress = 0
+
+        if total_tasks > 0:
+            task_progress = round(
+                completed_tasks
+                / total_tasks
+                * 100
+            )
+
+        latest_review = (
+            project.health_reviews
+            .order_by("-created_at")
+            .first()
+        )
+
+        health_score = (
+            latest_review.health_score
+            if latest_review is not None
+            else None
+        )
+
+        open_conflict_count = (
+            project.conflicts.filter(
+                status=ProjectConflict.Status.OPEN,
+            ).count()
+        )
+
+        project_cards.append(
+            {
+                "project": project,
+                "total_tasks": total_tasks,
+                "completed_tasks": completed_tasks,
+                "task_progress": task_progress,
+                "health_score": health_score,
+                "open_conflict_count": (
+                    open_conflict_count
+                ),
+            }
+        )
+
+    return render(
+        request,
+        "projects/list.html",
+        {
+            "project_cards": project_cards,
+            "show_archived": show_archived,
+        },
+    )
+@login_required
+@require_POST
+def rename_project(
+    request,
+    project_pk,
+):
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+        owner=request.user,
+    )
+
+    new_name = request.POST.get(
+        "name",
+        "",
+    ).strip()
+
+    if new_name:
+        project.name = new_name
+        project.save(
+            update_fields=[
+                "name",
+                "updated_at",
+            ]
+        )
+
+    return redirect("project_list")
+@login_required
+@require_POST
+def archive_project(
+    request,
+    project_pk,
+):
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+        owner=request.user,
+    )
+
+    project.status = Project.Status.ARCHIVED
+
+    project.save(
+        update_fields=[
+            "status",
+            "updated_at",
+        ]
+    )
+
+    return redirect("project_list")
+@login_required
+@require_POST
+def restore_project(
+    request,
+    project_pk,
+):
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+        owner=request.user,
+        status=Project.Status.ARCHIVED,
+    )
+
+    project.status = Project.Status.ACTIVE
+
+    project.save(
+        update_fields=[
+            "status",
+            "updated_at",
+        ]
+    )
+
+    return redirect("project_list")
+@login_required
+@require_POST
+def delete_project(
+    request,
+    project_pk,
+):
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+        owner=request.user,
+    )
+
+    project.delete()
+
+    return redirect("project_list")
 @login_required
 def new_project(request):
     project = Project.objects.create(

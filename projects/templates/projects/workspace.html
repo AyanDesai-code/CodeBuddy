@@ -219,6 +219,16 @@
         <a href="{% url 'project_timeline' project.pk %}">
             Timeline
         </a>
+        <form
+            method="POST"
+            action="{% url 'logout' %}"
+        >
+            {% csrf_token %}
+
+            <button type="submit">
+                Log Out
+            </button>
+        </form>
     </nav>
 </div>
 

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Log In | BuilderOS</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .auth-card {
+            max-width: 480px;
+            margin: 40px auto;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 14px;
+            padding: 28px;
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        form p {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px 12px;
+            border: 1px solid #bbb;
+            border-radius: 8px;
+        }
+
+        button {
+            width: 100%;
+            padding: 11px 14px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font: inherit;
+        }
+
+        .signup-link {
+            margin-top: 18px;
+            text-align: center;
+        }
+
+        ul.errorlist {
+            color: #a52a2a;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="auth-card">
+    <h1>Log in to BuilderOS</h1>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        {{ form.as_p }}
+
+        {% if next %}
+            <input
+                type="hidden"
+                name="next"
+                value="{{ next }}"
+            >
+        {% endif %}
+
+        <button type="submit">
+            Log In
+        </button>
+    </form>
+
+    <p class="signup-link">
+        Don’t have an account?
+
+        <a href="{% url 'signup' %}">
+            Create one
+        </a>
+    </p>
+    <p>
+        <a href="{% url 'password_reset' %}">
+            Forgot your password?
+        </a>
+    </p>
+</div>
+
+</body>
+</html>
