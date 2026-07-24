@@ -1,385 +1,286 @@
 {% extends "projects/base.html" %}
 
 {% block title %}
-    Change #{{ change.pk }} | {{ project.name }}
+    Dependencies | {{ task.title }}
 {% endblock %}
 
 {% block extra_css %}
 <style>
-.toolbar {
-            margin-bottom: 24px;
-        }
-
-        .summary-card,
-        .change-card {
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 18px;
-            margin-bottom: 20px;
-        }
-
-        .request {
-            background: #f5f5f5;
-            border-radius: 8px;
-            padding: 12px;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 999px;
-            background: #eee;
-            font-size: 12px;
-            text-transform: uppercase;
-        }
-
-        .before-after {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-top: 12px;
-        }
-
-        .snapshot {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 12px;
-            min-width: 0;
-        }
-
-        pre {
-            white-space: pre-wrap;
-            overflow-wrap: anywhere;
-            margin: 0;
-        }
-
-        details {
-            margin-top: 12px;
-        }
-
-        @media (max-width: 700px) {
-            .before-after {
-                grid-template-columns: 1fr;
-            }
-        }
-        .diff {
-    margin-top: 14px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    overflow: hidden;
-    font-family: monospace;
-    font-size: 14px;
-}
-
-    .diff-line {
-        display: grid;
-        grid-template-columns: 28px 1fr;
-        gap: 8px;
-        padding: 4px 10px;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        border-bottom: 1px solid #eee;
+    .dependencies-page {
+        width: 100%;
+        max-width: 900px;
+        margin: 0 auto;
     }
 
-    .diff-line:last-child {
+    .toolbar {
+        margin-bottom: 22px;
+    }
+
+    .toolbar a {
+        color: #58a6ff;
+        text-decoration: none;
+    }
+
+    .toolbar a:hover {
+        color: #79c0ff;
+        text-decoration: underline;
+    }
+
+    .dependency-panel {
+        width: 100%;
+        padding: 24px;
+        background-color: #161b22 !important;
+        color: #e6edf3 !important;
+        border: 1px solid #30363d;
+        border-radius: 14px;
+        box-shadow:
+            0 10px 28px rgba(0, 0, 0, 0.32);
+    }
+
+    .dependency-panel h1 {
+        margin: 0 0 10px;
+        color: #e6edf3;
+        font-size: 2rem;
+    }
+
+    .dependency-panel h2 {
+        margin: 0 0 8px;
+        color: #e6edf3;
+        font-size: 1.25rem;
+        overflow-wrap: anywhere;
+    }
+
+    .panel-description {
+        margin: 0 0 22px;
+        color: #8b949e;
+    }
+
+    .error {
+        margin-bottom: 18px;
+        padding: 12px 14px;
+        color: #ff7b72;
+        background: #32191d;
+        border: 1px solid #8e353a;
+        border-left: 4px solid #f85149;
+        border-radius: 8px;
+    }
+
+    .dependency-list {
+        overflow: hidden;
+        background-color: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 10px;
+    }
+
+    .dependency-option {
+        display: grid;
+        grid-template-columns:
+            auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        padding: 14px;
+
+        background-color: #161b22;
+        border-bottom: 1px solid #30363d;
+        cursor: pointer;
+
+        transition:
+            background-color 0.18s ease,
+            border-color 0.18s ease,
+            transform 0.18s ease;
+    }
+
+    .dependency-option:last-child {
         border-bottom: none;
     }
 
-    .diff-added {
-        background: #eaf7ea;
+    .dependency-option:hover {
+        background-color: #21262d;
     }
 
-    .diff-removed {
-        background: #fdeaea;
+    .dependency-option:has(
+        input[type="checkbox"]:checked
+    ) {
+        background-color: #152943;
+        border-color: #285786;
     }
 
-    .diff-unchanged {
-        background: #fafafa;
-        color: #666;
+    .dependency-option input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        accent-color: #58a6ff;
+        cursor: pointer;
     }
 
-    .diff-symbol {
-        font-weight: bold;
-        user-select: none;
+    .dependency-title {
+        min-width: 0;
+        color: #e6edf3 !important;
+        overflow-wrap: anywhere;
     }
-    .diff-card {
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    padding: 18px;
-    margin-bottom: 20px;
-}
 
-.diff-added {
-    background: #edf9ed;
-    border-left: 4px solid #3a9b49;
-    padding: 6px 10px;
-    margin-bottom: 4px;
-    white-space: pre-wrap;
-}
+    .dependency-status {
+        display: inline-block;
+        padding: 3px 9px;
 
-.diff-removed {
-    background: #fff0f0;
-    border-left: 4px solid #c94b4b;
-    padding: 6px 10px;
-    margin-bottom: 4px;
-    white-space: pre-wrap;
-}
+        color: #8b949e;
+        background-color: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 999px;
 
-.diff-unchanged {
-    color: #777;
-    padding: 6px 10px;
-    margin-bottom: 4px;
-    white-space: pre-wrap;
-}
-
-.before-value {
-    background: #fff0f0;
-    border-left: 4px solid #c94b4b;
-    padding: 10px;
-    border-radius: 6px;
-    white-space: pre-wrap;
-}
-
-.after-value {
-    background: #edf9ed;
-    border-left: 4px solid #3a9b49;
-    padding: 10px;
-    border-radius: 6px;
-    white-space: pre-wrap;
-}
-
-.change-label {
-    text-transform: capitalize;
-    font-weight: bold;
-}
-
-.diff-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-}
-
-.diff-column h4 {
-    margin-bottom: 6px;
-}
-
-@media (max-width: 700px) {
-    .diff-grid {
-        grid-template-columns: 1fr;
+        font-size: 12px;
+        white-space: nowrap;
     }
-}
+
+    .empty {
+        margin: 0;
+        padding: 20px;
+        color: #8b949e;
+        text-align: center;
+    }
+
+    .form-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .save-button {
+        margin: 0;
+        color: white;
+        background: #238636;
+        border: 1px solid #2ea043;
+    }
+
+    .save-button:hover {
+        color: white;
+        background: #2ea043;
+    }
+
+    .cancel-button {
+        color: #e6edf3;
+        background: #21262d;
+        border: 1px solid #484f58;
+    }
+
+    .cancel-button:hover {
+        color: white;
+        background: #30363d;
+        border-color: #58a6ff;
+    }
+
+    @media (max-width: 650px) {
+        .dependencies-page {
+            max-width: none;
+        }
+
+        .dependency-panel {
+            padding: 16px;
+            border-radius: 10px;
+        }
+
+        .dependency-panel h1 {
+            font-size: 1.65rem;
+        }
+
+        .dependency-option {
+            grid-template-columns:
+                auto minmax(0, 1fr);
+            align-items: start;
+        }
+
+        .dependency-status {
+            grid-column: 2;
+            justify-self: start;
+            white-space: normal;
+        }
+
+        .form-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .form-actions a,
+        .form-actions button {
+            width: 100%;
+            text-align: center;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="toolbar">
-    <a href="{% url 'project_change_history' project.pk %}">
-        ← Back to Change History
-    </a>
-
-    &nbsp;&nbsp;
-
-    <a href="{% url 'workspace' project.pk %}">
-        Back to Workspace
-    </a>
-</div>
-<form
-        method="POST"
-        action="{% url 'undo_project_change' project.pk change.pk %}"
-    >
-        {% csrf_token %}
-
-        <button
-            type="submit"
-            onclick="return confirm(
-                'Undo this change and restore the previous project state?'
-            )"
-        >
-            Undo This Change
-        </button>
-    </form>
-
-<h1>Change #{{ change.pk }}</h1>
-
-<div class="summary-card">
-    <p>
-        <strong>Date:</strong>
-        {{ change.created_at|date:"F j, Y, g:i A" }}
-    </p>
-
-    <div class="request">
-        <strong>User request</strong>
-        <p>{{ change.user_message|linebreaksbr }}</p>
+<div class="dependencies-page">
+    <div class="toolbar">
+        <a href="{% url 'project_timeline' project.pk %}">
+            ← Back to Timeline
+        </a>
     </div>
-    
 
-    {% if change.summary %}
-        <p>
-            <strong>Summary:</strong>
-            {{ change.summary }}
+    <section class="dependency-panel">
+        <h1>Dependencies</h1>
+
+        <h2>{{ task.title }}</h2>
+
+        <p class="panel-description">
+            Select the tasks that must be completed before
+            this task can proceed.
         </p>
-    {% endif %}
-</div>
 
-<h2>Fact changes</h2>
-
-{% for item in fact_changes %}
-    <div class="change-card">
-        <span class="badge">{{ item.change_type }}</span>
-
-        <h3>{{ item.key }}</h3>
-
-        <div class="before-after">
-            <div class="snapshot">
-                <strong>Before</strong>
-                <pre>{{ item.before|default:"—" }}</pre>
-            </div>
-
-            <div class="snapshot">
-                <strong>After</strong>
-                <pre>{{ item.after|default:"—" }}</pre>
-            </div>
-        </div>
-    </div>
-{% empty %}
-    <p>No canonical facts changed.</p>
-{% endfor %}
-
-<h2>Workspace section changes</h2>
-
-{% for item in section_changes %}
-    <div class="change-card">
-        <span class="badge">{{ item.change_type }}</span>
-
-        <h3>{{ item.section_type|title }}</h3>
-
-        <div class="diff">
-            {% for line in item.diff_lines %}
-                <div class="diff-line diff-{{ line.change_type }}">
-                    {% if line.change_type == "added" %}
-                        <span class="diff-symbol">+</span>
-                    {% elif line.change_type == "removed" %}
-                        <span class="diff-symbol">−</span>
-                    {% else %}
-                        <span class="diff-symbol">&nbsp;</span>
-                    {% endif %}
-
-                    <span>{{ line.content|default:" " }}</span>
-                </div>
-            {% empty %}
-                <p>No line-level differences found.</p>
-            {% endfor %}
-        </div>
-
-        <details>
-            <summary>View complete before and after</summary>
-
-            <div class="before-after">
-                <div class="snapshot">
-                    <strong>Before</strong>
-                    <pre>{{ item.before }}</pre>
-                </div>
-
-                <div class="snapshot">
-                    <strong>After</strong>
-                    <pre>{{ item.after }}</pre>
-                </div>
-            </div>
-        </details>
-    </div>
-{% empty %}
-    <p>No workspace sections changed.</p>
-{% endfor %}
-
-<h2>Task changes</h2>
-
-{% for item in task_changes %}
-    <div class="diff-card">
-        <span class="badge">
-            {{ item.change_type }}
-        </span>
-
-        <h3>{{ item.title }}</h3>
-
-        {% if item.change_type == "updated" %}
-            {% for field_change in item.field_changes %}
-                <h4>{{ field_change.field|title }}</h4>
-
-                <div class="diff-grid">
-                    <div class="diff-column">
-                        <h4>Before</h4>
-
-                        <div class="before-value">
-                            {% if field_change.before is not None %}
-                                {{ field_change.before }}
-                            {% else %}
-                                —
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="diff-column">
-                        <h4>After</h4>
-
-                        <div class="after-value">
-                            {% if field_change.after is not None %}
-                                {{ field_change.after }}
-                            {% else %}
-                                —
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            {% empty %}
-                <p>No field-level changes found.</p>
-            {% endfor %}
-
-        {% elif item.change_type == "added" %}
-            <div class="after-value">
-                <p>
-                    <strong>Description:</strong>
-                    {{ item.after.description|default:"—" }}
-                </p>
-
-                <p>
-                    <strong>Priority:</strong>
-                    {{ item.after.priority }}
-                </p>
-                <p>
-                    <strong>Status:</strong>
-                    {{ item.after.status|default:"todo" }}
-                </p>
-
-                <p>
-                    <strong>Completed:</strong>
-                    {{ item.after.completed }}
-                </p>
-            </div>
-
-        {% elif item.change_type == "removed" %}
-            <div class="before-value">
-                <p>
-                    <strong>Description:</strong>
-                    {{ item.before.description|default:"—" }}
-                </p>
-
-                <p>
-                    <strong>Priority:</strong>
-                    {{ item.before.priority }}
-                </p>
-                <p>
-                    <strong>Status:</strong>
-                    {{ item.before.status|default:"todo" }}
-                </p>
-                <p>
-                    <strong>Completed:</strong>
-                    {{ item.before.completed }}
-                </p>
+        {% if error_message %}
+            <div class="error">
+                {{ error_message }}
             </div>
         {% endif %}
-    </div>
 
-{% empty %}
-    <p>No tasks changed.</p>
-{% endfor %}
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="dependency-list">
+                {% for available_task in available_tasks %}
+                    <label class="dependency-option">
+                        <input
+                            type="checkbox"
+                            name="dependencies"
+                            value="{{ available_task.pk }}"
+                            {% if available_task.pk in selected_dependency_ids %}
+                                checked
+                            {% endif %}
+                        >
+
+                        <strong class="dependency-title">
+                            {{ available_task.title }}
+                        </strong>
+
+                        <span class="dependency-status">
+                            {{ available_task.get_status_display }}
+                        </span>
+                    </label>
+
+                {% empty %}
+                    <p class="empty">
+                        No other tasks are available.
+                    </p>
+                {% endfor %}
+            </div>
+
+            <div class="form-actions">
+                <button
+                    type="submit"
+                    class="button save-button"
+                >
+                    Save Dependencies
+                </button>
+
+                <a
+                    href="{% url 'project_timeline' project.pk %}"
+                    class="button cancel-button"
+                >
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </section>
+</div>
 {% endblock %}

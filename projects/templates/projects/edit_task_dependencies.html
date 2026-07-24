@@ -6,104 +6,224 @@
 
 {% block extra_css %}
 <style>
-.panel {
-            border: 1px solid #ddd;
-            border-radius: 12px;
-            background: white;
-            padding: 20px;
+    .dependencies-page {
+        max-width: 850px;
+    }
+
+    .toolbar {
+        margin-bottom: 22px;
+    }
+
+    .toolbar a {
+        text-decoration: none;
+    }
+
+    .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 22px;
+        box-shadow: var(--shadow);
+    }
+
+    .panel h1 {
+        margin-top: 0;
+        margin-bottom: 8px;
+    }
+
+    .panel h2 {
+        margin-top: 0;
+        margin-bottom: 8px;
+        font-size: 1.2rem;
+        overflow-wrap: anywhere;
+    }
+
+    .panel-description {
+        color: var(--text-muted);
+        margin-bottom: 22px;
+    }
+
+    .error {
+        border: 1px solid var(--danger-border);
+        border-left: 4px solid var(--danger);
+        background: var(--danger-background);
+        color: #ff7b72;
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin-bottom: 18px;
+    }
+
+    .dependency-list {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--surface-soft);
+    }
+
+    .dependency-option {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        padding: 14px;
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+
+        transition:
+            background-color 0.18s ease,
+            border-color 0.18s ease;
+    }
+
+    .dependency-option:last-child {
+        border-bottom: none;
+    }
+
+    .dependency-option:hover {
+        background: var(--surface-raised);
+    }
+
+    .dependency-option input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        accent-color: var(--accent);
+        cursor: pointer;
+    }
+
+    .dependency-title {
+        min-width: 0;
+        color: var(--text);
+        overflow-wrap: anywhere;
+    }
+
+    .dependency-status {
+        display: inline-block;
+        color: var(--text-muted);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .empty {
+        color: var(--text-muted);
+        padding: 18px;
+        margin: 0;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+    }
+
+    .save-button {
+        margin: 0;
+    }
+
+    @media (max-width: 650px) {
+        .panel {
+            padding: 16px;
         }
 
         .dependency-option {
-            display: block;
-            border-bottom: 1px solid #eee;
-            padding: 12px 0;
-        }
-
-        .dependency-option:last-child {
-            border-bottom: none;
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: start;
         }
 
         .dependency-status {
-            color: #666;
-            font-size: 13px;
-            margin-left: 8px;
+            grid-column: 2;
+            justify-self: start;
+            white-space: normal;
         }
 
-        .error {
-            border: 1px solid #d99;
-            background: #fff0f0;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 18px;
+        .form-actions {
+            display: grid;
+            grid-template-columns: 1fr;
         }
 
-        button {
-            margin-top: 18px;
-            padding: 10px 16px;
-            cursor: pointer;
+        .form-actions a,
+        .form-actions button {
+            width: 100%;
         }
-
-        .toolbar {
-            margin-bottom: 22px;
-        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="toolbar">
-    <a href="{% url 'project_timeline' project.pk %}">
-        ← Back to Timeline
-    </a>
-</div>
+<div class="dependencies-page">
+    <div class="toolbar">
+        <a href="{% url 'project_timeline' project.pk %}">
+            ← Back to Timeline
+        </a>
+    </div>
 
-<div class="panel">
-    <h1>Dependencies</h1>
+    <section class="panel">
+        <h1>Dependencies</h1>
 
-    <h2>{{ task.title }}</h2>
+        <h2>{{ task.title }}</h2>
 
-    <p>
-        Select tasks that must be completed before this task
-        can proceed.
-    </p>
+        <p class="panel-description">
+            Select the tasks that must be completed before this
+            task can proceed.
+        </p>
 
-    {% if error_message %}
-        <div class="error">
-            {{ error_message }}
-        </div>
-    {% endif %}
+        {% if error_message %}
+            <div class="error">
+                {{ error_message }}
+            </div>
+        {% endif %}
 
-    <form method="POST">
-        {% csrf_token %}
+        <form method="POST">
+            {% csrf_token %}
 
-        {% for available_task in available_tasks %}
-            <label class="dependency-option">
-                <input
-                    type="checkbox"
-                    name="dependencies"
-                    value="{{ available_task.pk }}"
-                    {% if available_task.pk in selected_dependency_ids %}
-                        checked
-                    {% endif %}
+            <div class="dependency-list">
+                {% for available_task in available_tasks %}
+                    <label class="dependency-option">
+                        <input
+                            type="checkbox"
+                            name="dependencies"
+                            value="{{ available_task.pk }}"
+                            {% if available_task.pk in selected_dependency_ids %}
+                                checked
+                            {% endif %}
+                        >
+
+                        <strong class="dependency-title">
+                            {{ available_task.title }}
+                        </strong>
+
+                        <span class="dependency-status">
+                            {{ available_task.get_status_display }}
+                        </span>
+                    </label>
+
+                {% empty %}
+                    <p class="empty">
+                        No other tasks are available.
+                    </p>
+                {% endfor %}
+            </div>
+
+            <div class="form-actions">
+                <button
+                    type="submit"
+                    class="button save-button"
                 >
+                    Save Dependencies
+                </button>
 
-                <strong>
-                    {{ available_task.title }}
-                </strong>
-
-                <span class="dependency-status">
-                    {{ available_task.get_status_display }}
-                </span>
-            </label>
-
-        {% empty %}
-            <p>
-                No other tasks are available.
-            </p>
-        {% endfor %}
-
-        <button type="submit">
-            Save Dependencies
-        </button>
-    </form>
+                <a
+                    href="{% url 'project_timeline' project.pk %}"
+                    class="button secondary-button"
+                >
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </section>
 </div>
 {% endblock %}
