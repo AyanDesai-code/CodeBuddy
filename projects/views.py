@@ -392,9 +392,79 @@ def project_setup(request, pk):
     )
 
     if request.method == "POST":
-        content = request.POST.get("message", "").strip()
+        content = request.POST.get(
+            "message",
+            "",
+        ).strip()
 
-        if content:
+        if not content:
+            messages.error(
+                request,
+                "Enter a project idea first.",
+            )
+
+            return redirect(
+                "project_setup",
+                pk=project.pk,
+            )
+
+        # Prevent multiple simultaneous requests for
+        # the same project.
+        lock_key = (
+            f"project-setup-processing-"
+            f"{project.pk}"
+        )
+
+        lock_acquired = cache.add(
+            lock_key,
+            True,
+            timeout=120,
+        )
+
+        if not lock_acquired:
+            messages.warning(
+                request,
+                (
+                    "BuilderOS is already processing "
+                    "your previous message."
+                ),
+            )
+
+            return redirect(
+                "project_setup",
+                pk=project.pk,
+            )
+
+        try:
+            # Prevent the same prompt from being saved
+            # repeatedly within a short period.
+            recent_duplicate = (
+                ProjectMessage.objects.filter(
+                    project=project,
+                    role=ProjectMessage.Role.USER,
+                    content=content,
+                    created_at__gte=(
+                        timezone.now()
+                        - timedelta(seconds=15)
+                    ),
+                )
+                .exists()
+            )
+
+            if recent_duplicate:
+                messages.warning(
+                    request,
+                    (
+                        "That message was already "
+                        "submitted."
+                    ),
+                )
+
+                return redirect(
+                    "project_setup",
+                    pk=project.pk,
+                )
+
             ProjectMessage.objects.create(
                 project=project,
                 role=ProjectMessage.Role.USER,
@@ -403,41 +473,87 @@ def project_setup(request, pk):
 
             try:
                 result = generate_reply(project)
-                print("\n===== BuilderOS Response =====")
-                print(result.model_dump_json(indent=4))
-                print("==============================\n")
+
+                print(
+                    "\n===== BuilderOS Response ====="
+                )
+                print(
+                    result.model_dump_json(
+                        indent=4
+                    )
+                )
+                print(
+                    "==============================\n"
+                )
+
                 ProjectMessage.objects.create(
                     project=project,
-                    role=ProjectMessage.Role.ASSISTANT,
+                    role=(
+                        ProjectMessage.Role.ASSISTANT
+                    ),
                     content=result.message,
                 )
 
                 if result.ready:
-                    project.status = Project.Status.GENERATING
-                    project.save(update_fields=["status"])
+                    project.status = (
+                        Project.Status.GENERATING
+                    )
+
+                    project.save(
+                        update_fields=[
+                            "status",
+                            "updated_at",
+                        ]
+                    )
 
             except Exception as error:
-                print(error)
+                print(
+                    "Project setup AI error:",
+                    error,
+                )
 
                 ProjectMessage.objects.create(
                     project=project,
-                    role=ProjectMessage.Role.ASSISTANT,
-                    content="I ran into a problem. Please try again.",
+                    role=(
+                        ProjectMessage.Role.ASSISTANT
+                    ),
+                    content=(
+                        "I ran into a problem. "
+                        "Please try again."
+                    ),
                 )
 
-        return redirect("project_setup", pk=project.pk)
+                messages.error(
+                    request,
+                    (
+                        "BuilderOS could not process "
+                        "that message."
+                    ),
+                )
 
-    messages = project.messages.all()
+        finally:
+            cache.delete(lock_key)
+
+        return redirect(
+            "project_setup",
+            pk=project.pk,
+        )
+
+    # Do not name this variable `messages`,
+    # because that would conflict with
+    # django.contrib.messages.
+    project_messages = project.messages.all()
 
     return render(
         request,
         "projects/setup.html",
         {
             "project": project,
-            "messages": messages,
+            "project_messages": (
+                project_messages
+            ),
         },
     )
-
 @login_required
 @require_POST
 def generate_workspace(request, pk):

@@ -53,13 +53,26 @@ class ProjectMessage(models.Model):
         on_delete=models.CASCADE,
         related_name="messages",
     )
-    role = models.CharField(max_length=20, choices=Role.choices)
+
+    role = models.CharField(
+        max_length=20,
+        choices=Role.choices,
+    )
+
     content = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
 
     class Meta:
         ordering = ["created_at"]
-    
+
+    def __str__(self):
+        return (
+            f"{self.get_role_display()}: "
+            f"{self.content[:80]}"
+        )
 class WorkspaceFolder(models.Model):
     project = models.ForeignKey(
         Project,

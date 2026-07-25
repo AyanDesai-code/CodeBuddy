@@ -33,6 +33,10 @@
         border-color: var(--info-border);
     }
 
+    .message p {
+        margin-bottom: 0;
+    }
+
     textarea {
         width: 100%;
         min-height: 160px;
@@ -44,6 +48,11 @@
         resize: vertical;
     }
 
+    textarea:read-only {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
     .setup-actions {
         margin-top: 14px;
     }
@@ -53,6 +62,12 @@
         border: 1px solid var(--border);
         border-radius: 12px;
         padding: 20px;
+    }
+
+    #setup-submit-button:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+        transform: none;
     }
 </style>
 {% endblock %}
@@ -71,11 +86,11 @@
     </div>
 
     <div class="conversation">
-        {% for message in messages %}
+        {% for project_message in project_messages %}
             <div
                 class="
                     message
-                    {% if message.role == 'user' %}
+                    {% if project_message.role == 'user' %}
                         message-user
                     {% else %}
                         message-assistant
@@ -83,11 +98,11 @@
                 "
             >
                 <strong>
-                    {{ message.get_role_display }}
+                    {{ project_message.get_role_display }}
                 </strong>
 
                 <p>
-                    {{ message.content|linebreaksbr }}
+                    {{ project_message.content|linebreaksbr }}
                 </p>
             </div>
         {% empty %}
@@ -99,7 +114,9 @@
 
     {% if project.status == "generating" %}
         <div class="generation-card">
-            <h2>Project discovery complete</h2>
+            <h2>
+                Project discovery complete
+            </h2>
 
             <p>
                 BuilderOS is ready to generate your workspace.
@@ -123,22 +140,31 @@
         </div>
     {% else %}
         <section class="card">
-            <form method="POST">
+            <form
+                method="POST"
+                id="setup-message-form"
+            >
                 {% csrf_token %}
 
-                <label for="message">
-                    <strong>Describe your idea</strong>
+                <label for="setup-message">
+                    <strong>
+                        Describe your idea
+                    </strong>
                 </label>
 
                 <textarea
-                    id="message"
+                    id="setup-message"
                     name="message"
                     placeholder="Example: I want to build a low-cost automatic grass-seeding robot..."
                     required
                 ></textarea>
 
                 <div class="setup-actions">
-                    <button type="submit" class="button">
+                    <button
+                        type="submit"
+                        id="setup-submit-button"
+                        class="button"
+                    >
                         Send
                     </button>
                 </div>
@@ -146,4 +172,46 @@
         </section>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const setupForm = document.getElementById(
+        "setup-message-form"
+    );
+
+    const setupButton = document.getElementById(
+        "setup-submit-button"
+    );
+
+    const setupTextarea = document.getElementById(
+        "setup-message"
+    );
+
+    if (
+        setupForm
+        && setupButton
+        && setupTextarea
+    ) {
+        setupForm.addEventListener(
+            "submit",
+            function (event) {
+                if (setupButton.disabled) {
+                    event.preventDefault();
+                    return;
+                }
+
+                if (!setupTextarea.value.trim()) {
+                    event.preventDefault();
+                    setupTextarea.focus();
+                    return;
+                }
+
+                setupButton.disabled = true;
+                setupButton.textContent = "Thinking...";
+                setupTextarea.readOnly = true;
+            }
+        );
+    }
+</script>
 {% endblock %}
