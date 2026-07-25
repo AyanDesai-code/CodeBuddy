@@ -35,4 +35,7 @@ urlpatterns = [
     path("<int:project_pk>/archive/",views.archive_project,name="archive_project",),
     path("<int:project_pk>/restore/",views.restore_project,name="restore_project",),
     path("<int:project_pk>/delete/",views.delete_project,name="delete_project",),
+    path("<int:project_pk>/members/",views.project_members,name="project_members",),
+    path("<int:project_pk>/members/invite/",views.invite_project_member,name="invite_project_member",),
+    path("<int:project_pk>/members/<int:membership_pk>/remove/",views.remove_project_member,name="remove_project_member",),
 ]

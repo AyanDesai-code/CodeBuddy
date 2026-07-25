@@ -6,94 +6,103 @@
 
 {% block extra_css %}
 <style>
-.toolbar {
-            margin-bottom: 24px;
-        }
+    .activity-page {
+        max-width: 960px;
+    }
 
-        .timeline {
-            border-left: 3px solid #ddd;
-            margin-left: 12px;
-            padding-left: 28px;
-        }
+    .activity-list {
+        position: relative;
+        display: grid;
+        gap: 13px;
+        margin-top: 22px;
+    }
 
-        .event {
-            position: relative;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 16px;
-            margin-bottom: 20px;
-        }
+    .activity-card {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 13px;
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        background: var(--surface);
+        padding: 15px;
+    }
 
-        .event::before {
-            content: "";
-            position: absolute;
-            width: 13px;
-            height: 13px;
-            border-radius: 50%;
-            background: #5d79c8;
-            border: 3px solid white;
-            left: -39px;
-            top: 20px;
-        }
+    .activity-dot {
+        width: 12px;
+        height: 12px;
+        margin-top: 7px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 0 5px var(--info-background);
+    }
 
-        .event-title {
-            margin-top: 0;
-            margin-bottom: 6px;
-        }
+    .activity-card h2 {
+        margin: 0 0 5px;
+        font-size: 17px;
+    }
 
-        .event-type {
-            display: inline-block;
-            border-radius: 999px;
-            background: #eee;
-            padding: 3px 8px;
-            font-size: 12px;
-            text-transform: uppercase;
-        }
+    .activity-description {
+        color: var(--text-muted);
+    }
 
-        .timestamp {
-            color: #666;
-            font-size: 13px;
-        }
+    .activity-date {
+        color: var(--text-muted);
+        font-size: 12px;
+        margin-top: 8px;
+    }
 
-        .event-description {
-            margin-bottom: 8px;
-        }
+    .event-type {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 2px 7px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<h1>{{ project.name }} Activity</h1>
+<div class="activity-page">
+    <a href="{% url 'workspace' project.pk %}">
+        ← Back to Workspace
+    </a>
 
-<p>
-    A chronological record of important project actions.
-</p>
+    <h1>{{ project.name }} Activity</h1>
 
-<div class="timeline">
-    {% for event in events %}
-        <div class="event">
-            <span class="event-type">
-                {{ event.get_event_type_display }}
-            </span>
+    <p>
+        A chronological record of important project actions.
+    </p>
 
-            <h2 class="event-title">
-                {{ event.title }}
-            </h2>
+    <div class="activity-list">
+        {% for event in events %}
+            <article class="activity-card">
+                <div class="activity-dot"></div>
 
-            {% if event.description %}
-                <p class="event-description">
-                    {{ event.description }}
-                </p>
-            {% endif %}
+                <div>
+                    <h2>{{ event.title }}</h2>
 
-            <div class="timestamp">
-                {{ event.created_at|date:"F j, Y, g:i A" }}
+                    {% if event.description %}
+                        <div class="activity-description">
+                            {{ event.description|linebreaks }}
+                        </div>
+                    {% endif %}
+
+                    <span class="event-type">
+                        {{ event.get_event_type_display }}
+                    </span>
+
+                    <div class="activity-date">
+                        {{ event.created_at|date:"F j, Y, g:i A" }}
+                    </div>
+                </div>
+            </article>
+        {% empty %}
+            <div class="card">
+                No activity has been recorded yet.
             </div>
-        </div>
-
-    {% empty %}
-        <p>
-            No activity has been recorded yet.
-        </p>
-    {% endfor %}
+        {% endfor %}
+    </div>
 </div>
 {% endblock %}

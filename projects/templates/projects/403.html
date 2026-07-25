@@ -1,7 +1,7 @@
 {% extends "projects/base.html" %}
 
 {% block title %}
-    Page Not Found | BuilderOS
+    Access Denied | BuilderOS
 {% endblock %}
 
 {% block extra_css %}
@@ -16,84 +16,56 @@
     .error-card {
         max-width: 620px;
         width: 100%;
-        background: var(--surface);
-        border: 1px solid var(--border);
+        padding: 34px;
+        border: 1px solid var(--warning-border);
         border-radius: 16px;
-        padding: 48px 28px;
+        background: var(--surface);
         box-shadow: var(--shadow);
     }
 
     .error-code {
         margin: 0;
-        color: var(--accent);
-        font-size: clamp(72px, 15vw, 130px);
+        font-size: clamp(4rem, 12vw, 8rem);
         line-height: 1;
+        color: #e3b341;
     }
 
-    .error-card h1 {
-        margin: 18px 0 10px;
-    }
-
-    .error-description {
+    .error-card p {
         color: var(--text-muted);
-        margin-bottom: 24px;
-    }
-
-    .error-path {
-        overflow-wrap: anywhere;
-        background: var(--surface-soft);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 10px;
-        color: var(--text-muted);
-        font-family: monospace;
-        font-size: 13px;
     }
 
     .error-actions {
         display: flex;
         justify-content: center;
-        flex-wrap: wrap;
         gap: 10px;
-        margin-top: 24px;
+        flex-wrap: wrap;
+        margin-top: 22px;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="error-page">
-    <section class="error-card">
-        <p class="error-code">404</p>
+<section class="error-page">
+    <div class="error-card">
+        <p class="error-code">403</p>
+        <h1>Access denied</h1>
 
-        <h1>Page not found</h1>
-
-        <p class="error-description">
-            The page may have been moved, deleted, or the
-            address may be incorrect.
+        <p>
+            You do not have permission to perform this action.
+            The project owner may need to change your role.
         </p>
 
-        {% if request_path %}
-            <div class="error-path">
-                {{ request_path }}
-            </div>
-        {% endif %}
-
         <div class="error-actions">
-            <a
-                href="{% url 'project_list' %}"
-                class="button"
-            >
-                Return to My Projects
+            <a class="button" href="{% url 'project_list' %}">
+                Back to Projects
             </a>
 
-            <button
-                type="button"
-                class="button secondary-button"
-                onclick="history.back()"
-            >
-                Go Back
-            </button>
+            {% if project %}
+                <a class="button" href="{% url 'workspace' project.pk %}">
+                    Open Workspace
+                </a>
+            {% endif %}
         </div>
-    </section>
-</div>
+    </div>
+</section>
 {% endblock %}

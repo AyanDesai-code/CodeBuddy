@@ -1,0 +1,155 @@
+{% extends "projects/base.html" %}
+
+{% block title %}
+    Members | {{ project.name }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .members-layout {
+        max-width: 900px;
+        display: grid;
+        gap: 18px;
+    }
+
+    .invite-form {
+        display: grid;
+        grid-template-columns: 1fr 170px auto;
+        gap: 9px;
+    }
+
+    .invite-form input,
+    .invite-form select {
+        width: 100%;
+        border: 1px solid var(--border-strong);
+        border-radius: 8px;
+        background: var(--surface-soft);
+        color: var(--text);
+        padding: 10px;
+    }
+
+    .member-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .member-card {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        align-items: center;
+        border: 1px solid var(--border);
+        background: var(--surface-soft);
+        border-radius: 9px;
+        padding: 13px;
+    }
+
+    .member-role {
+        color: var(--text-muted);
+        font-size: 13px;
+    }
+
+    .owner-note {
+        color: var(--text-muted);
+    }
+
+    @media (max-width: 660px) {
+        .invite-form {
+            grid-template-columns: 1fr;
+        }
+
+        .member-card {
+            align-items: stretch;
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="members-layout">
+    <div>
+        <a href="{% url 'workspace' project.pk %}">
+            ← Back to Workspace
+        </a>
+
+        <h1>Project Members</h1>
+        <p>
+            Share this project with other BuilderOS users.
+        </p>
+    </div>
+
+    {% if is_owner %}
+        <section class="card">
+            <h2>Add or update a member</h2>
+
+            <form
+                method="POST"
+                action="{% url 'invite_project_member' project.pk %}"
+                class="invite-form"
+            >
+                {% csrf_token %}
+
+                <input
+                    type="text"
+                    name="username"
+                    placeholder="Username"
+                    required
+                >
+
+                <select name="role">
+                    <option value="editor">Editor</option>
+                    <option value="viewer">Viewer</option>
+                </select>
+
+                <button type="submit">Save Member</button>
+            </form>
+        </section>
+    {% else %}
+        <section class="card owner-note">
+            Only the project owner can add, remove, or change members.
+        </section>
+    {% endif %}
+
+    <section class="card">
+        <h2>People with access</h2>
+
+        <div class="member-list">
+            {% for member in memberships %}
+                <article class="member-card">
+                    <div>
+                        <strong>{{ member.user.username }}</strong>
+
+                        <div class="member-role">
+                            {{ member.get_role_display }}
+                        </div>
+                    </div>
+
+                    {% if is_owner and member.role != "owner" %}
+                        <form
+                            method="POST"
+                            action="{% url 'remove_project_member' project.pk member.pk %}"
+                            onsubmit="
+                                return confirm(
+                                    'Remove this member?'
+                                );
+                            "
+                        >
+                            {% csrf_token %}
+
+                            <button
+                                type="submit"
+                                class="danger-button"
+                            >
+                                Remove
+                            </button>
+                        </form>
+                    {% endif %}
+                </article>
+            {% empty %}
+                <p>No members found.</p>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}

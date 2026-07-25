@@ -1,73 +1,129 @@
 {% extends "projects/base.html" %}
 
 {% block title %}
-    Add Task | {{ project.name }}
+    New Task | {{ project.name }}
 {% endblock %}
 
 {% block extra_css %}
 <style>
-label {
-            display: block;
-            margin-top: 18px;
-            margin-bottom: 6px;
-            font-weight: bold;
+    .form-page {
+        max-width: 760px;
+    }
+
+    .form-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 13px;
+        padding: 22px;
+        box-shadow: var(--shadow);
+    }
+
+    .field {
+        display: grid;
+        gap: 7px;
+        margin-bottom: 17px;
+    }
+
+    .field input,
+    .field textarea,
+    .field select {
+        width: 100%;
+        border: 1px solid var(--border-strong);
+        border-radius: 9px;
+        background: var(--surface-soft);
+        color: var(--text);
+        padding: 11px;
+    }
+
+    .field textarea {
+        min-height: 150px;
+        resize: vertical;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    @media (max-width: 600px) {
+        .form-actions {
+            display: grid;
+            grid-template-columns: 1fr;
         }
 
-        input,
-        textarea,
-        select {
+        .form-actions > * {
             width: 100%;
-            box-sizing: border-box;
-            padding: 10px;
         }
-
-        button {
-            margin-top: 20px;
-            padding: 10px 16px;
-            cursor: pointer;
-        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<h1>Add Task</h1>
-
-<form method="POST">
-    {% csrf_token %}
-
-    <label for="title">Title</label>
-    <input
-        id="title"
-        name="title"
-        type="text"
-        maxlength="200"
-        required
+<div class="form-page">
+    <a
+        href="{% url 'workspace_folder' project.pk tasks_folder.pk %}"
     >
-
-    <label for="description">Description</label>
-    <textarea
-        id="description"
-        name="description"
-        rows="8"
-    ></textarea>
-
-    <label for="priority">Priority</label>
-    <select id="priority" name="priority">
-        {% for value, label in priorities %}
-            <option value="{{ value }}">
-                {{ label }}
-            </option>
-        {% endfor %}
-    </select>
-
-    <button type="submit">
-        Add Task
-    </button>
-</form>
-
-<p>
-    <a href="{% url 'workspace_folder' project.pk tasks_folder.pk %}">
-        Cancel
+        ← Back to Tasks
     </a>
-</p>
+
+    <h1>New Task</h1>
+
+    <section class="form-card">
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="field">
+                <label for="title">
+                    <strong>Title</strong>
+                </label>
+
+                <input
+                    id="title"
+                    type="text"
+                    name="title"
+                    required
+                    autofocus
+                >
+            </div>
+
+            <div class="field">
+                <label for="description">
+                    <strong>Description</strong>
+                </label>
+
+                <textarea
+                    id="description"
+                    name="description"
+                    placeholder="Describe the work, expected output, and acceptance criteria."
+                ></textarea>
+            </div>
+
+            <div class="field">
+                <label for="priority">
+                    <strong>Priority</strong>
+                </label>
+
+                <select id="priority" name="priority">
+                    {% for value, label in priorities %}
+                        <option value="{{ value }}">
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit">Create Task</button>
+
+                <a
+                    class="button"
+                    href="{% url 'workspace_folder' project.pk tasks_folder.pk %}"
+                >
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </section>
+</div>
 {% endblock %}

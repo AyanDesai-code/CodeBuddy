@@ -558,3 +558,49 @@ class ProjectEvent(models.Model):
             f"{self.project.name}: "
             f"{self.get_event_type_display()}"
         )
+from django.conf import settings
+from django.db import models
+
+
+class ProjectMembership(models.Model):
+    class Role(models.TextChoices):
+        OWNER = "owner", "Owner"
+        EDITOR = "editor", "Editor"
+        VIEWER = "viewer", "Viewer"
+
+    project = models.ForeignKey(
+        "Project",
+        on_delete=models.CASCADE,
+        related_name="memberships",
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="project_memberships",
+    )
+
+    role = models.CharField(
+        max_length=20,
+        choices=Role.choices,
+        default=Role.VIEWER,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["project", "user"],
+                name="unique_project_member",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.user} — "
+            f"{self.project} — "
+            f"{self.get_role_display()}"
+        )

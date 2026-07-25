@@ -1,32 +1,89 @@
 {% extends "projects/base.html" %}
 
 {% block title %}
-    Edit {{ folder.name }}
+    Edit {{ folder.name }} | {{ project.name }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-page {
+        max-width: 900px;
+    }
+
+    .edit-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 13px;
+        padding: 22px;
+        box-shadow: var(--shadow);
+    }
+
+    textarea {
+        width: 100%;
+        min-height: 520px;
+        resize: vertical;
+        border: 1px solid var(--border-strong);
+        border-radius: 9px;
+        background: var(--surface-soft);
+        color: var(--text);
+        padding: 13px;
+        line-height: 1.55;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+    }
+
+    .helper-text {
+        color: var(--text-muted);
+        margin-bottom: 15px;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<h1>Edit {{ folder.name }}</h1>
+<div class="edit-page">
+    <a
+        href="{% url 'workspace_folder' project.pk folder.pk %}"
+    >
+        ← Back to {{ folder.name }}
+    </a>
 
-<form method="POST">
-    {% csrf_token %}
+    <h1>Edit {{ folder.name }}</h1>
 
-    <textarea
-        name="description"
-        rows="25"
-        cols="100"
-    >{{ folder.description }}</textarea>
+    <section class="edit-card">
+        <p class="helper-text">
+            Update this workspace section manually. Saving a real
+            change will mark the project schedule for refresh when
+            the section affects planning.
+        </p>
 
-    <br><br>
+        <form method="POST">
+            {% csrf_token %}
 
-    <button type="submit">
-        Save Changes
-    </button>
+            <label for="description">
+                <strong>Section content</strong>
+            </label>
 
-</form>
+            <textarea
+                id="description"
+                name="description"
+            >{{ folder.description }}</textarea>
 
-<br>
+            <div class="form-actions">
+                <button type="submit">Save Changes</button>
 
-<a href="{% url 'workspace_folder' project.pk folder.pk %}">
-    Cancel
-</a>
+                <a
+                    class="button"
+                    href="{% url 'workspace_folder' project.pk folder.pk %}"
+                >
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </section>
+</div>
 {% endblock %}

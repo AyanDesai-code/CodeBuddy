@@ -1,7 +1,25 @@
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render
 import difflib
+import json
+import time
+
+from datetime import timedelta
+from decimal import Decimal, InvalidOperation
+
 from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
+from django.db import transaction
+from django.http import JsonResponse
+from django.shortcuts import (
+    get_object_or_404,
+    redirect,
+    render,
+)
+from django.urls import reverse
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+
 from .ai.services import (
     analyze_workspace_change,
     apply_canonical_updates,
@@ -14,12 +32,14 @@ from .ai.services import (
     regenerate_workspace_section,
     review_project,
 )
+
 from .models import (
     Project,
     ProjectChange,
     ProjectConflict,
     ProjectEvent,
     ProjectHealthReviewRecord,
+    ProjectMembership,
     ProjectMessage,
     ProjectMilestone,
     ProjectState,
@@ -27,14 +47,14 @@ from .models import (
     WorkspaceFolder,
     WorkspaceMessage,
 )
-from django.views.decorators.http import require_POST
-from django.db import transaction
-import time
-from django.utils import timezone
-import json
-from django.http import JsonResponse
-from decimal import Decimal, InvalidOperation
 
+from .permissions import (
+    get_editable_project_for_user,
+    get_owned_project_for_user,
+    get_project_for_user,
+    project_permission_context,
+    user_is_project_owner,
+)
 def record_project_event(
     *,
     project,
@@ -134,20 +154,23 @@ def normalize_task_title(title):
         if word.lower() not in ignored_words
     }
 
+
 @login_required
 def project_list(request):
-    show_archived = (
-        request.GET.get("archived") == "1"
-    )
+    show_archived = request.GET.get("archived") == "1"
 
     projects = (
         Project.objects
-        .filter(owner=request.user)
+        .filter(memberships__user=request.user)
+        .select_related("owner")
         .prefetch_related(
             "tasks",
             "conflicts",
             "health_reviews",
+            "memberships",
+            "memberships__user",
         )
+        .distinct()
         .order_by("-updated_at")
     )
 
@@ -164,18 +187,14 @@ def project_list(request):
 
     for project in projects:
         total_tasks = project.tasks.count()
-
         completed_tasks = project.tasks.filter(
             status=Task.Status.DONE,
         ).count()
 
         task_progress = 0
-
         if total_tasks > 0:
             task_progress = round(
-                completed_tasks
-                / total_tasks
-                * 100
+                completed_tasks / total_tasks * 100
             )
 
         latest_review = (
@@ -196,6 +215,11 @@ def project_list(request):
             ).count()
         )
 
+        permission_context = project_permission_context(
+            project=project,
+            user=request.user,
+        )
+
         project_cards.append(
             {
                 "project": project,
@@ -203,9 +227,8 @@ def project_list(request):
                 "completed_tasks": completed_tasks,
                 "task_progress": task_progress,
                 "health_score": health_score,
-                "open_conflict_count": (
-                    open_conflict_count
-                ),
+                "open_conflict_count": open_conflict_count,
+                **permission_context,
             }
         )
 
@@ -217,61 +240,74 @@ def project_list(request):
             "show_archived": show_archived,
         },
     )
+
 @login_required
 @require_POST
-def rename_project(
-    request,
-    project_pk,
-):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+def rename_project(request, project_pk):
+    project = get_owned_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
-    new_name = request.POST.get(
-        "name",
-        "",
-    ).strip()
+    new_name = request.POST.get("name", "").strip()
 
     if not new_name:
         messages.error(
             request,
             "Project name cannot be blank.",
         )
-
         return redirect("project_list")
 
-    old_name = (
-        project.name
-        or "Untitled Project"
-    )
-
+    old_name = project.name or "Untitled Project"
     project.name = new_name
-
     project.save(
-        update_fields=[
-            "name",
-            "updated_at",
-        ]
+        update_fields=["name", "updated_at"],
     )
 
     messages.success(
         request,
         f'"{old_name}" was renamed to "{new_name}".',
     )
+    return redirect("project_list")
+
+
+@login_required
+@require_POST
+def delete_project(request, project_pk):
+    project = get_owned_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    project_name = project.name or "Untitled Project"
+    was_archived = (
+        project.status == Project.Status.ARCHIVED
+    )
+
+    project.delete()
+
+    messages.success(
+        request,
+        f'"{project_name}" was permanently deleted.',
+    )
+
+    if was_archived:
+        return redirect(
+            f"{reverse('project_list')}?archived=1"
+        )
 
     return redirect("project_list")
+
+
 @login_required
 @require_POST
 def archive_project(
     request,
     project_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_owned_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     project_name = (
@@ -302,10 +338,9 @@ def restore_project(
     request,
     project_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_owned_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
         status=Project.Status.ARCHIVED,
     )
 
@@ -331,41 +366,7 @@ def restore_project(
     return redirect(
         f"{reverse('project_list')}?archived=1"
     )
-@login_required
-@require_POST
-def delete_project(
-    request,
-    project_pk,
-):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
-    )
 
-    project_name = (
-        project.name
-        or "Untitled Project"
-    )
-
-    was_archived = (
-        project.status
-        == Project.Status.ARCHIVED
-    )
-
-    project.delete()
-
-    messages.success(
-        request,
-        f'"{project_name}" was permanently deleted.',
-    )
-
-    if was_archived:
-        return redirect(
-            f"{reverse('project_list')}?archived=1"
-        )
-
-    return redirect("project_list")
 @login_required
 def new_project(request):
     project = Project.objects.create(
@@ -376,6 +377,11 @@ def new_project(request):
         request,
         "New project created.",
     )
+    ProjectMembership.objects.create(
+        project=project,
+        user=request.user,
+        role=ProjectMembership.Role.OWNER,
+    )
 
     ProjectState.objects.create(
         project=project,
@@ -385,10 +391,9 @@ def new_project(request):
     return redirect("project_setup", pk=project.pk)
 @login_required
 def project_setup(request, pk):
-    project = get_object_or_404(
-        Project,
-        pk=pk,
-        owner=request.user,
+    project = get_owned_project_for_user(
+        project_pk=pk,
+        user=request.user,
     )
 
     if request.method == "POST":
@@ -557,10 +562,9 @@ def project_setup(request, pk):
 @login_required
 @require_POST
 def generate_workspace(request, pk):
-    project = get_object_or_404(
-        Project,
-        pk=pk,
-        owner=request.user,
+    project = get_owned_project_for_user(
+        project_pk=pk,
+        user=request.user,
     )
 
     if project.status != Project.Status.GENERATING:
@@ -570,42 +574,15 @@ def generate_workspace(request, pk):
         )
 
     default_folders = [
-        {
-            "name": "Overview",
-            "folder_type": "overview",
-        },
-        {
-            "name": "Requirements",
-            "folder_type": "requirements",
-        },
-        {
-            "name": "Roadmap",
-            "folder_type": "roadmap",
-        },
-        {
-            "name": "Tasks",
-            "folder_type": "tasks",
-        },
-        {
-            "name": "Materials & Stack",
-            "folder_type": "resources",
-        },
-        {
-            "name": "Budget",
-            "folder_type": "budget",
-        },
-        {
-            "name": "Learning Resources",
-            "folder_type": "learning",
-        },
-        {
-            "name": "Documentation",
-            "folder_type": "documentation",
-        },
-        {
-            "name": "Testing",
-            "folder_type": "testing",
-        },
+        {"name": "Overview", "folder_type": "overview"},
+        {"name": "Requirements", "folder_type": "requirements"},
+        {"name": "Roadmap", "folder_type": "roadmap"},
+        {"name": "Tasks", "folder_type": "tasks"},
+        {"name": "Materials & Stack", "folder_type": "resources"},
+        {"name": "Budget", "folder_type": "budget"},
+        {"name": "Learning Resources", "folder_type": "learning"},
+        {"name": "Documentation", "folder_type": "documentation"},
+        {"name": "Testing", "folder_type": "testing"},
     ]
 
     if not project.folders.exists():
@@ -614,9 +591,7 @@ def generate_workspace(request, pk):
                 WorkspaceFolder(
                     project=project,
                     name=folder["name"],
-                    folder_type=folder[
-                        "folder_type"
-                    ],
+                    folder_type=folder["folder_type"],
                     order=index,
                 )
                 for index, folder in enumerate(
@@ -627,22 +602,7 @@ def generate_workspace(request, pk):
         )
 
     try:
-        generated = generate_workspace_content(
-            project
-        )
-
-        print(
-            "\n===== Generated Workspace ====="
-        )
-        print(
-            generated.model_dump_json(
-                indent=4
-            )
-        )
-        print(
-            "===============================\n"
-        )
-
+        generated = generate_workspace_content(project)
         project.name = generated.project_name
 
         sections_by_type = {
@@ -651,16 +611,10 @@ def generate_workspace(request, pk):
         }
 
         for folder in project.folders.all():
-            folder.description = (
-                sections_by_type.get(
-                    folder.folder_type,
-                    (
-                        "No content was generated "
-                        "for this section."
-                    ),
-                )
+            folder.description = sections_by_type.get(
+                folder.folder_type,
+                "No content was generated for this section.",
             )
-
             folder.save(
                 update_fields=[
                     "description",
@@ -670,10 +624,8 @@ def generate_workspace(request, pk):
 
         if not project.tasks.exists():
             valid_statuses = {
-                value
-                for value, _ in Task.Status.choices
+                value for value, _ in Task.Status.choices
             }
-
             generated_tasks = []
 
             for index, generated_task in enumerate(
@@ -689,51 +641,39 @@ def generate_workspace(request, pk):
                 if status not in valid_statuses:
                     status = Task.Status.TODO
 
-                priority = normalize_task_priority(
-                    generated_task.priority
-                )
-
                 generated_tasks.append(
                     Task(
                         project=project,
-                        title=(
-                            generated_task
-                            .title
-                            .strip()
-                        ),
+                        title=generated_task.title.strip(),
                         description=(
-                            generated_task
-                            .description
-                            .strip()
+                            generated_task.description.strip()
                         ),
-                        priority=priority,
+                        priority=normalize_task_priority(
+                            generated_task.priority
+                        ),
                         status=status,
                         completed=(
-                            status
-                            == Task.Status.DONE
+                            status == Task.Status.DONE
                         ),
                         order=index,
                     )
                 )
 
             if generated_tasks:
-                Task.objects.bulk_create(
-                    generated_tasks
-                )
+                Task.objects.bulk_create(generated_tasks)
 
     except Exception as error:
-        print(
-            "Workspace generation failed:",
-            error,
+        print("Workspace generation failed:", error)
+        messages.error(
+            request,
+            "BuilderOS could not generate the workspace.",
         )
-
         return redirect(
             "project_setup",
             pk=project.pk,
         )
 
     project.status = Project.Status.ACTIVE
-
     project.save(
         update_fields=[
             "name",
@@ -744,14 +684,14 @@ def generate_workspace(request, pk):
 
     return redirect(
         "workspace",
-        pk=project.pk,
+        project_pk=project.pk,
     )
+
 @login_required
-def workspace(request, pk):
-    project = get_object_or_404(
-        Project,
-        pk=pk,
-        owner=request.user,
+def workspace(request, project_pk):
+    project = get_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     folders = project.folders.all()
@@ -809,37 +749,37 @@ def workspace(request, pk):
         project.changes
         .order_by("-created_at")[:5]
     )
-
-    return render(
-        request,
-        "projects/workspace.html",
-        {
-            "project": project,
-            "folders": folders,
-
-            "health_score": health_score,
-            "open_conflict_count": (
-                open_conflict_count
-            ),
-            "critical_conflict_count": (
-                critical_conflict_count
-            ),
-
-            "total_tasks": total_tasks,
-            "completed_tasks": completed_tasks,
-            "task_progress": task_progress,
-
-            "high_priority_tasks": high_priority_tasks,
-            "recent_events": recent_events,
-            "recent_changes": recent_changes,
-        },
+    permission_context = project_permission_context(
+        project=project,
+        user=request.user,
     )
+    return render(
+    request,
+    "projects/workspace.html",
+    {
+        "project": project,
+        "folders": folders,
+        "health_score": health_score,
+        "open_conflict_count": (
+            open_conflict_count
+        ),
+        "critical_conflict_count": (
+            critical_conflict_count
+        ),
+        "total_tasks": total_tasks,
+        "completed_tasks": completed_tasks,
+        "task_progress": task_progress,
+        "high_priority_tasks": high_priority_tasks,
+        "recent_events": recent_events,
+        "recent_changes": recent_changes,
+        **permission_context,
+    },
+)
 @login_required
 def workspace_folder(request, project_pk, folder_pk):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     folder = get_object_or_404(
@@ -865,6 +805,10 @@ def workspace_folder(request, project_pk, folder_pk):
             progress = round(
                 completed_tasks / total_tasks * 100
             )
+        permission_context = project_permission_context(
+            project=project,
+            user=request.user,
+        )
 
     return render(
         request,
@@ -876,6 +820,7 @@ def workspace_folder(request, project_pk, folder_pk):
             "total_tasks": total_tasks,
             "completed_tasks": completed_tasks,
             "progress": progress,
+            **permission_context,
         },
     )
 @login_required
@@ -883,11 +828,11 @@ def edit_workspace_folder(
     request,
     project_pk,
     folder_pk,
+    **permission_context,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     folder = get_object_or_404(
@@ -901,12 +846,10 @@ def edit_workspace_folder(
             "description",
             "",
         )
-
         old_description = folder.description
 
         if old_description != new_description:
             folder.description = new_description
-
             folder.save(
                 update_fields=[
                     "description",
@@ -923,10 +866,7 @@ def edit_workspace_folder(
                 "testing",
             }
 
-            if (
-                folder.folder_type
-                in schedule_relevant_sections
-            ):
+            if folder.folder_type in schedule_relevant_sections:
                 mark_schedule_for_refresh(
                     project=project,
                     reason=(
@@ -938,21 +878,24 @@ def edit_workspace_folder(
             record_project_event(
                 project=project,
                 event_type=(
-                    ProjectEvent.EventType
-                    .WORKSPACE_UPDATED
+                    ProjectEvent.EventType.WORKSPACE_UPDATED
                 ),
                 title="Workspace section edited",
                 description=folder.name,
                 metadata={
                     "folder_id": folder.pk,
-                    "folder_type": (
-                        folder.folder_type
-                    ),
+                    "folder_type": folder.folder_type,
                 },
             )
+
             messages.success(
                 request,
                 f'"{folder.name}" was updated.',
+            )
+        else:
+            messages.info(
+                request,
+                "No workspace changes were made.",
             )
 
         return redirect(
@@ -961,14 +904,22 @@ def edit_workspace_folder(
             folder_pk=folder.pk,
         )
 
+    permission_context = project_permission_context(
+        project=project,
+        user=request.user,
+    )
+
     return render(
         request,
         "projects/workspace_folder_edit.html",
         {
             "project": project,
             "folder": folder,
+            **permission_context,
         },
     )
+
+
 @login_required
 @require_POST
 def regenerate_workspace_folder(
@@ -976,10 +927,9 @@ def regenerate_workspace_folder(
     project_pk,
     folder_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     folder = get_object_or_404(
@@ -1075,10 +1025,9 @@ def toggle_task(
     project_pk,
     task_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     task = get_object_or_404(
@@ -1117,7 +1066,6 @@ def toggle_task(
             f"{task.title}."
         ),
     )
-    
 
     record_project_event(
         project=project,
@@ -1162,11 +1110,13 @@ def normalize_task_priority(
 
     return priority
 @login_required
-def new_task(request, project_pk):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+def new_task(
+    request,
+    project_pk,
+):
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     tasks_folder = get_object_or_404(
@@ -1193,7 +1143,12 @@ def new_task(request, project_pk):
             )
         )
 
-        if title:
+        if not title:
+            messages.error(
+                request,
+                "Task title cannot be blank.",
+            )
+        else:
             last_task = (
                 project.tasks
                 .order_by("-order")
@@ -1222,6 +1177,7 @@ def new_task(request, project_pk):
                     f"Task added: {task.title}."
                 ),
             )
+
             messages.success(
                 request,
                 f'Task "{task.title}" was created.',
@@ -1233,15 +1189,19 @@ def new_task(request, project_pk):
                 folder_pk=tasks_folder.pk,
             )
 
+    permission_context = project_permission_context(
+        project=project,
+        user=request.user,
+    )
+
     return render(
         request,
         "projects/task_form.html",
         {
             "project": project,
             "tasks_folder": tasks_folder,
-            "priorities": (
-                Task.Priority.choices
-            ),
+            "priorities": Task.Priority.choices,
+            **permission_context,
         },
     )
 @login_required
@@ -1250,10 +1210,9 @@ def edit_task(
     project_pk,
     task_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     task = get_object_or_404(
@@ -1318,15 +1277,19 @@ def edit_task(
             mark_schedule_for_refresh(
                 project=project,
                 reason=(
-                    f"Task updated: "
-                    f"{task.title}."
+                    f"Task updated: {task.title}."
                 ),
             )
 
-        messages.success(
-            request,
-            f'Task "{task.title}" was updated.',
-        )
+            messages.success(
+                request,
+                f'Task "{task.title}" was updated.',
+            )
+        else:
+            messages.info(
+                request,
+                "No task changes were made.",
+            )
 
         return redirect(
             "workspace_folder",
@@ -1334,15 +1297,19 @@ def edit_task(
             folder_pk=tasks_folder.pk,
         )
 
+    permission_context = project_permission_context(
+        project=project,
+        user=request.user,
+    )
+
     return render(
         request,
         "projects/edit_task.html",
         {
             "project": project,
             "task": task,
-            "priorities": (
-                Task.Priority.choices
-            ),
+            "priorities": Task.Priority.choices,
+            **permission_context,
         },
     )
 @login_required
@@ -1352,10 +1319,9 @@ def delete_task(
     project_pk,
     task_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     task = get_object_or_404(
@@ -1384,7 +1350,10 @@ def delete_task(
 
     messages.success(
         request,
-        f'Task "{deleted_task_title}" was deleted.',
+        (
+            f'Task "{deleted_task_title}" '
+            "was deleted."
+        ),
     )
 
     return redirect(
@@ -1900,16 +1869,26 @@ def apply_workspace_change(
         "facts_changed": facts_changed,
     }
 @login_required
-def workspace_assistant(request, project_pk):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
-    )
+def workspace_assistant(
+    request,
+    project_pk,
+):
+    if request.method == "POST":
+        project = get_editable_project_for_user(
+            project_pk=project_pk,
+            user=request.user,
+        )
+    else:
+        project = get_project_for_user(
+            project_pk=project_pk,
+            user=request.user,
+        )
 
     ProjectState.objects.get_or_create(
         project=project,
-        defaults={"facts": {}},
+        defaults={
+            "facts": {},
+        },
     )
 
     if request.method == "POST":
@@ -1918,152 +1897,191 @@ def workspace_assistant(request, project_pk):
             "",
         ).strip()
 
-        if content:
+        if not content:
+            messages.error(
+                request,
+                "Enter a project update first.",
+            )
+
+            return redirect(
+                "workspace_assistant",
+                project_pk=project.pk,
+            )
+
+        try:
+            previous_review = (
+                project.health_reviews
+                .order_by("-created_at")
+                .first()
+            )
+
+            previous_health_score = (
+                previous_review.health_score
+                if previous_review is not None
+                else None
+            )
+
+            previous_open_conflicts = (
+                project.conflicts.filter(
+                    status=(
+                        ProjectConflict.Status.OPEN
+                    ),
+                ).count()
+            )
+
+            result = apply_workspace_change(
+                project=project,
+                content=content,
+            )
+
+            messages.success(
+                request,
+                (
+                    "Your project was updated "
+                    "successfully."
+                ),
+            )
+
             try:
-                previous_review = (
-                    project.health_reviews
-                    .order_by("-created_at")
-                    .first()
+                review_result = run_project_review(
+                    project
                 )
 
-                previous_health_score = (
-                    previous_review.health_score
-                    if previous_review is not None
-                    else None
+                latest_health_score = (
+                    review_result[
+                        "review"
+                    ].health_score
                 )
 
-                previous_open_conflicts = (
+                latest_open_conflicts = (
                     project.conflicts.filter(
-                        status=ProjectConflict.Status.OPEN,
+                        status=(
+                            ProjectConflict.Status.OPEN
+                        ),
                     ).count()
                 )
 
-                result = apply_workspace_change(
-                    project=project,
-                    content=content,
-                )
-                messages.success(
-                    request,
-                    "Your project was updated successfully.",
-                )
+                review_completed = True
 
-                try:
-                    review_result = run_project_review(
-                        project
-                    )
-
-                    latest_health_score = (
-                        review_result[
-                            "review"
-                        ].health_score
-                    )
-
-                    latest_open_conflicts = (
-                        project.conflicts.filter(
-                            status=(
-                                ProjectConflict.Status.OPEN
-                            ),
-                        ).count()
-                    )
-
-                    review_completed = True
-
-                except Exception as review_error:
-                    print(
-                        "Automatic project review failed:",
-                        review_error,
-                    )
-                    messages.error(
-                        request,
-                        (
-                            "BuilderOS could not apply that "
-                            "project update. No changes were saved."
-                        ),
-                    )
-
-                    latest_health_score = None
-                    latest_open_conflicts = (
-                        previous_open_conflicts
-                    )
-                    review_completed = False
-
-                health_score_change = None
-
-                if (
-                    previous_health_score is not None
-                    and latest_health_score is not None
-                ):
-                    health_score_change = (
-                        latest_health_score
-                        - previous_health_score
-                    )
-
-                conflict_count_change = (
-                    latest_open_conflicts
-                    - previous_open_conflicts
-                )
-
-                request.session[
-                    "workspace_update_summary"
-                ] = {
-                    "sections": result["sections"],
-                    "task_changes": (
-                        result["task_changes"]
-                    ),
-                    "facts_changed": (
-                        result["facts_changed"]
-                    ),
-                    "previous_health_score": (
-                        previous_health_score
-                    ),
-                    "health_score": (
-                        latest_health_score
-                    ),
-                    "health_score_change": (
-                        health_score_change
-                    ),
-                    "previous_open_conflicts": (
-                        previous_open_conflicts
-                    ),
-                    "open_conflicts": (
-                        latest_open_conflicts
-                    ),
-                    "conflict_count_change": (
-                        conflict_count_change
-                    ),
-                    "review_completed": (
-                        review_completed
-                    ),
-                }
-
-            except Exception as error:
+            except Exception as review_error:
                 print(
-                    "Workspace cascade update failed:",
-                    error,
+                    (
+                        "Automatic project review "
+                        "failed:"
+                    ),
+                    review_error,
                 )
 
-                WorkspaceMessage.objects.create(
-                    project=project,
-                    role=(
-                        WorkspaceMessage.Role.ASSISTANT
-                    ),
-                    content=(
-                        "I couldn't apply that project "
-                        "change. No workspace sections "
-                        "were updated. Please try again."
+                latest_health_score = None
+                latest_open_conflicts = (
+                    previous_open_conflicts
+                )
+                review_completed = False
+
+                messages.warning(
+                    request,
+                    (
+                        "The project was updated, "
+                        "but the automatic review "
+                        "failed."
                     ),
                 )
+
+            health_score_change = None
+
+            if (
+                previous_health_score is not None
+                and latest_health_score is not None
+            ):
+                health_score_change = (
+                    latest_health_score
+                    - previous_health_score
+                )
+
+            conflict_count_change = (
+                latest_open_conflicts
+                - previous_open_conflicts
+            )
+
+            request.session[
+                "workspace_update_summary"
+            ] = {
+                "sections": result["sections"],
+                "task_changes": (
+                    result["task_changes"]
+                ),
+                "facts_changed": (
+                    result["facts_changed"]
+                ),
+                "previous_health_score": (
+                    previous_health_score
+                ),
+                "health_score": (
+                    latest_health_score
+                ),
+                "health_score_change": (
+                    health_score_change
+                ),
+                "previous_open_conflicts": (
+                    previous_open_conflicts
+                ),
+                "open_conflicts": (
+                    latest_open_conflicts
+                ),
+                "conflict_count_change": (
+                    conflict_count_change
+                ),
+                "review_completed": (
+                    review_completed
+                ),
+            }
+
+        except Exception as error:
+            print(
+                (
+                    "Workspace cascade update "
+                    "failed:"
+                ),
+                error,
+            )
+
+            WorkspaceMessage.objects.create(
+                project=project,
+                role=(
+                    WorkspaceMessage.Role.ASSISTANT
+                ),
+                content=(
+                    "I couldn't apply that project "
+                    "change. No workspace sections "
+                    "were updated. Please try again."
+                ),
+            )
+
+            messages.error(
+                request,
+                (
+                    "BuilderOS could not apply "
+                    "that project update."
+                ),
+            )
 
         return redirect(
             "workspace_assistant",
             project_pk=project.pk,
         )
 
-    messages = project.workspace_messages.all()
+    workspace_messages = (
+        project.workspace_messages.all()
+    )
 
     update_summary = request.session.pop(
         "workspace_update_summary",
         None,
+    )
+
+    permission_context = project_permission_context(
+        project=project,
+        user=request.user,
     )
 
     return render(
@@ -2071,19 +2089,29 @@ def workspace_assistant(request, project_pk):
         "projects/workspace_assistant.html",
         {
             "project": project,
-            "messages": messages,
+            "messages": workspace_messages,
             "update_summary": update_summary,
+            **permission_context,
         },
     )
 @login_required
-def project_change_history(request, project_pk):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+def project_change_history(
+    request,
+    project_pk,
+):
+    project = get_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
-    changes = project.changes.order_by("-created_at")
+    changes = project.changes.order_by(
+        "-created_at"
+    )
+
+    permission_context = project_permission_context(
+        project=project,
+        user=request.user,
+    )
 
     return render(
         request,
@@ -2091,16 +2119,15 @@ def project_change_history(request, project_pk):
         {
             "project": project,
             "changes": changes,
+            **permission_context,
         },
     )
-
 @login_required
 def project_change_detail(request, project_pk, change_pk):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
-    )
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+)
 
     change = get_object_or_404(
         ProjectChange,
@@ -2221,6 +2248,10 @@ def project_change_detail(request, project_pk, change_pk):
                 "change_type": change_type,
             }
         )
+        permission_context = project_permission_context(
+            project=project,
+            user=request.user,
+        )
 
     return render(
         request,
@@ -2231,6 +2262,7 @@ def project_change_detail(request, project_pk, change_pk):
             "fact_changes": fact_changes,
             "section_changes": section_changes,
             "task_changes": task_changes,
+            **permission_context,
         },
     )
 
@@ -2241,10 +2273,9 @@ def undo_project_change(
     project_pk,
     change_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     change = get_object_or_404(
@@ -2412,6 +2443,10 @@ def undo_project_change(
                 f"Project change "
                 f"#{change.pk} was undone."
             ),
+        )
+        messages.success(
+            request,
+            f"Change #{change.pk} was undone.",
         )
 
         print(
@@ -2818,12 +2853,20 @@ def run_project_review(project):
         "warnings": current_warnings,
     }
 @login_required
-def project_review(request, project_pk):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
-    )
+def project_review(
+    request,
+    project_pk,
+):
+    if request.method == "POST":
+        project = get_editable_project_for_user(
+            project_pk=project_pk,
+            user=request.user,
+        )
+    else:
+        project = get_project_for_user(
+            project_pk=project_pk,
+            user=request.user,
+        )
 
     review = None
     current_critical_issues = []
@@ -2832,21 +2875,26 @@ def project_review(request, project_pk):
 
     if request.method == "POST":
         try:
-            result = run_project_review(project)
+            result = run_project_review(
+                project
+            )
+
+            review = result["review"]
+            current_critical_issues = (
+                result["critical_issues"]
+            )
+            current_warnings = (
+                result["warnings"]
+            )
+
             messages.success(
                 request,
                 (
                     "Project review completed. "
                     f"Health score: "
-                    f"{result['review'].health_score}%."
+                    f"{review.health_score}%."
                 ),
             )
-
-            review = result["review"]
-            current_critical_issues = result[
-                "critical_issues"
-            ]
-            current_warnings = result["warnings"]
 
         except Exception as error:
             print(
@@ -2854,19 +2902,18 @@ def project_review(request, project_pk):
                 error,
             )
 
-            messages.success(
+            messages.error(
                 request,
                 (
-                    "Project review completed. "
-                    f"Health score: "
-                    f"{result['review'].health_score}%."
+                    "BuilderOS could not complete "
+                    "the project review."
                 ),
             )
 
     previous_reviews = (
-    project.health_reviews
-    .order_by("-created_at")
-)
+        project.health_reviews
+        .order_by("-created_at")
+    )
 
     health_history = list(
         project.health_reviews
@@ -2884,6 +2931,7 @@ def project_review(request, project_pk):
         if len(health_history) >= 2
         else None
     )
+
     review_delta = build_review_delta(
         latest_review=latest_saved_review,
         previous_review=previous_saved_review,
@@ -2921,8 +2969,15 @@ def project_review(request, project_pk):
     else:
         health_trend = "unchanged"
 
-    open_conflicts = project.conflicts.filter(
-        status=ProjectConflict.Status.OPEN,
+    open_conflicts = (
+        project.conflicts.filter(
+            status=ProjectConflict.Status.OPEN,
+        )
+    )
+
+    permission_context = project_permission_context(
+        project=project,
+        user=request.user,
     )
 
     return render(
@@ -2934,18 +2989,23 @@ def project_review(request, project_pk):
             "current_critical_issues": (
                 current_critical_issues
             ),
-            "current_warnings": current_warnings,
+            "current_warnings": (
+                current_warnings
+            ),
             "error_message": error_message,
             "previous_reviews": previous_reviews,
             "open_conflicts": open_conflicts,
-
             "health_history": health_history,
-            "latest_saved_score": latest_saved_score,
-            "previous_saved_score": previous_saved_score,
+            "latest_saved_score": (
+                latest_saved_score
+            ),
+            "previous_saved_score": (
+                previous_saved_score
+            ),
             "health_change": health_change,
             "health_trend": health_trend,
-
             "review_delta": review_delta,
+            **permission_context,
         },
     )
 @login_required
@@ -2955,10 +3015,9 @@ def resolve_project_conflict(
     project_pk,
     conflict_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     conflict = get_object_or_404(
@@ -2994,7 +3053,10 @@ def resolve_project_conflict(
 
     messages.success(
         request,
-        f'Conflict "{conflict.title}" was marked resolved.',
+        (
+            f'Conflict "{conflict.title}" '
+            "was marked resolved."
+        ),
     )
 
     return redirect(
@@ -3008,10 +3070,9 @@ def ignore_project_conflict(
     project_pk,
     conflict_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     conflict = get_object_or_404(
@@ -3047,7 +3108,10 @@ def ignore_project_conflict(
 
     messages.warning(
         request,
-        f'Conflict "{conflict.title}" was ignored.',
+        (
+            f'Conflict "{conflict.title}" '
+            "was ignored."
+        ),
     )
 
     return redirect(
@@ -3061,10 +3125,9 @@ def apply_project_conflict_fix(
     project_pk,
     conflict_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     conflict = get_object_or_404(
@@ -3075,15 +3138,19 @@ def apply_project_conflict_fix(
     )
 
     fix_request = (
-        "Apply the following project-health conflict fix.\n\n"
+        "Apply the following project-health "
+        "conflict fix.\n\n"
         f"Conflict key: {conflict.key}\n"
         f"Conflict title: {conflict.title}\n"
         f"Problem: {conflict.description}\n"
         f"Source type: {conflict.source_type}\n"
-        f"Source reference: {conflict.source_reference}\n\n"
-        f"Requested fix:\n{conflict.suggested_fix}\n\n"
-        "Update only the project facts, workspace sections, and tasks "
-        "that are meaningfully affected. Preserve unrelated content."
+        f"Source reference: "
+        f"{conflict.source_reference}\n\n"
+        f"Requested fix:\n"
+        f"{conflict.suggested_fix}\n\n"
+        "Update only the project facts, workspace "
+        "sections, and tasks that are meaningfully "
+        "affected. Preserve unrelated content."
     )
 
     try:
@@ -3093,15 +3160,22 @@ def apply_project_conflict_fix(
         )
 
         try:
-            review_result = run_project_review(project)
+            review_result = run_project_review(
+                project
+            )
 
             latest_health_score = (
-                review_result["review"].health_score
+                review_result[
+                    "review"
+                ].health_score
             )
 
         except Exception as review_error:
             print(
-                "Automatic review after AI fix failed:",
+                (
+                    "Automatic review after AI "
+                    "fix failed:"
+                ),
                 review_error,
             )
 
@@ -3111,7 +3185,9 @@ def apply_project_conflict_fix(
             ProjectConflict.objects.filter(
                 project=project,
                 key=conflict.key,
-                status=ProjectConflict.Status.OPEN,
+                status=(
+                    ProjectConflict.Status.OPEN
+                ),
             )
             .exclude(pk=conflict.pk)
             .exists()
@@ -3121,7 +3197,9 @@ def apply_project_conflict_fix(
             conflict.status = (
                 ProjectConflict.Status.RESOLVED
             )
-            conflict.resolved_at = timezone.now()
+            conflict.resolved_at = (
+                timezone.now()
+            )
 
             conflict.save(
                 update_fields=[
@@ -3133,32 +3211,56 @@ def apply_project_conflict_fix(
             record_project_event(
                 project=project,
                 event_type=(
-                    ProjectEvent.EventType.CONFLICT_FIXED
+                    ProjectEvent.EventType
+                    .CONFLICT_FIXED
                 ),
                 title="AI conflict fix applied",
                 description=conflict.title,
                 metadata={
                     "conflict_id": conflict.pk,
                     "conflict_key": conflict.key,
-                    "health_score": latest_health_score,
-                    "sections": result["sections"],
+                    "health_score": (
+                        latest_health_score
+                    ),
+                    "sections": (
+                        result["sections"]
+                    ),
                     "task_changes": (
                         result["task_changes"]
                     ),
                 },
             )
+
             messages.success(
                 request,
-                f'AI fix applied for "{conflict.title}".',
+                (
+                    f'AI fix applied for '
+                    f'"{conflict.title}".'
+                ),
+            )
+        else:
+            messages.warning(
+                request,
+                (
+                    "The AI update was applied, "
+                    "but the conflict is still "
+                    "present."
+                ),
             )
 
         request.session[
             "workspace_update_summary"
         ] = {
             "sections": result["sections"],
-            "task_changes": result["task_changes"],
-            "facts_changed": result["facts_changed"],
-            "health_score": latest_health_score,
+            "task_changes": (
+                result["task_changes"]
+            ),
+            "facts_changed": (
+                result["facts_changed"]
+            ),
+            "health_score": (
+                latest_health_score
+            ),
         }
 
         return redirect(
@@ -3168,8 +3270,19 @@ def apply_project_conflict_fix(
 
     except Exception as error:
         print(
-            f"Failed to apply conflict #{conflict.pk}:",
+            (
+                f"Failed to apply conflict "
+                f"#{conflict.pk}:"
+            ),
             error,
+        )
+
+        messages.error(
+            request,
+            (
+                "BuilderOS could not apply the "
+                "AI conflict fix."
+            ),
         )
 
         return redirect(
@@ -3177,14 +3290,21 @@ def apply_project_conflict_fix(
             project_pk=project.pk,
         )
 @login_required
-def project_activity(request, project_pk):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+def project_activity(
+    request,
+    project_pk,
+):
+    project = get_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     events = project.events.all()
+
+    permission_context = project_permission_context(
+        project=project,
+        user=request.user,
+    )
 
     return render(
         request,
@@ -3192,31 +3312,51 @@ def project_activity(request, project_pk):
         {
             "project": project,
             "events": events,
+            **permission_context,
         },
     )
 @login_required
-def project_board(request, project_pk):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+def project_board(
+    request,
+    project_pk,
+):
+    project = get_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     todo_tasks = project.tasks.filter(
         status=Task.Status.TODO,
-    ).order_by("order", "-priority")
+    ).order_by(
+        "order",
+        "-priority",
+    )
 
     in_progress_tasks = project.tasks.filter(
         status=Task.Status.IN_PROGRESS,
-    ).order_by("order", "-priority")
+    ).order_by(
+        "order",
+        "-priority",
+    )
 
     review_tasks = project.tasks.filter(
         status=Task.Status.REVIEW,
-    ).order_by("order", "-priority")
+    ).order_by(
+        "order",
+        "-priority",
+    )
 
     done_tasks = project.tasks.filter(
         status=Task.Status.DONE,
-    ).order_by("order", "-priority")
+    ).order_by(
+        "order",
+        "-priority",
+    )
+
+    permission_context = project_permission_context(
+        project=project,
+        user=request.user,
+    )
 
     return render(
         request,
@@ -3224,10 +3364,13 @@ def project_board(request, project_pk):
         {
             "project": project,
             "todo_tasks": todo_tasks,
-            "in_progress_tasks": in_progress_tasks,
+            "in_progress_tasks": (
+                in_progress_tasks
+            ),
             "review_tasks": review_tasks,
             "done_tasks": done_tasks,
             "status_choices": Task.Status.choices,
+            **permission_context,
         },
     )
 @login_required
@@ -3237,10 +3380,9 @@ def update_task_status(
     project_pk,
     task_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     task = get_object_or_404(
@@ -3255,8 +3397,8 @@ def update_task_status(
     ).strip()
 
     valid_statuses = {
-        choice[0]
-        for choice in Task.Status.choices
+        value
+        for value, _ in Task.Status.choices
     }
 
     if new_status not in valid_statuses:
@@ -3285,6 +3427,7 @@ def update_task_status(
             "updated_at",
         ]
     )
+
     if (
         previous_status == Task.Status.DONE
         or new_status == Task.Status.DONE
@@ -3296,22 +3439,29 @@ def update_task_status(
                 f"{task.title}."
             ),
         )
+
+    status_labels = dict(
+        Task.Status.choices
+    )
+
     record_project_event(
         project=project,
         event_type=(
-            ProjectEvent.EventType.TASK_STATUS_CHANGED
+            ProjectEvent.EventType
+            .TASK_STATUS_CHANGED
         ),
         title="Task status changed",
         description=(
             f"{task.title}: "
-            f"{dict(Task.Status.choices)[previous_status]} "
-            f"→ "
-            f"{dict(Task.Status.choices)[new_status]}"
+            f"{status_labels[previous_status]} "
+            f"→ {status_labels[new_status]}"
         ),
         metadata={
             "task_id": task.pk,
             "task_title": task.title,
-            "previous_status": previous_status,
+            "previous_status": (
+                previous_status
+            ),
             "new_status": new_status,
         },
     )
@@ -3327,10 +3477,9 @@ def move_task_on_board(
     project_pk,
     task_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     task = get_object_or_404(
@@ -3351,7 +3500,9 @@ def move_task_on_board(
         return JsonResponse(
             {
                 "success": False,
-                "error": "Invalid JSON request.",
+                "error": (
+                    "Invalid JSON request."
+                ),
             },
             status=400,
         )
@@ -3377,7 +3528,9 @@ def move_task_on_board(
         return JsonResponse(
             {
                 "success": False,
-                "error": "Invalid task status.",
+                "error": (
+                    "Invalid task status."
+                ),
             },
             status=400,
         )
@@ -3392,7 +3545,9 @@ def move_task_on_board(
         return JsonResponse(
             {
                 "success": False,
-                "error": "Invalid task ordering.",
+                "error": (
+                    "Invalid task ordering."
+                ),
             },
             status=400,
         )
@@ -3439,7 +3594,6 @@ def move_task_on_board(
 
             if ordered_task.order != order:
                 ordered_task.order = order
-
                 tasks_to_update.append(
                     ordered_task
                 )
@@ -3457,8 +3611,8 @@ def move_task_on_board(
             mark_schedule_for_refresh(
                 project=project,
                 reason=(
-                    f"Completion state changed for "
-                    f"{task.title}."
+                    f"Completion state changed "
+                    f"for {task.title}."
                 ),
             )
 
@@ -3477,7 +3631,8 @@ def move_task_on_board(
                 description=(
                     f"{task.title}: "
                     f"{status_labels[previous_status]} "
-                    f"→ {status_labels[new_status]}"
+                    f"→ "
+                    f"{status_labels[new_status]}"
                 ),
                 metadata={
                     "task_id": task.pk,
@@ -3502,10 +3657,9 @@ def project_timeline(
     request,
     project_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     milestones = (
@@ -3571,6 +3725,10 @@ def project_timeline(
             None,
         )
     )
+    permission_context = project_permission_context(
+        project=project,
+        user=request.user,
+    )
 
     return render(
         request,
@@ -3578,17 +3736,14 @@ def project_timeline(
         {
             "project": project,
             "milestones": milestones,
-            "unscheduled_tasks": (
-                unscheduled_tasks
-            ),
+            "unscheduled_tasks": unscheduled_tasks,
             "blocked_tasks": blocked_tasks,
             "overdue_tasks": overdue_tasks,
-            "schedule_message": (
-                schedule_message
-            ),
+            "schedule_message": schedule_message,
             "schedule_message_type": (
                 schedule_message_type
             ),
+            **permission_context,
         },
     )
 def task_depends_on(
@@ -3625,10 +3780,9 @@ def edit_task_dependencies(
     project_pk,
     task_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     task = get_object_or_404(
@@ -3646,8 +3800,10 @@ def edit_task_dependencies(
     error_message = ""
 
     if request.method == "POST":
-        dependency_ids = request.POST.getlist(
-            "dependencies"
+        dependency_ids = (
+            request.POST.getlist(
+                "dependencies"
+            )
         )
 
         selected_dependencies = list(
@@ -3669,11 +3825,12 @@ def edit_task_dependencies(
 
         if invalid_dependencies:
             error_message = (
-                "These dependencies would create a "
-                "circular dependency: "
-                + ", ".join(invalid_dependencies)
+                "These dependencies would create "
+                "a circular dependency: "
+                + ", ".join(
+                    invalid_dependencies
+                )
             )
-
         else:
             previous_dependency_ids = set(
                 task.dependencies.values_list(
@@ -3684,7 +3841,8 @@ def edit_task_dependencies(
 
             new_dependency_ids = {
                 dependency.pk
-                for dependency in selected_dependencies
+                for dependency
+                in selected_dependencies
             }
 
             if (
@@ -3698,8 +3856,8 @@ def edit_task_dependencies(
                 mark_schedule_for_refresh(
                     project=project,
                     reason=(
-                        f"Dependencies changed for "
-                        f"{task.title}."
+                        f"Dependencies changed "
+                        f"for {task.title}."
                     ),
                 )
 
@@ -3709,25 +3867,41 @@ def edit_task_dependencies(
                         ProjectEvent.EventType
                         .TASK_DEPENDENCIES_CHANGED
                     ),
-                    title="Task dependencies changed",
+                    title=(
+                        "Task dependencies changed"
+                    ),
                     description=task.title,
                     metadata={
                         "task_id": task.pk,
-                        "previous_dependency_ids": (
-                            sorted(
-                                previous_dependency_ids
-                            )
+                        (
+                            "previous_"
+                            "dependency_ids"
+                        ): sorted(
+                            previous_dependency_ids
                         ),
-                        "new_dependency_ids": (
-                            sorted(
-                                new_dependency_ids
-                            )
+                        (
+                            "new_dependency_ids"
+                        ): sorted(
+                            new_dependency_ids
                         ),
                     },
                 )
+
                 messages.success(
                     request,
-                    f'Dependencies for "{task.title}" were updated.',
+                    (
+                        f'Dependencies for '
+                        f'"{task.title}" '
+                        "were updated."
+                    ),
+                )
+            else:
+                messages.info(
+                    request,
+                    (
+                        "No dependency changes "
+                        "were made."
+                    ),
                 )
 
             return redirect(
@@ -3742,17 +3916,25 @@ def edit_task_dependencies(
         )
     )
 
+    permission_context = project_permission_context(
+        project=project,
+        user=request.user,
+    )
+
     return render(
         request,
         "projects/edit_task_dependencies.html",
         {
             "project": project,
             "task": task,
-            "available_tasks": available_tasks,
+            "available_tasks": (
+                available_tasks
+            ),
             "selected_dependency_ids": (
                 selected_dependency_ids
             ),
             "error_message": error_message,
+            **permission_context,
         },
     )
 def apply_project_schedule(
@@ -4000,10 +4182,9 @@ def generate_more_tasks(
     request,
     project_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     tasks_folder = get_object_or_404(
@@ -4015,7 +4196,9 @@ def generate_more_tasks(
     new_tasks = []
 
     try:
-        result = generate_additional_tasks(project)
+        result = generate_additional_tasks(
+            project
+        )
 
         existing_tasks = list(
             project.tasks.all()
@@ -4027,7 +4210,9 @@ def generate_more_tasks(
         }
 
         existing_task_words = [
-            normalize_task_title(task.title)
+            normalize_task_title(
+                task.title
+            )
             for task in existing_tasks
         ]
 
@@ -4045,11 +4230,16 @@ def generate_more_tasks(
 
         valid_statuses = {
             value
-            for value, _ in Task.Status.choices
+            for value, _
+            in Task.Status.choices
         }
 
-        for generated_task in result.tasks[:5]:
-            title = generated_task.title.strip()
+        for generated_task in (
+            result.tasks[:5]
+        ):
+            title = (
+                generated_task.title.strip()
+            )
 
             if not title:
                 continue
@@ -4059,8 +4249,10 @@ def generate_more_tasks(
             if normalized_title in existing_titles:
                 continue
 
-            new_title_words = normalize_task_title(
-                title
+            new_title_words = (
+                normalize_task_title(
+                    title
+                )
             )
 
             is_similar = any(
@@ -4082,11 +4274,15 @@ def generate_more_tasks(
             if is_similar:
                 continue
 
-            priority = normalize_task_priority(
-                generated_task.priority
+            priority = (
+                normalize_task_priority(
+                    generated_task.priority
+                )
             )
 
-            new_status = generated_task.status
+            new_status = (
+                generated_task.status
+            )
 
             if new_status not in valid_statuses:
                 new_status = Task.Status.TODO
@@ -4128,8 +4324,8 @@ def generate_more_tasks(
             mark_schedule_for_refresh(
                 project=project,
                 reason=(
-                    f"{len(new_tasks)} new tasks "
-                    "were generated."
+                    f"{len(new_tasks)} new "
+                    "tasks were generated."
                 ),
             )
 
@@ -4140,7 +4336,6 @@ def generate_more_tasks(
                     "were generated."
                 ),
             )
-
         else:
             messages.info(
                 request,
@@ -4152,13 +4347,19 @@ def generate_more_tasks(
 
     except Exception as error:
         print(
-            "Additional task generation failed:",
+            (
+                "Additional task generation "
+                "failed:"
+            ),
             error,
         )
 
         messages.error(
             request,
-            "BuilderOS could not generate more tasks.",
+            (
+                "BuilderOS could not generate "
+                "more tasks."
+            ),
         )
 
     return redirect(
@@ -4172,10 +4373,9 @@ def generate_project_schedule_view(
     request,
     project_pk,
 ):
-    project = get_object_or_404(
-        Project,
-        pk=project_pk,
-        owner=request.user,
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
     )
 
     try:
@@ -4198,7 +4398,10 @@ def generate_project_schedule_view(
             update_fields=[
                 "schedule_needs_refresh",
                 "schedule_refresh_reason",
-                "schedule_last_generated_at",
+                (
+                    "schedule_last_"
+                    "generated_at"
+                ),
                 "updated_at",
             ]
         )
@@ -4212,11 +4415,15 @@ def generate_project_schedule_view(
             title="AI schedule generated",
             description=result["summary"],
             metadata={
-                "milestones_created_or_updated": (
-                    result[
-                        "milestones_created_or_updated"
-                    ]
-                ),
+                (
+                    "milestones_created_"
+                    "or_updated"
+                ): result[
+                    (
+                        "milestones_created_"
+                        "or_updated"
+                    )
+                ],
                 "tasks_scheduled": (
                     result["tasks_scheduled"]
                 ),
@@ -4226,9 +4433,10 @@ def generate_project_schedule_view(
         request.session[
             "schedule_message"
         ] = (
-            "AI schedule generated successfully. "
-            f"{result['tasks_scheduled']} tasks "
-            "were scheduled."
+            "AI schedule generated "
+            "successfully. "
+            f"{result['tasks_scheduled']} "
+            "tasks were scheduled."
         )
 
         request.session[
@@ -4237,15 +4445,18 @@ def generate_project_schedule_view(
 
     except Exception as error:
         print(
-            "AI schedule generation failed:",
+            (
+                "AI schedule generation "
+                "failed:"
+            ),
             error,
         )
 
         request.session[
             "schedule_message"
         ] = (
-            "BuilderOS could not generate the "
-            "schedule. Please try again."
+            "BuilderOS could not generate "
+            "the schedule. Please try again."
         )
 
         request.session[
@@ -4254,5 +4465,176 @@ def generate_project_schedule_view(
 
     return redirect(
         "project_timeline",
+        project_pk=project.pk,
+    )
+
+
+@login_required
+def project_members(
+    request,
+    project_pk,
+):
+    project = get_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    memberships = (
+        project.memberships
+        .select_related("user")
+        .order_by(
+            "role",
+            "user__username",
+        )
+    )
+
+    permission_context = project_permission_context(
+        project=project,
+        user=request.user,
+    )
+
+    return render(
+        request,
+        "projects/project_members.html",
+        {
+            "project": project,
+            "memberships": memberships,
+            **permission_context,
+        },
+    )
+@login_required
+@require_POST
+def invite_project_member(
+    request,
+    project_pk,
+):
+    project = get_owned_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    if not user_is_project_owner(
+        project=project,
+        user=request.user,
+    ):
+        raise PermissionDenied
+
+    username = request.POST.get(
+        "username",
+        "",
+    ).strip()
+
+    role = request.POST.get(
+        "role",
+        ProjectMembership.Role.VIEWER,
+    )
+
+    allowed_roles = {
+        ProjectMembership.Role.EDITOR,
+        ProjectMembership.Role.VIEWER,
+    }
+
+    if role not in allowed_roles:
+        role = ProjectMembership.Role.VIEWER
+
+    invited_user = User.objects.filter(
+        username__iexact=username,
+    ).first()
+
+    if not invited_user:
+        messages.error(
+            request,
+            "No account exists with that username.",
+        )
+
+        return redirect(
+            "project_members",
+            project_pk=project.pk,
+        )
+
+    if invited_user == request.user:
+        messages.info(
+            request,
+            "You already own this project.",
+        )
+
+        return redirect(
+            "project_members",
+            project_pk=project.pk,
+        )
+
+    membership, created = (
+        ProjectMembership.objects.update_or_create(
+            project=project,
+            user=invited_user,
+            defaults={
+                "role": role,
+            },
+        )
+    )
+
+    if created:
+        messages.success(
+            request,
+            f"{invited_user.username} was added.",
+        )
+    else:
+        messages.success(
+            request,
+            (
+                f"{invited_user.username}'s role "
+                "was updated."
+            ),
+        )
+
+    return redirect(
+        "project_members",
+        project_pk=project.pk,
+    )
+@login_required
+@require_POST
+def remove_project_member(
+    request,
+    project_pk,
+    membership_pk,
+):
+    project = get_owned_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )  
+
+    if not user_is_project_owner(
+        project=project,
+        user=request.user,
+    ):
+        raise PermissionDenied
+
+    membership = get_object_or_404(
+        ProjectMembership,
+        pk=membership_pk,
+        project=project,
+    )
+
+    if membership.role == ProjectMembership.Role.OWNER:
+        messages.error(
+            request,
+            "The project owner cannot be removed.",
+        )
+
+        return redirect(
+            "project_members",
+            project_pk=project.pk,
+        )
+
+    username = membership.user.username
+    membership.delete()
+
+    messages.success(
+        request,
+        f"{username} was removed from the project.",
+    )
+
+    return redirect(
+        "project_members",
         project_pk=project.pk,
     )

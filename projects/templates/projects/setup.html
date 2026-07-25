@@ -7,10 +7,17 @@
 {% block extra_css %}
 <style>
     .setup-layout {
+        max-width: 880px;
         display: grid;
-        grid-template-columns: minmax(0, 1fr);
         gap: 20px;
-        max-width: 850px;
+    }
+
+    .setup-intro {
+        margin-bottom: 4px;
+    }
+
+    .setup-intro p {
+        color: var(--text-muted);
     }
 
     .conversation {
@@ -19,9 +26,10 @@
     }
 
     .message {
-        padding: 14px;
-        border-radius: 10px;
         border: 1px solid var(--border);
+        border-radius: 11px;
+        padding: 15px;
+        background: var(--surface);
     }
 
     .message-user {
@@ -33,23 +41,31 @@
         border-color: var(--info-border);
     }
 
-    .message p {
+    .message p:last-child {
         margin-bottom: 0;
+    }
+
+    .setup-card,
+    .generation-card {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 19px;
+        background: var(--surface);
     }
 
     textarea {
         width: 100%;
         min-height: 160px;
-        padding: 12px;
-        border-radius: 8px;
+        resize: vertical;
         border: 1px solid var(--border-strong);
+        border-radius: 9px;
         background: var(--surface-soft);
         color: var(--text);
-        resize: vertical;
+        padding: 12px;
     }
 
     textarea:read-only {
-        opacity: 0.7;
+        opacity: .7;
         cursor: not-allowed;
     }
 
@@ -57,37 +73,29 @@
         margin-top: 14px;
     }
 
-    .generation-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 20px;
-    }
-
-    #setup-submit-button:disabled {
-        opacity: 0.65;
+    button:disabled {
+        opacity: .65;
         cursor: not-allowed;
-        transform: none;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="setup-layout">
-    <div>
+    <header class="setup-intro">
         <h1 class="page-heading">
             What would you like to build today?
         </h1>
 
         <p>
-            Describe your idea and BuilderOS will help turn it
-            into a structured project.
+            Describe your idea. BuilderOS will ask questions until
+            it has enough information to generate the workspace.
         </p>
-    </div>
+    </header>
 
     <div class="conversation">
         {% for project_message in project_messages %}
-            <div
+            <article
                 class="
                     message
                     {% if project_message.role == 'user' %}
@@ -97,29 +105,25 @@
                     {% endif %}
                 "
             >
-                <strong>
-                    {{ project_message.get_role_display }}
-                </strong>
-
-                <p>
-                    {{ project_message.content|linebreaksbr }}
-                </p>
-            </div>
+                <strong>{{ project_message.get_role_display }}</strong>
+                <div>
+                    {{ project_message.content|linebreaks }}
+                </div>
+            </article>
         {% empty %}
-            <div class="card">
-                No setup messages yet.
+            <div class="message">
+                No setup messages yet. Describe your project below.
             </div>
         {% endfor %}
     </div>
 
     {% if project.status == "generating" %}
-        <div class="generation-card">
-            <h2>
-                Project discovery complete
-            </h2>
+        <section class="generation-card">
+            <h2>Project discovery complete</h2>
 
             <p>
-                BuilderOS is ready to generate your workspace.
+                BuilderOS has enough information to create your
+                workspace, initial task list, and project plan.
             </p>
 
             <form
@@ -131,31 +135,25 @@
 
                 <button
                     type="submit"
-                    class="button"
                     data-loading-text="Generating Workspace..."
                 >
                     Generate Workspace
                 </button>
             </form>
-        </div>
+        </section>
     {% else %}
-        <section class="card">
-            <form
-                method="POST"
-                id="setup-message-form"
-            >
+        <section class="setup-card">
+            <form method="POST" id="setup-message-form">
                 {% csrf_token %}
 
                 <label for="setup-message">
-                    <strong>
-                        Describe your idea
-                    </strong>
+                    <strong>Describe your idea</strong>
                 </label>
 
                 <textarea
                     id="setup-message"
                     name="message"
-                    placeholder="Example: I want to build a low-cost automatic grass-seeding robot..."
+                    placeholder="Example: I want to build a low-cost autonomous grass-seeding robot for home lawns."
                     required
                 ></textarea>
 
@@ -163,7 +161,6 @@
                     <button
                         type="submit"
                         id="setup-submit-button"
-                        class="button"
                     >
                         Send
                     </button>
@@ -179,20 +176,14 @@
     const setupForm = document.getElementById(
         "setup-message-form"
     );
-
     const setupButton = document.getElementById(
         "setup-submit-button"
     );
-
     const setupTextarea = document.getElementById(
         "setup-message"
     );
 
-    if (
-        setupForm
-        && setupButton
-        && setupTextarea
-    ) {
+    if (setupForm && setupButton && setupTextarea) {
         setupForm.addEventListener(
             "submit",
             function (event) {

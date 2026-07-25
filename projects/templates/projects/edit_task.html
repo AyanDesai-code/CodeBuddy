@@ -1,62 +1,120 @@
 {% extends "projects/base.html" %}
 
 {% block title %}
-    Edit Task
+    Edit Task | {{ project.name }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-page {
+        max-width: 760px;
+    }
+
+    .form-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 13px;
+        padding: 22px;
+        box-shadow: var(--shadow);
+    }
+
+    .field {
+        display: grid;
+        gap: 7px;
+        margin-bottom: 17px;
+    }
+
+    .field input,
+    .field textarea,
+    .field select {
+        width: 100%;
+        border: 1px solid var(--border-strong);
+        border-radius: 9px;
+        background: var(--surface-soft);
+        color: var(--text);
+        padding: 11px;
+    }
+
+    .field textarea {
+        min-height: 150px;
+        resize: vertical;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<h1>Edit Task</h1>
+<div class="form-page">
+    <a href="{% url 'workspace' project.pk %}">
+        ← Back to Workspace
+    </a>
 
-<form method="POST">
+    <h1>Edit Task</h1>
 
-    {% csrf_token %}
+    <section class="form-card">
+        <form method="POST">
+            {% csrf_token %}
 
-    <label>Title</label>
+            <div class="field">
+                <label for="title">
+                    <strong>Title</strong>
+                </label>
 
-    <input
-        type="text"
-        name="title"
-        value="{{ task.title }}"
-        required
-    >
+                <input
+                    id="title"
+                    type="text"
+                    name="title"
+                    value="{{ task.title }}"
+                    required
+                >
+            </div>
 
-    <br><br>
+            <div class="field">
+                <label for="description">
+                    <strong>Description</strong>
+                </label>
 
-    <label>Description</label>
+                <textarea
+                    id="description"
+                    name="description"
+                >{{ task.description }}</textarea>
+            </div>
 
-    <textarea
-        name="description"
-        rows="8"
-    >{{ task.description }}</textarea>
+            <div class="field">
+                <label for="priority">
+                    <strong>Priority</strong>
+                </label>
 
-    <br><br>
+                <select id="priority" name="priority">
+                    {% for value, label in priorities %}
+                        <option
+                            value="{{ value }}"
+                            {% if task.priority == value %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
 
-    <label>Priority</label>
+            <div class="form-actions">
+                <button type="submit">Save Changes</button>
 
-    <select name="priority">
-
-        {% for value,label in priorities %}
-
-            <option
-                value="{{ value }}"
-                {% if task.priority == value %}
-                    selected
-                {% endif %}
-            >
-                {{ label }}
-            </option>
-
-        {% endfor %}
-
-    </select>
-
-    <br><br>
-
-    <button type="submit">
-
-        Save Changes
-
-    </button>
-
-</form>
+                <a
+                    class="button"
+                    href="{% url 'workspace' project.pk %}"
+                >
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </section>
+</div>
 {% endblock %}

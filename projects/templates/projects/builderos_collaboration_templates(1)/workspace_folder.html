@@ -31,6 +31,17 @@
         background: var(--surface-raised);
     }
 
+    .folder-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .folder-actions form {
+        margin: 0;
+    }
+
     .updated {
         color: var(--text-muted);
         font-size: 14px;
@@ -147,6 +158,10 @@
         padding: 0;
     }
 
+    .toggle-indicator {
+        cursor: default;
+    }
+
     .readonly-note {
         margin-top: 18px;
         padding: 12px 14px;
@@ -171,6 +186,10 @@
         .toolbar a,
         .toolbar form,
         .toolbar button,
+        .folder-actions,
+        .folder-actions a,
+        .folder-actions form,
+        .folder-actions button,
         .task-toolbar a,
         .task-toolbar form,
         .task-toolbar button {
@@ -202,30 +221,32 @@
     </a>
 
     {% if can_edit %}
-    <div class="folder-actions">
-        <a
-            href="{% url 'edit_workspace_folder' project.pk folder.pk %}"
-            class="button secondary-button"
-        >
-            Edit Section
-        </a>
-
-        <form
-            method="POST"
-            action="{% url 'regenerate_workspace_folder' project.pk folder.pk %}"
-            class="loading-form"
-        >
-            {% csrf_token %}
-
-            <button
-                type="submit"
+        <div class="folder-actions">
+            <a
+                href="{% url 'edit_workspace_folder' project.pk folder.pk %}"
                 class="button secondary-button"
-                data-loading-text="Regenerating..."
             >
-                Regenerate
-            </button>
-        </form>
-    </div>
+                Edit Section
+            </a>
+
+            <form
+                method="POST"
+                action="{% url 'regenerate_workspace_folder' project.pk folder.pk %}"
+                class="loading-form"
+                id="regenerate-form"
+            >
+                {% csrf_token %}
+
+                <button
+                    type="submit"
+                    class="button secondary-button"
+                    id="regenerate-button"
+                    data-loading-text="Regenerating..."
+                >
+                    Regenerate
+                </button>
+            </form>
+        </div>
 {% endif %}
 </div>
 
@@ -308,7 +329,7 @@
                         </form>
                     {% else %}
                         <span
-                            class="toggle-button"
+                            class="toggle-button toggle-indicator"
                             aria-hidden="true"
                         >
                             {% if task.completed %}

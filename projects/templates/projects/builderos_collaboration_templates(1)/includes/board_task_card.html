@@ -1,0 +1,51 @@
+<article
+    class="task-card"
+    data-task-id="{{ task.pk }}"
+    data-move-url="{% url 'move_task_on_board' project.pk task.pk %}"
+    draggable="{% if can_edit %}true{% else %}false{% endif %}"
+>
+    <h3>{{ task.title }}</h3>
+
+    {% if task.description %}
+        <p class="task-description">
+            {{ task.description }}
+        </p>
+    {% endif %}
+
+    <span class="priority">
+        {{ task.get_priority_display }}
+    </span>
+
+    {% if task.is_blocked %}
+        <p class="status-badge">Blocked</p>
+    {% endif %}
+
+    {% if can_edit %}
+        <form
+            method="POST"
+            action="{% url 'update_task_status' project.pk task.pk %}"
+            class="status-form"
+        >
+            {% csrf_token %}
+
+            <select name="status">
+                {% for value, label in status_choices %}
+                    <option
+                        value="{{ value }}"
+                        {% if task.status == value %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ label }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <button type="submit">Save</button>
+        </form>
+    {% else %}
+        <span class="status-badge">
+            {{ task.get_status_display }}
+        </span>
+    {% endif %}
+</article>
