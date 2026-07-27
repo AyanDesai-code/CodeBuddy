@@ -9,55 +9,43 @@ def get_project_for_user(
     project_pk,
     user,
 ):
-    """
-    Owner, editor, and viewer may access.
-    """
-
     return get_object_or_404(
         Project.objects.filter(
-            memberships__user=user,
+            Q(owner=user)
+            | Q(memberships__user=user)
         ).distinct(),
         pk=project_pk,
     )
-
-
 def get_editable_project_for_user(
     *,
     project_pk,
     user,
 ):
-    """
-    Only owners and editors may modify.
-    """
-
     return get_object_or_404(
         Project.objects.filter(
-            memberships__user=user,
-            memberships__role__in=[
-                ProjectMembership.Role.OWNER,
-                ProjectMembership.Role.EDITOR,
-            ],
+            Q(owner=user)
+            | Q(
+                memberships__user=user,
+                memberships__role__in=[
+                    ProjectMembership.Role.OWNER,
+                    ProjectMembership.Role.EDITOR,
+                ],
+            )
         ).distinct(),
         pk=project_pk,
     )
-
 
 def get_owned_project_for_user(
     *,
     project_pk,
     user,
+    **filters,
 ):
-    """
-    Only the owner may access this action.
-    """
-
     return get_object_or_404(
         Project.objects.filter(
-            memberships__user=user,
-            memberships__role=(
-                ProjectMembership.Role.OWNER
-            ),
-        ).distinct(),
+            owner=user,
+            **filters,
+        ),
         pk=project_pk,
     )
 
