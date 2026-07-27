@@ -32,7 +32,6 @@ from .ai.services import (
     regenerate_workspace_section,
     review_project,
 )
-
 from .models import (
     Project,
     ProjectChange,
@@ -55,6 +54,8 @@ from .permissions import (
     project_permission_context,
     user_is_project_owner,
 )
+import traceback
+
 def record_project_event(
     *,
     project,
@@ -559,6 +560,8 @@ def project_setup(request, pk):
             ),
         },
     )
+
+
 @login_required
 @require_POST
 def generate_workspace(request, pk):
@@ -574,119 +577,376 @@ def generate_workspace(request, pk):
         )
 
     default_folders = [
-        {"name": "Overview", "folder_type": "overview"},
-        {"name": "Requirements", "folder_type": "requirements"},
-        {"name": "Roadmap", "folder_type": "roadmap"},
-        {"name": "Tasks", "folder_type": "tasks"},
-        {"name": "Materials & Stack", "folder_type": "resources"},
-        {"name": "Budget", "folder_type": "budget"},
-        {"name": "Learning Resources", "folder_type": "learning"},
-        {"name": "Documentation", "folder_type": "documentation"},
-        {"name": "Testing", "folder_type": "testing"},
+        {
+            "name": "Overview",
+            "folder_type": "overview",
+        },
+        {
+            "name": "Requirements",
+            "folder_type": "requirements",
+        },
+        {
+            "name": "Roadmap",
+            "folder_type": "roadmap",
+        },
+        {
+            "name": "Tasks",
+            "folder_type": "tasks",
+        },
+        {
+            "name": "Materials & Stack",
+            "folder_type": "resources",
+        },
+        {
+            "name": "Budget",
+            "folder_type": "budget",
+        },
+        {
+            "name": "Learning Resources",
+            "folder_type": "learning",
+        },
+        {
+            "name": "Documentation",
+            "folder_type": "documentation",
+        },
+        {
+            "name": "Testing",
+            "folder_type": "testing",
+        },
     ]
 
-    if not project.folders.exists():
-        WorkspaceFolder.objects.bulk_create(
-            [
-                WorkspaceFolder(
-                    project=project,
-                    name=folder["name"],
-                    folder_type=folder["folder_type"],
-                    order=index,
-                )
-                for index, folder in enumerate(
-                    default_folders,
-                    start=1,
-                )
-            ]
+    try:
+        generation_started_at = time.monotonic()
+
+        print("1. Calling workspace generator.")
+
+        generated = generate_workspace_content(
+            project
         )
 
-    try:
-        generated = generate_workspace_content(project)
-        project.name = generated.project_name
+        print("2. Workspace generator returned.")
 
-        sections_by_type = {
-            section.folder_type: section.content
-            for section in generated.sections
+        if generated is None:
+            raise ValueError(
+                "Workspace generation returned None."
+            )
+
+        project_name = (
+            generated.project_name or ""
+        ).strip()
+
+        if not project_name:
+            raise ValueError(
+                "Workspace generation returned "
+                "an empty project name."
+            )
+
+        required_folder_types = {
+            folder["folder_type"]
+            for folder in default_folders
         }
 
-        for folder in project.folders.all():
-            folder.description = sections_by_type.get(
-                folder.folder_type,
-                "No content was generated for this section.",
-            )
-            folder.save(
-                update_fields=[
-                    "description",
-                    "updated_at",
-                ]
+        sections_by_type = {}
+
+        for section in generated.sections:
+            folder_type = (
+                section.folder_type or ""
+            ).strip().lower()
+
+            content = (
+                section.content or ""
+            ).strip()
+
+            if (
+                folder_type
+                not in required_folder_types
+            ):
+                continue
+
+            if not content:
+                continue
+
+            sections_by_type[
+                folder_type
+            ] = content
+
+        print(
+            "3. Parsed "
+            f"{len(sections_by_type)} sections."
+        )
+
+        missing_sections = (
+            required_folder_types
+            - set(sections_by_type.keys())
+        )
+
+        if missing_sections:
+            raise ValueError(
+                "AI omitted required workspace "
+                "sections: "
+                + ", ".join(
+                    sorted(missing_sections)
+                )
             )
 
-        if not project.tasks.exists():
-            valid_statuses = {
-                value for value, _ in Task.Status.choices
+        if not generated.tasks:
+            raise ValueError(
+                "Workspace generation returned "
+                "no tasks."
+            )
+
+        with transaction.atomic():
+            print(
+                "4. Starting database transaction."
+            )
+
+            existing_folders = {
+                folder.folder_type: folder
+                for folder in project.folders.all()
             }
-            generated_tasks = []
 
-            for index, generated_task in enumerate(
-                generated.tasks,
+            folders_to_create = []
+
+            for index, folder_data in enumerate(
+                default_folders,
                 start=1,
             ):
-                status = getattr(
-                    generated_task,
-                    "status",
-                    Task.Status.TODO,
+                folder_type = (
+                    folder_data["folder_type"]
                 )
 
-                if status not in valid_statuses:
-                    status = Task.Status.TODO
+                if folder_type in existing_folders:
+                    continue
 
-                generated_tasks.append(
-                    Task(
+                folders_to_create.append(
+                    WorkspaceFolder(
                         project=project,
-                        title=generated_task.title.strip(),
-                        description=(
-                            generated_task.description.strip()
-                        ),
-                        priority=normalize_task_priority(
-                            generated_task.priority
-                        ),
-                        status=status,
-                        completed=(
-                            status == Task.Status.DONE
-                        ),
+                        name=folder_data["name"],
+                        folder_type=folder_type,
                         order=index,
                     )
                 )
 
-            if generated_tasks:
-                Task.objects.bulk_create(generated_tasks)
+            if folders_to_create:
+                WorkspaceFolder.objects.bulk_create(
+                    folders_to_create
+                )
 
-    except Exception as error:
-        print("Workspace generation failed:", error)
+                print(
+                    "5. Created "
+                    f"{len(folders_to_create)} folders."
+                )
+            else:
+                print(
+                    "5. No folders needed creation."
+                )
+
+            folders_to_update = list(
+                project.folders.all()
+            )
+
+            for folder in folders_to_update:
+                folder.description = (
+                    sections_by_type[
+                        folder.folder_type
+                    ]
+                )
+
+            if folders_to_update:
+                WorkspaceFolder.objects.bulk_update(
+                    folders_to_update,
+                    [
+                        "description",
+                    ],
+                )
+
+            print(
+                "6. Updated "
+                f"{len(folders_to_update)} folders."
+            )
+
+            if not project.tasks.exists():
+                valid_statuses = {
+                    value
+                    for value, _
+                    in Task.Status.choices
+                }
+
+                generated_tasks = []
+
+                for index, generated_task in enumerate(
+                    generated.tasks,
+                    start=1,
+                ):
+                    title = (
+                        generated_task.title or ""
+                    ).strip()
+
+                    if not title:
+                        continue
+
+                    description = (
+                        generated_task.description
+                        or ""
+                    ).strip()
+
+                    status = getattr(
+                        generated_task,
+                        "status",
+                        Task.Status.TODO,
+                    )
+
+                    if status not in valid_statuses:
+                        status = Task.Status.TODO
+
+                    generated_tasks.append(
+                        Task(
+                            project=project,
+                            title=title,
+                            description=description,
+                            priority=(
+                                normalize_task_priority(
+                                    generated_task.priority
+                                )
+                            ),
+                            status=status,
+                            completed=(
+                                status
+                                == Task.Status.DONE
+                            ),
+                            order=index,
+                        )
+                    )
+
+                if not generated_tasks:
+                    raise ValueError(
+                        "Workspace generation returned "
+                        "no valid tasks."
+                    )
+
+                Task.objects.bulk_create(
+                    generated_tasks
+                )
+
+                print(
+                    "7. Created "
+                    f"{len(generated_tasks)} tasks."
+                )
+            else:
+                print(
+                    "7. Existing tasks preserved."
+                )
+
+            project.name = project_name
+            project.status = (
+                Project.Status.ACTIVE
+            )
+
+            project.save(
+                update_fields=[
+                    "name",
+                    "status",
+                    "updated_at",
+                ]
+            )
+
+            print(
+                "8. Project saved as active."
+            )
+
+            ProjectMembership.objects.get_or_create(
+                project=project,
+                user=project.owner,
+                defaults={
+                    "role": (
+                        ProjectMembership.Role.OWNER
+                    ),
+                },
+            )
+
+            print(
+                "9. Owner membership confirmed."
+            )
+
+            ProjectState.objects.get_or_create(
+                project=project,
+                defaults={
+                    "facts": {},
+                },
+            )
+
+            print(
+                "10. Project state confirmed."
+            )
+
+            task_count = project.tasks.count()
+
+            record_project_event(
+                project=project,
+                event_type=(
+                    ProjectEvent.EventType
+                    .WORKSPACE_GENERATED
+                ),
+                title="Workspace generated",
+                description=(
+                    f"Generated "
+                    f"{len(sections_by_type)} "
+                    "workspace sections and "
+                    f"{task_count} tasks."
+                ),
+                metadata={
+                    "section_count": (
+                        len(sections_by_type)
+                    ),
+                    "task_count": task_count,
+                },
+            )
+
+            print(
+                "11. Workspace event recorded."
+            )
+
+        generation_seconds = (
+            time.monotonic()
+            - generation_started_at
+        )
+
+        print(
+            "TOTAL WORKSPACE GENERATION TIME: "
+            f"{generation_seconds:.2f} seconds"
+        )
+
+        messages.success(
+            request,
+            (
+                "Your workspace was generated "
+                "successfully."
+            ),
+        )
+
+        return redirect(
+            "workspace",
+            project_pk=project.pk,
+        )
+
+    except Exception:
+        print("\n" + "=" * 80)
+        print("WORKSPACE GENERATION FAILED")
+        traceback.print_exc()
+        print("=" * 80 + "\n")
+
         messages.error(
             request,
-            "BuilderOS could not generate the workspace.",
+            (
+                "BuilderOS could not generate the "
+                "workspace. Please try again."
+            ),
         )
+
         return redirect(
             "project_setup",
             pk=project.pk,
         )
-
-    project.status = Project.Status.ACTIVE
-    project.save(
-        update_fields=[
-            "name",
-            "status",
-            "updated_at",
-        ]
-    )
-
-    return redirect(
-        "workspace",
-        project_pk=project.pk,
-    )
-
 @login_required
 def workspace(request, project_pk):
     project = get_project_for_user(

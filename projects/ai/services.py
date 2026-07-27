@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from openai import OpenAI
 from typing import Literal
 from datetime import date
-
+import time
 client = OpenAI()
 
 
@@ -219,6 +219,34 @@ Tasks must:
 - be achievable as individual pieces of work
 - avoid combining several major activities into one task
 - reflect the roadmap and project requirements
+
+IMPORTANT LATENCY REQUIREMENTS
+
+Your goal is to produce a useful FIRST workspace as quickly as possible.
+
+Do NOT generate an exhaustive project plan.
+
+Generate only enough information for the user to immediately begin work.
+
+Limit every workspace section to approximately 75–150 words.
+
+Generate exactly one section for each required folder type.
+
+Generate between 8 and 10 tasks.
+
+Keep every task description under 25 words.
+
+Do not repeat information across sections.
+
+Do not generate large explanations.
+
+Do not generate long paragraphs.
+
+Prefer bullet lists whenever possible.
+
+Assume additional details can be generated later using BuilderOS tools.
+
+Optimize for speed while remaining useful.
 """
 class WorkspaceSection(BaseModel):
     folder_type: str
@@ -233,26 +261,52 @@ class GeneratedWorkspace(BaseModel):
     project_name: str
     sections: list[WorkspaceSection]
     tasks: list[GeneratedTask]
-def generate_workspace_content(project) -> GeneratedWorkspace:
-    conversation = []
+import time
 
-    for message in project.messages.order_by("created_at"):
-        conversation.append(
-            {
-                "role": message.role,
-                "content": message.content,
-            }
-        )
 
+def generate_workspace_content(
+    project,
+) -> GeneratedWorkspace:
+    messages = list(
+        project.messages
+        .order_by("-created_at")[:12]
+    )
+
+    conversation = build_workspace_generation_input(project)
+
+    started_at = time.monotonic()
+    print("Calling OpenAI...")
     response = client.responses.parse(
         model="gpt-5-mini",
+        reasoning={
+            "effort": "minimal",
+        },
         instructions=WORKSPACE_PROMPT,
         input=conversation,
         text_format=GeneratedWorkspace,
     )
+    print("OpenAI finished.")
+    print(response)
+    if response.output_parsed is None:
+        print(response.output)
+        raise ValueError(
+            "No parsed output."
+        )
+
+    print("Parsed successfully.")
+    elapsed = time.monotonic() - started_at
+
+    print(
+        "WORKSPACE GENERATION TIME: "
+        f"{elapsed:.2f} seconds"
+    )
+
+    if response.output_parsed is None:
+        raise ValueError(
+            "Workspace generation returned no parsed output."
+        )
 
     return response.output_parsed
-
 class RegeneratedSection(BaseModel):
     content: str
 SECTION_REGENERATION_PROMPT = """
@@ -932,12 +986,39 @@ class UpdatedWorkspaceSection(BaseModel):
     folder_type: str
     content: str
 
+class WorkspaceUpdatePlan(BaseModel):
+    summary: str
+    canonical_updates: list[CanonicalFactUpdate]
+
+    affected_sections: list[
+        Literal[
+            "overview",
+            "requirements",
+            "roadmap",
+            "tasks",
+            "resources",
+            "budget",
+            "learning",
+            "documentation",
+            "testing",
+        ]
+    ]
+
+    sections: list[UpdatedWorkspaceSection]
+
+    tasks_to_add: list[GeneratedTask]
+    tasks_to_update: list[TaskToUpdate]
+    task_ids_to_remove: list[int]
+
+    task_summary: str
+    assistant_message: str
+    impact_explanation: str
 
 class RegeneratedWorkspaceSections(BaseModel):
     sections: list[UpdatedWorkspaceSection]
     
     
-    
+
     
 COMBINED_CASCADE_PROMPT = """
 You are BuilderOS, a dependency-aware AI project manager.
@@ -1515,3 +1596,45 @@ CURRENT TASKS:
         )
 
     return schedule
+def build_workspace_generation_input(project):
+    messages = list(
+        project.messages.order_by("created_at")
+    )
+
+    if not messages:
+        return []
+
+    first_user_message = next(
+        (
+            message
+            for message in messages
+            if message.role == "user"
+        ),
+        None,
+    )
+
+    final_assistant_message = next(
+        (
+            message
+            for message in reversed(messages)
+            if message.role == "assistant"
+        ),
+        None,
+    )
+
+    selected_messages = [
+        message
+        for message in [
+            first_user_message,
+            final_assistant_message,
+        ]
+        if message is not None
+    ]
+
+    return [
+        {
+            "role": message.role,
+            "content": message.content,
+        }
+        for message in selected_messages
+    ]
