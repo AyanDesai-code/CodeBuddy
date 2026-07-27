@@ -926,7 +926,7 @@ def generate_workspace(request, pk):
 
         return redirect(
             "workspace",
-            project_pk=project.pk,
+            pk=project.pk,
         )
 
     except Exception:
