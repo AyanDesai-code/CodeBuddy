@@ -21,14 +21,12 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .ai.services import (
-    analyze_workspace_change,
-    apply_canonical_updates,
+
     generate_additional_tasks,
     generate_project_schedule,
     generate_reply,
-    generate_task_synchronization,
     generate_workspace_content,
-    regenerate_affected_workspace_sections_combined,
+    generate_workspace_update_plan,
     regenerate_workspace_section,
     review_project,
 )
@@ -1648,9 +1646,8 @@ def apply_task_synchronization(
         for task in existing_tasks
     }
 
-    for task_update in (
-        synchronization.tasks_to_update
-    ):
+    # Update existing tasks.
+    for task_update in synchronization.tasks_to_update:
         task = tasks_by_id.get(
             task_update.task_id
         )
@@ -1659,15 +1656,15 @@ def apply_task_synchronization(
             continue
 
         new_title = (
-            task_update.new_title.strip()
-        )
+            task_update.new_title or ""
+        ).strip()
 
         if not new_title:
-            continue
+            new_title = task.title
 
         new_description = (
-            task_update.description.strip()
-        )
+            task_update.description or ""
+        ).strip()
 
         new_priority = normalize_task_priority(
             task_update.priority,
@@ -1686,16 +1683,10 @@ def apply_task_synchronization(
         changed = any(
             [
                 task.title != new_title,
-                (
-                    task.description
-                    != new_description
-                ),
+                task.description != new_description,
                 task.priority != new_priority,
                 task.status != new_status,
-                (
-                    task.completed
-                    != new_completed
-                ),
+                task.completed != new_completed,
             ]
         )
 
@@ -1721,9 +1712,13 @@ def apply_task_synchronization(
 
         updated_count += 1
 
-    removal_ids = set(
-        synchronization.task_ids_to_remove
-    )
+    # Remove only valid unfinished tasks.
+    removal_ids = {
+        task_id
+        for task_id
+        in synchronization.task_ids_to_remove
+        if task_id in tasks_by_id
+    }
 
     tasks_to_remove = (
         project.tasks.filter(
@@ -1737,6 +1732,7 @@ def apply_task_synchronization(
     if removed_count:
         tasks_to_remove.delete()
 
+    # Reload tasks after updates and removals.
     remaining_tasks = list(
         project.tasks.all()
     )
@@ -1747,7 +1743,9 @@ def apply_task_synchronization(
     }
 
     existing_task_words = [
-        normalize_task_title(task.title)
+        normalize_task_title(
+            task.title
+        )
         for task in remaining_tasks
     ]
 
@@ -1765,10 +1763,11 @@ def apply_task_synchronization(
 
     tasks_to_create = []
 
-    for generated_task in (
-        synchronization.tasks_to_add
-    ):
-        title = generated_task.title.strip()
+    # Add new non-duplicate tasks.
+    for generated_task in synchronization.tasks_to_add:
+        title = (
+            generated_task.title or ""
+        ).strip()
 
         if not title:
             continue
@@ -1779,7 +1778,9 @@ def apply_task_synchronization(
             continue
 
         new_title_words = (
-            normalize_task_title(title)
+            normalize_task_title(
+                title
+            )
         )
 
         is_similar = any(
@@ -1810,20 +1811,19 @@ def apply_task_synchronization(
         if new_status not in valid_statuses:
             new_status = Task.Status.TODO
 
+        description = (
+            generated_task.description or ""
+        ).strip()
+
         tasks_to_create.append(
             Task(
                 project=project,
                 title=title,
-                description=(
-                    generated_task
-                    .description
-                    .strip()
-                ),
+                description=description,
                 priority=priority,
                 status=new_status,
                 completed=(
-                    new_status
-                    == Task.Status.DONE
+                    new_status == Task.Status.DONE
                 ),
                 order=next_order,
             )
@@ -1838,10 +1838,13 @@ def apply_task_synchronization(
         )
 
         next_order += 1
-        added_count += 1
 
     if tasks_to_create:
         Task.objects.bulk_create(
+            tasks_to_create
+        )
+
+        added_count = len(
             tasks_to_create
         )
 
@@ -1855,9 +1858,15 @@ def apply_workspace_change(
     project,
     content,
 ):
-    project_state, _ = ProjectState.objects.get_or_create(
-        project=project,
-        defaults={"facts": {}},
+    update_started_at = time.monotonic()
+
+    project_state, _ = (
+        ProjectState.objects.get_or_create(
+            project=project,
+            defaults={
+                "facts": {},
+            },
+        )
     )
 
     WorkspaceMessage.objects.create(
@@ -1865,19 +1874,37 @@ def apply_workspace_change(
         role=WorkspaceMessage.Role.USER,
         content=content,
     )
-    
 
-    analysis = analyze_workspace_change(project)
+    # One AI call handles:
+    # - change analysis
+    # - canonical fact updates
+    # - section regeneration
+    # - task synchronization
+    plan = generate_workspace_update_plan(
+        project
+    )
 
-    print("\n===== Workspace Change Analysis =====")
-    print(analysis.model_dump_json(indent=4))
-    print("=====================================\n")
+    print(
+        "\n===== Fast Workspace Update Plan ====="
+    )
+    print(
+        plan.model_dump_json(
+            indent=4
+        )
+    )
+    print(
+        "======================================\n"
+    )
 
-    facts_before = project_state.facts.copy()
+    facts_before = (
+        project_state.facts.copy()
+    )
 
     sections_before = {
-        folder.folder_type: folder.description
-        for folder in project.folders.all()
+        folder.folder_type:
+            folder.description
+        for folder
+        in project.folders.all()
     }
 
     tasks_before = [
@@ -1890,58 +1917,53 @@ def apply_workspace_change(
             "order": task.order,
             "status": task.status,
         }
-        for task in project.tasks.order_by("order")
+        for task
+        in project.tasks.order_by("order")
     ]
 
-    updated_facts = apply_canonical_updates(
-        current_facts=project_state.facts,
-        analysis=analysis,
+    updated_facts = (
+        project_state.facts.copy()
     )
 
-    cascade_started_at = time.monotonic()
+    for fact_update in plan.canonical_updates:
+        updated_facts[
+            fact_update.key
+        ] = fact_update.new_value
 
-    regenerated_sections = (
-        regenerate_affected_workspace_sections_combined(
-            project=project,
-            analysis=analysis,
-            updated_facts=updated_facts,
-        )
-    )
-
-    cascade_seconds = (
-        time.monotonic()
-        - cascade_started_at
-    )
-
-    print(
-        "Combined workspace regeneration took "
-        f"{cascade_seconds:.2f} seconds."
-    )
+    regenerated_sections = {
+        section.folder_type.strip().lower():
+            section.content.strip()
+        for section in plan.sections
+        if section.content.strip()
+    }
 
     tasks_affected = (
-        "tasks" in analysis.affected_sections
+        "tasks"
+        in plan.affected_sections
     )
 
-    synchronization = None
-
-    if tasks_affected:
-        synchronization = generate_task_synchronization(
-            project=project,
-            analysis=analysis,
-            updated_facts=updated_facts,
-            regenerated_sections=regenerated_sections,
-        )
-        print(regenerated_sections.keys())
-
-        print("\n===== Task Synchronization Plan =====")
-        print(synchronization.model_dump_json(indent=4))
-        print("=====================================\n")
     facts_changed = [
-        update.key
-        for update in analysis.canonical_updates
+        fact_update.key
+        for fact_update
+        in plan.canonical_updates
     ]
+
+    task_changes = {
+        "added": 0,
+        "updated": 0,
+        "removed": 0,
+    }
+
+    updated_section_names = []
+    section_summary = (
+        "No text sections required changes"
+    )
+
     with transaction.atomic():
-        project_state.facts = updated_facts
+        project_state.facts = (
+            updated_facts
+        )
+
         project_state.save(
             update_fields=[
                 "facts",
@@ -1949,127 +1971,195 @@ def apply_workspace_change(
             ]
         )
 
-        updated_section_names = []
+        folders_by_type = {
+            folder.folder_type: folder
+            for folder
+            in project.folders.all()
+        }
 
-        for section_type, new_content in regenerated_sections.items():
-            folder = project.folders.filter(
-                folder_type=section_type,
-            ).first()
+        folders_to_update = []
+
+        for (
+            section_type,
+            new_content,
+        ) in regenerated_sections.items():
+            folder = folders_by_type.get(
+                section_type
+            )
 
             if folder is None:
                 continue
 
-            folder.description = new_content
-            folder.save(
-                update_fields=[
-                    "description",
-                    "updated_at",
-                ]
+            if (
+                folder.description
+                == new_content
+            ):
+                continue
+
+            folder.description = (
+                new_content
             )
 
-            updated_section_names.append(folder.name)
+            folders_to_update.append(
+                folder
+            )
+
+            updated_section_names.append(
+                folder.name
+            )
+
+        if folders_to_update:
+            WorkspaceFolder.objects.bulk_update(
+                folders_to_update,
+                [
+                    "description",
+                ],
+            )
 
         if updated_section_names:
             section_summary = ", ".join(
                 updated_section_names
             )
-        else:
-            section_summary = (
-                "No text sections required changes"
+
+        # WorkspaceUpdatePlan already has the same
+        # task fields apply_task_synchronization()
+        # expects:
+        #
+        # tasks_to_add
+        # tasks_to_update
+        # task_ids_to_remove
+        if tasks_affected:
+            task_changes = (
+                apply_task_synchronization(
+                    project=project,
+                    synchronization=plan,
+                )
             )
-
-        task_changes = {
-            "added": 0,
-            "updated": 0,
-            "removed": 0,
-        }
-
-        task_sync_summary = ""
-
-        if tasks_affected and synchronization is not None:
-            task_changes = apply_task_synchronization(
-                project=project,
-                synchronization=synchronization,
-            )
-
-            task_sync_summary = synchronization.summary
 
         task_note = ""
 
         if tasks_affected:
             task_note = (
                 "\n\nTask synchronization:\n"
-                f"- Added: {task_changes['added']}\n"
-                f"- Updated: {task_changes['updated']}\n"
-                f"- Removed: {task_changes['removed']}"
+                f"- Added: "
+                f"{task_changes['added']}\n"
+                f"- Updated: "
+                f"{task_changes['updated']}\n"
+                f"- Removed: "
+                f"{task_changes['removed']}"
             )
 
-            if task_sync_summary:
+            if plan.task_summary.strip():
                 task_note += (
-                    f"\n\n{task_sync_summary}"
+                    "\n\n"
+                    + plan.task_summary.strip()
                 )
 
         sections_after = {
-            folder.folder_type: folder.description
-            for folder in project.folders.all()
+            folder.folder_type:
+                folder.description
+            for folder
+            in project.folders.all()
         }
 
         tasks_after = [
             {
                 "id": task.pk,
                 "title": task.title,
-                "description": task.description,
+                "description": (
+                    task.description
+                ),
                 "priority": task.priority,
-                "completed": task.completed,
+                "completed": (
+                    task.completed
+                ),
                 "order": task.order,
                 "status": task.status,
             }
-            for task in project.tasks.order_by("order")
+            for task
+            in project.tasks.order_by(
+                "order"
+            )
         ]
 
-        change = ProjectChange.objects.create(
-            project=project,
-            user_message=content,
-            summary=analysis.summary,
-            facts_before=facts_before,
-            facts_after=updated_facts,
-            sections_before=sections_before,
-            sections_after=sections_after,
-            tasks_before=tasks_before,
-            tasks_after=tasks_after,
+        change = (
+            ProjectChange.objects.create(
+                project=project,
+                user_message=content,
+                summary=plan.summary,
+                facts_before=facts_before,
+                facts_after=updated_facts,
+                sections_before=(
+                    sections_before
+                ),
+                sections_after=(
+                    sections_after
+                ),
+                tasks_before=tasks_before,
+                tasks_after=tasks_after,
+            )
+        )
+
+        assistant_content = (
+            plan.assistant_message.strip()
+        )
+
+        if plan.impact_explanation.strip():
+            assistant_content += (
+                "\n\nWhy this matters:\n"
+                + (
+                    plan
+                    .impact_explanation
+                    .strip()
+                )
+            )
+
+        assistant_content += (
+            "\n\nUpdated workspace sections: "
+            f"{section_summary}."
+            f"{task_note}"
         )
 
         WorkspaceMessage.objects.create(
             project=project,
-            role=WorkspaceMessage.Role.ASSISTANT,
-            content=(
-                f"{analysis.assistant_message}\n\n"
-                f"Why this matters:\n"
-                f"{analysis.impact_explanation}\n\n"
-                f"Updated workspace sections: "
-                f"{section_summary}."
-                f"{task_note}"
+            role=(
+                WorkspaceMessage.Role
+                .ASSISTANT
             ),
+            content=assistant_content,
         )
+
         record_project_event(
-                project=project,
-                event_type=(
-                    ProjectEvent.EventType.WORKSPACE_UPDATED
-                ),
+            project=project,
+            event_type=(
+                ProjectEvent.EventType
+                .WORKSPACE_UPDATED
+            ),
             title="Workspace updated",
             description=(
-                f"Updated sections: {section_summary}. "
-                f"Tasks added: {task_changes['added']}; "
-                f"updated: {task_changes['updated']}; "
-                f"removed: {task_changes['removed']}."
+                f"Updated sections: "
+                f"{section_summary}. "
+                f"Tasks added: "
+                f"{task_changes['added']}; "
+                f"updated: "
+                f"{task_changes['updated']}; "
+                f"removed: "
+                f"{task_changes['removed']}."
             ),
             metadata={
                 "change_id": change.pk,
-                "sections": updated_section_names,
-                "facts_changed": facts_changed,
-                "task_changes": task_changes,
+                "sections": (
+                    updated_section_names
+                ),
+                "facts_changed": (
+                    facts_changed
+                ),
+                "task_changes": (
+                    task_changes
+                ),
             },
         )
+
     schedule_relevant_sections = {
         "requirements",
         "roadmap",
@@ -2081,7 +2171,7 @@ def apply_workspace_change(
 
     affected_schedule_sections = (
         schedule_relevant_sections
-        & set(analysis.affected_sections)
+        & set(plan.affected_sections)
     )
 
     tasks_changed = any(
@@ -2093,45 +2183,77 @@ def apply_workspace_change(
         ]
     )
 
-    if affected_schedule_sections or tasks_changed:
-        reasons = []
+    if (
+        affected_schedule_sections
+        or tasks_changed
+    ):
+        refresh_reasons = []
 
         if affected_schedule_sections:
-            reasons.append(
+            refresh_reasons.append(
                 "Updated sections: "
                 + ", ".join(
                     sorted(
                         affected_schedule_sections
                     )
                 )
+                + "."
             )
 
         if tasks_changed:
-            reasons.append(
+            refresh_reasons.append(
                 "The task list changed."
             )
 
         mark_schedule_for_refresh(
             project=project,
-            reason=" ".join(reasons),
+            reason=" ".join(
+                refresh_reasons
+            ),
         )
 
-    
+    total_seconds = (
+        time.monotonic()
+        - update_started_at
+    )
 
-    print("\n===== Cascade Update Complete =====")
-    print("Updated facts:", updated_facts)
-    print("Updated sections:", updated_section_names)
-    print("Task changes:", task_changes)
-    print("Change history record created.")
-    print("===================================\n")
+    print(
+        "\n===== Fast Update Complete ====="
+    )
+    print(
+        "Updated facts:",
+        updated_facts,
+    )
+    print(
+        "Updated sections:",
+        updated_section_names,
+    )
+    print(
+        "Task changes:",
+        task_changes,
+    )
+    print(
+        "TOTAL WORKSPACE ASSISTANT "
+        f"UPDATE TIME: {total_seconds:.2f} "
+        "seconds"
+    )
+    print(
+        "================================\n"
+    )
 
     return {
-        "analysis": analysis,
+        "analysis": plan,
         "change": change,
-        "updated_facts": updated_facts,
-        "sections": updated_section_names,
+        "updated_facts": (
+            updated_facts
+        ),
+        "sections": (
+            updated_section_names
+        ),
         "task_changes": task_changes,
-        "facts_changed": facts_changed,
+        "facts_changed": (
+            facts_changed
+        ),
     }
 @login_required
 def workspace_assistant(
