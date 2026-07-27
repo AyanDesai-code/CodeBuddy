@@ -2188,9 +2188,7 @@ def workspace_assistant(
 
             previous_open_conflicts = (
                 project.conflicts.filter(
-                    status=(
-                        ProjectConflict.Status.OPEN
-                    ),
+                    status=ProjectConflict.Status.OPEN,
                 ).count()
             )
 
@@ -2207,66 +2205,19 @@ def workspace_assistant(
                 ),
             )
 
-            try:
-                review_result = run_project_review(
-                    project
-                )
+            # Do not automatically run a full AI review.
+            # The user can run one manually from the
+            # Review page.
+            latest_health_score = (
+                previous_health_score
+            )
 
-                latest_health_score = (
-                    review_result[
-                        "review"
-                    ].health_score
-                )
-
-                latest_open_conflicts = (
-                    project.conflicts.filter(
-                        status=(
-                            ProjectConflict.Status.OPEN
-                        ),
-                    ).count()
-                )
-
-                review_completed = True
-
-            except Exception as review_error:
-                print(
-                    (
-                        "Automatic project review "
-                        "failed:"
-                    ),
-                    review_error,
-                )
-
-                latest_health_score = None
-                latest_open_conflicts = (
-                    previous_open_conflicts
-                )
-                review_completed = False
-
-                messages.warning(
-                    request,
-                    (
-                        "The project was updated, "
-                        "but the automatic review "
-                        "failed."
-                    ),
-                )
+            latest_open_conflicts = (
+                previous_open_conflicts
+            )
 
             health_score_change = None
-
-            if (
-                previous_health_score is not None
-                and latest_health_score is not None
-            ):
-                health_score_change = (
-                    latest_health_score
-                    - previous_health_score
-                )
-
-            conflict_count_change = (
-                latest_open_conflicts
-                - previous_open_conflicts
-            )
+            conflict_count_change = 0
 
             request.session[
                 "workspace_update_summary"
@@ -2296,19 +2247,16 @@ def workspace_assistant(
                 "conflict_count_change": (
                     conflict_count_change
                 ),
-                "review_completed": (
-                    review_completed
-                ),
+                "review_completed": False,
             }
 
-        except Exception as error:
+        except Exception:
+            print("\n" + "=" * 80)
             print(
-                (
-                    "Workspace cascade update "
-                    "failed:"
-                ),
-                error,
+                "WORKSPACE ASSISTANT UPDATE FAILED"
             )
+            traceback.print_exc()
+            print("=" * 80 + "\n")
 
             WorkspaceMessage.objects.create(
                 project=project,
@@ -2344,9 +2292,11 @@ def workspace_assistant(
         None,
     )
 
-    permission_context = project_permission_context(
-        project=project,
-        user=request.user,
+    permission_context = (
+        project_permission_context(
+            project=project,
+            user=request.user,
+        )
     )
 
     return render(
@@ -3423,28 +3373,17 @@ def apply_project_conflict_fix(
             project=project,
             content=fix_request,
         )
+        latest_review = (
+            project.health_reviews
+            .order_by("-created_at")
+            .first()
+        )
 
-        try:
-            review_result = run_project_review(
-                project
-            )
-
-            latest_health_score = (
-                review_result[
-                    "review"
-                ].health_score
-            )
-
-        except Exception as review_error:
-            print(
-                (
-                    "Automatic review after AI "
-                    "fix failed:"
-                ),
-                review_error,
-            )
-
-            latest_health_score = None
+        latest_health_score = (
+            latest_review.health_score
+            if latest_review is not None
+            else None
+        )
 
         remaining_conflict = (
             ProjectConflict.objects.filter(
