@@ -396,6 +396,11 @@ def project_setup(request, pk):
         project_pk=pk,
         user=request.user,
     )
+    if project.status == Project.Status.ACTIVE:
+        return redirect(
+            "workspace",
+            project_pk=project.pk,
+        )
 
     if request.method == "POST":
         content = request.POST.get(
