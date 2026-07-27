@@ -95,6 +95,9 @@ def generate_reply(project) -> ProjectInterviewReply:
 
     response = client.responses.parse(
         model="gpt-5-mini",
+        reasoning={
+            "effort": "minimal",
+        },
         input=messages,
         text_format=ProjectInterviewReply,
     )
@@ -366,6 +369,9 @@ OTHER WORKSPACE SECTIONS:
 
     response = client.responses.parse(
         model="gpt-5-mini",
+        reasoning={
+            "effort": "minimal",
+        },
         instructions=SECTION_REGENERATION_PROMPT,
         input=regeneration_input,
         text_format=RegeneratedSection,
@@ -410,10 +416,17 @@ done
 
 New tasks should almost always use "todo".
 """
-def generate_additional_tasks(project) -> AdditionalTasks:
+def generate_additional_tasks(
+    project,
+) -> AdditionalTasks:
     conversation_text = "\n\n".join(
-        f"{message.role.upper()}: {message.content}"
-        for message in project.messages.order_by("created_at")
+        (
+            f"{message.role.upper()}: "
+            f"{message.content}"
+        )
+        for message in project.messages.order_by(
+            "created_at"
+        )
     )
 
     workspace_text = "\n\n".join(
@@ -421,16 +434,21 @@ def generate_additional_tasks(project) -> AdditionalTasks:
             f"SECTION: {folder.name}\n"
             f"{folder.description}"
         )
-        for folder in project.folders.order_by("order")
+        for folder in project.folders.order_by(
+            "order"
+        )
     )
 
     existing_tasks_text = "\n".join(
         (
             f"- {task.title} | "
-            f"Priority: {task.get_priority_display()} | "
+            f"Priority: "
+            f"{task.get_priority_display()} | "
             f"Completed: {task.completed}"
         )
-        for task in project.tasks.order_by("order")
+        for task in project.tasks.order_by(
+            "order"
+        )
     )
 
     generation_input = f"""
@@ -447,14 +465,37 @@ EXISTING TASKS:
 {existing_tasks_text}
 """
 
+    started_at = time.monotonic()
+
     response = client.responses.parse(
         model="gpt-5-mini",
+        reasoning={
+            "effort": "minimal",
+        },
         instructions=MORE_TASKS_PROMPT,
         input=generation_input,
         text_format=AdditionalTasks,
     )
 
-    return response.output_parsed
+    elapsed = (
+        time.monotonic()
+        - started_at
+    )
+
+    print(
+        "ADDITIONAL TASK GENERATION TIME: "
+        f"{elapsed:.2f} seconds"
+    )
+
+    result = response.output_parsed
+
+    if result is None:
+        raise ValueError(
+            "Additional task generation returned "
+            "no parsed output."
+        )
+
+    return result
 class CanonicalFactUpdate(BaseModel):
     key: str
     previous_value: str | None
@@ -482,123 +523,391 @@ class WorkspaceChangeAnalysis(BaseModel):
 
     assistant_message: str
     impact_explanation: str
+VALID_WORKSPACE_SECTIONS = {
+    "overview",
+    "requirements",
+    "roadmap",
+    "tasks",
+    "resources",
+    "budget",
+    "learning",
+    "documentation",
+    "testing",
+}
+
+
+def normalize_affected_sections(
+    sections,
+) -> list[str]:
+    normalized = []
+    seen = set()
+
+    for section in sections:
+        section_type = (
+            str(section)
+            .strip()
+            .lower()
+        )
+
+        if section_type not in VALID_WORKSPACE_SECTIONS:
+            continue
+
+        if section_type in seen:
+            continue
+
+        seen.add(section_type)
+        normalized.append(section_type)
+
+    return normalized
 WORKSPACE_CHANGE_PROMPT = """
 You are BuilderOS, a dependency-aware AI project manager.
 
 Analyze the user's latest workspace-assistant message.
 
-Your current job is ONLY to understand the requested project change.
+Your job is only to identify the requested project change and determine
+the smallest set of project data that must change.
 
-Do not rewrite workspace sections yet.
-Do not modify tasks yet.
+Do not rewrite workspace sections.
+Do not modify tasks.
 Do not claim that changes have already been applied.
 
 You will receive:
 
-- the original project discovery conversation
-- the current structured project facts
-- the current workspace sections
-- the current tasks
-- the workspace assistant conversation
-- the latest user message
+- original project discovery
+- current canonical project facts
+- current workspace sections
+- current tasks
+- recent workspace-assistant conversation
+- latest user request
 
-Determine:
+Return:
 
-1. The underlying project-level change being requested.
-2. Which canonical facts should change.
-3. Which workspace sections are affected by that change.
-4. A short response acknowledging what BuilderOS understood.
+1. A concise summary of the requested change.
+2. Canonical fact updates.
+3. The minimum set of affected workspace sections.
+4. A brief assistant message.
+5. A concise impact explanation.
 
-Canonical updates should represent the new source of truth.
+MINIMAL-CHANGE RULE
 
-Example:
+Select a section only when its current content would become inaccurate,
+contradictory, incomplete, or misleading because of the user's change.
+
+Do not select a section merely because it is loosely related.
+
+Do not select every downstream section by default.
+
+Preserve unaffected content.
+
+SECTION SELECTION GUIDANCE
+
+overview:
+Select only when the project's core purpose, target user, main goal,
+major constraint, or central assumption changed.
+
+requirements:
+Select when a functional requirement, non-functional requirement,
+constraint, success criterion, or measurable target changed.
+
+roadmap:
+Select only when sequencing, phases, deadlines, dependencies, or major
+implementation direction must change.
+
+tasks:
+Select only when existing tasks must be added, removed, renamed, reprioritized,
+or otherwise updated.
+
+resources:
+Select when required materials, components, software, APIs, services,
+tools, or compatibility requirements changed.
+
+budget:
+Select when prices, budget limits, allocations, recurring costs,
+contingency, or cost assumptions changed.
+
+learning:
+Select only when the user must learn a meaningfully different skill,
+technology, process, standard, or tool.
+
+documentation:
+Select only when architecture notes, setup instructions, decisions,
+maintenance information, or documentation structure must change.
+
+testing:
+Select when validation methods, safety checks, acceptance criteria,
+performance targets, or test procedures changed.
+
+EXAMPLES
 
 User:
-"Switch from Raspberry Pi 4 to Raspberry Pi 5."
+"Increase the total budget from $5,000 to $8,000."
 
-Possible canonical updates:
+Usually affected:
+- budget
 
-- key: controller
-- previous_value: Raspberry Pi 4
-- new_value: Raspberry Pi 5
-- reason: The user explicitly changed the primary controller.
+Possibly affected:
+- resources, but only if the larger budget enables a specifically
+  requested resource change
 
-Affected sections might include:
+Usually not affected:
+- overview
+- roadmap
+- learning
+- documentation
+- testing
+- tasks
 
-- requirements
+User:
+"Change the deadline from 12 months to 6 months."
+
+Usually affected:
 - roadmap
 - tasks
+
+Possibly affected:
+- requirements, only if scope or success criteria must change
+
+User:
+"Replace the Raspberry Pi with an ESP32."
+
+Usually affected:
+- requirements
 - resources
-- budget
+- tasks
 - documentation
 - testing
 
-Only include sections that are meaningfully affected.
+Possibly affected:
+- roadmap, only if implementation sequencing changes
 
-The assistant_message should briefly explain the understood change and
-list the sections that would need updating.
+Usually not affected:
+- budget unless costs meaningfully change
+- overview unless this changes the project's core definition
+- learning unless new skills are required
 
-Do not say the workspace has already been updated.
+User:
+"Add Bluetooth control."
 
-Return only the structured response required by
-WorkspaceChangeAnalysis.
+Usually affected:
+- requirements
+- resources
+- tasks
+- documentation
+- testing
 
-Do not ask follow-up questions unless the user's request is impossible to
+Do not include sections that can remain accurate without modification.
+
+CANONICAL FACT RULES
+
+- Treat explicit user changes as authoritative.
+- Include only facts that actually changed.
+- Use short, stable keys.
+- previous_value may be null if no previous fact exists.
+- new_value must be a string.
+- Do not create duplicate fact updates.
+
+The assistant_message should briefly state what BuilderOS understood.
+Do not say that the workspace has already been updated.
+
+The impact_explanation must be 1 to 3 sentences.
+
+Do not ask follow-up questions unless the request is impossible to
 interpret.
 
-If information is missing, make clearly labeled reasonable assumptions.
+If information is missing, make the smallest clearly labeled reasonable
+assumption.
 
-Your job is to understand the requested change, not continue the interview.
-
-5. A concise impact explanation describing why the requested change affects
-the selected workspace sections.
-
-The impact_explanation should:
-
-- be 1 to 3 sentences
-- explain the most important technical or project consequences
-- avoid repeating the list of section names
-- avoid claiming the updates have already happened
-- not ask follow-up questions
+Return only the structured WorkspaceChangeAnalysis response.
 """
-def analyze_workspace_change(project) -> WorkspaceChangeAnalysis:
-    project_state = getattr(project, "state", None)
+def truncate_text(
+    value: str | None,
+    limit: int,
+) -> str:
+    text = (value or "").strip()
+
+    if len(text) <= limit:
+        return text
+
+    return (
+        text[:limit].rstrip()
+        + "\n[truncated]"
+    )
+
+
+def build_compact_discovery_text(
+    project,
+) -> str:
+    messages = list(
+        project.messages.order_by(
+            "created_at"
+        )
+    )
+
+    if not messages:
+        return "No discovery conversation exists."
+
+    first_user_message = next(
+        (
+            message
+            for message in messages
+            if message.role == "user"
+        ),
+        None,
+    )
+
+    final_assistant_message = next(
+        (
+            message
+            for message in reversed(
+                messages
+            )
+            if message.role == "assistant"
+        ),
+        None,
+    )
+
+    parts = []
+
+    if first_user_message is not None:
+        parts.append(
+            "ORIGINAL IDEA:\n"
+            + truncate_text(
+                first_user_message.content,
+                1200,
+            )
+        )
+
+    if final_assistant_message is not None:
+        parts.append(
+            "DISCOVERY SUMMARY:\n"
+            + truncate_text(
+                final_assistant_message.content,
+                2200,
+            )
+        )
+
+    return "\n\n".join(parts)
+
+
+def build_recent_workspace_messages(
+    project,
+    limit: int = 6,
+) -> str:
+    recent_messages = list(
+        project.workspace_messages
+        .order_by("-created_at")[:limit]
+    )
+
+    recent_messages.reverse()
+
+    if not recent_messages:
+        return (
+            "No previous workspace-assistant "
+            "conversation exists."
+        )
+
+    return "\n\n".join(
+        (
+            f"{message.role.upper()}:\n"
+            f"{truncate_text(message.content, 900)}"
+        )
+        for message in recent_messages
+    )
+
+
+def build_compact_workspace_text(
+    project,
+    *,
+    section_types=None,
+    content_limit: int = 1800,
+) -> str:
+    folders = project.folders.order_by(
+        "order"
+    )
+
+    if section_types is not None:
+        folders = folders.filter(
+            folder_type__in=section_types
+        )
+
+    section_blocks = []
+
+    for folder in folders:
+        content = truncate_text(
+            folder.description,
+            content_limit,
+        )
+
+        section_blocks.append(
+            (
+                f"SECTION TYPE: "
+                f"{folder.folder_type}\n"
+                f"SECTION NAME: "
+                f"{folder.name}\n"
+                f"CONTENT:\n"
+                f"{content}"
+            )
+        )
+
+    return (
+        "\n\n".join(section_blocks)
+        or "No workspace sections exist."
+    )
+
+def build_compact_tasks_text(
+    project,
+    *,
+    include_descriptions: bool = False,
+    description_limit: int = 300,
+) -> str:
+    tasks = project.tasks.order_by(
+        "order"
+    )
+
+    task_blocks = []
+
+    for task in tasks:
+        lines = [
+            f"TASK ID: {task.pk}",
+            f"TITLE: {task.title}",
+            f"PRIORITY: {task.priority}",
+            f"STATUS: {task.status}",
+            f"COMPLETED: {task.completed}",
+        ]
+
+        if include_descriptions:
+            lines.insert(
+                2,
+                (
+                    "DESCRIPTION: "
+                    + truncate_text(
+                        task.description,
+                        description_limit,
+                    )
+                ),
+            )
+
+        task_blocks.append(
+            "\n".join(lines)
+        )
+
+    return (
+        "\n\n".join(task_blocks)
+        or "No tasks exist."
+    )
+def analyze_workspace_change(
+    project,
+) -> WorkspaceChangeAnalysis:
+    project_state = getattr(
+        project,
+        "state",
+        None,
+    )
 
     current_facts = (
         project_state.facts
         if project_state is not None
         else {}
-    )
-
-    discovery_text = "\n\n".join(
-        f"{message.role.upper()}: {message.content}"
-        for message in project.messages.order_by("created_at")
-    )
-
-    workspace_text = "\n\n".join(
-        (
-            f"SECTION TYPE: {folder.folder_type}\n"
-            f"SECTION NAME: {folder.name}\n"
-            f"{folder.description}"
-        )
-        for folder in project.folders.order_by("order")
-    )
-
-    tasks_text = "\n\n".join(
-        (
-            f"TITLE: {task.title}\n"
-            f"DESCRIPTION: {task.description}\n"
-            f"PRIORITY: {task.get_priority_display()}\n"
-            f"COMPLETED: {task.completed}"
-        )
-        for task in project.tasks.order_by("order")
-    )
-
-    assistant_conversation = "\n\n".join(
-        f"{message.role.upper()}: {message.content}"
-        for message in project.workspace_messages.order_by(
-            "created_at"
-        )
     )
 
     latest_user_message = (
@@ -610,11 +919,39 @@ def analyze_workspace_change(project) -> WorkspaceChangeAnalysis:
 
     if latest_user_message is None:
         raise ValueError(
-            "No workspace assistant user message exists."
+            "No workspace assistant user "
+            "message exists."
         )
 
+    discovery_text = (
+        build_compact_discovery_text(
+            project
+        )
+    )
+
+    workspace_text = (
+        build_compact_workspace_text(
+            project,
+            content_limit=1400,
+        )
+    )
+
+    tasks_text = (
+        build_compact_tasks_text(
+            project,
+            include_descriptions=False,
+        )
+    )
+
+    assistant_conversation = (
+        build_recent_workspace_messages(
+            project,
+            limit=6,
+        )
+    )
+
     analysis_input = f"""
-ORIGINAL PROJECT DISCOVERY:
+PROJECT DISCOVERY SUMMARY:
 
 {discovery_text}
 
@@ -634,7 +971,7 @@ CURRENT TASKS:
 {tasks_text}
 
 
-WORKSPACE ASSISTANT CONVERSATION:
+RECENT WORKSPACE ASSISTANT CONVERSATION:
 
 {assistant_conversation}
 
@@ -644,15 +981,57 @@ LATEST USER REQUEST:
 {latest_user_message.content}
 """
 
-    response = client.responses.parse(
-        model="gpt-5-mini",
-        instructions=WORKSPACE_CHANGE_PROMPT,
-        input=analysis_input,
-        text_format=WorkspaceChangeAnalysis,
+    print(
+        "WORKSPACE ANALYSIS INPUT: "
+        f"{len(analysis_input)} characters"
     )
 
-    return response.output_parsed
+    started_at = time.monotonic()
 
+    response = client.responses.parse(
+        model="gpt-5-mini",
+        reasoning={
+            "effort": "minimal",
+        },
+        instructions=(
+            WORKSPACE_CHANGE_PROMPT
+        ),
+        input=analysis_input,
+        text_format=(
+            WorkspaceChangeAnalysis
+        ),
+    )
+
+    elapsed = (
+        time.monotonic()
+        - started_at
+    )
+
+    print(
+        "WORKSPACE ANALYSIS TIME: "
+        f"{elapsed:.2f} seconds"
+    )
+
+    result = response.output_parsed
+
+    if result is None:
+        raise ValueError(
+            "Workspace change analysis "
+            "returned no parsed output."
+        )
+
+    result.affected_sections = (
+        normalize_affected_sections(
+            result.affected_sections
+        )
+    )
+
+    print(
+        "MINIMAL AFFECTED SECTIONS:",
+        result.affected_sections,
+    )
+
+    return result
 def apply_canonical_updates(
     current_facts: dict,
     analysis: WorkspaceChangeAnalysis,
@@ -729,16 +1108,16 @@ def regenerate_affected_workspace_sections(
     analysis: WorkspaceChangeAnalysis,
     updated_facts: dict,
 ) -> dict[str, str]:
-    dependency_order = [
+    allowed_text_section_types = {
         "overview",
         "requirements",
+        "roadmap",
         "resources",
         "budget",
-        "roadmap",
         "learning",
-        "testing",
         "documentation",
-    ]
+        "testing",
+    }
 
     affected_sections = set(analysis.affected_sections)
 
@@ -932,24 +1311,30 @@ def generate_task_synchronization(
     updated_facts: dict,
     regenerated_sections: dict[str, str],
 ) -> TaskSynchronization:
-    existing_tasks_text = "\n\n".join(
-        (
-            f"TASK ID: {task.pk}\n"
-f"TITLE: {task.title}\n"
-            f"DESCRIPTION: {task.description}\n"
-            f"PRIORITY: {task.get_priority_display()}\n"
-            f"COMPLETED: {task.completed}"
+    existing_tasks_text = (
+        build_compact_tasks_text(
+            project,
+            include_descriptions=True,
+            description_limit=250,
         )
-        for task in project.tasks.order_by("order")
     )
 
-    updated_sections_text = "\n\n".join(
-        (
-            f"SECTION TYPE: {section_type}\n"
-            f"{content}"
+    updated_sections_text = (
+        "\n\n".join(
+            (
+                f"SECTION TYPE: "
+                f"{section_type}\n"
+                f"{truncate_text(content, 1400)}"
+            )
+            for section_type, content
+            in regenerated_sections.items()
         )
-        for section_type, content in regenerated_sections.items()
     )
+
+    if not updated_sections_text:
+        updated_sections_text = (
+            "No text sections were regenerated."
+        )
 
     generation_input = f"""
 REQUESTED PROJECT CHANGE:
@@ -972,13 +1357,42 @@ EXISTING TASKS:
 {existing_tasks_text}
 """
 
+    print(
+        "TASK SYNCHRONIZATION INPUT: "
+        f"{len(generation_input)} characters"
+    )
+
+    started_at = time.monotonic()
+
     response = client.responses.parse(
         model="gpt-5-mini",
-        instructions=TASK_SYNCHRONIZATION_PROMPT,
+        reasoning={
+            "effort": "minimal",
+        },
+        instructions=(
+            TASK_SYNCHRONIZATION_PROMPT
+        ),
         input=generation_input,
         text_format=TaskSynchronization,
     )
+
+    elapsed = (
+        time.monotonic()
+        - started_at
+    )
+
+    print(
+        "TASK SYNCHRONIZATION TIME: "
+        f"{elapsed:.2f} seconds"
+    )
+
     result = response.output_parsed
+
+    if result is None:
+        raise ValueError(
+            "Task synchronization returned "
+            "no parsed output."
+        )
 
     return result
 
@@ -1013,7 +1427,110 @@ class WorkspaceUpdatePlan(BaseModel):
     task_summary: str
     assistant_message: str
     impact_explanation: str
+FAST_WORKSPACE_UPDATE_PROMPT = """
+You are BuilderOS, a fast dependency-aware AI project manager.
 
+Apply one requested project change to an existing workspace.
+
+You will receive:
+
+- a compact project discovery summary
+- current canonical project facts
+- current workspace sections
+- current database-backed tasks
+- recent workspace-assistant messages
+- the latest user request
+
+Return one complete update plan containing:
+
+1. A concise summary of the requested change.
+2. Canonical fact updates.
+3. The minimum set of affected workspace sections.
+4. Replacement content for affected text sections.
+5. Task additions, updates, and removals.
+6. A concise user-facing response.
+7. A short explanation of why the changes matter.
+
+MINIMAL CHANGE RULES
+
+- Change only what the user requested.
+- Do not rewrite unaffected sections.
+- Do not select a section merely because it is loosely related.
+- Preserve valid existing information.
+- Make the smallest reasonable interpretation.
+- Do not add optional features the user did not request.
+
+VALID WORKSPACE SECTIONS
+
+overview
+requirements
+roadmap
+tasks
+resources
+budget
+learning
+documentation
+testing
+
+TEXT SECTION RULES
+
+The following are text sections:
+
+overview
+requirements
+roadmap
+resources
+budget
+learning
+documentation
+testing
+
+- Return replacement content only for affected text sections.
+- Do not return a text replacement for "tasks".
+- Tasks are stored separately in the database.
+- Keep each returned section under 180 words.
+- Prefer short headings and bullet lists.
+- Clearly label estimates and assumptions.
+
+TASK RULES
+
+- Existing tasks are identified by TASK ID.
+- Never invent a task ID.
+- Prefer updating an existing task over deleting it.
+- Never remove completed tasks.
+- Remove only unfinished tasks made obsolete by the change.
+- Avoid duplicate or near-duplicate tasks.
+- Add no more than 5 tasks.
+- Keep task descriptions under 35 words.
+- Priority must be exactly 1, 2, or 3.
+- Status must be exactly one of:
+
+todo
+in_progress
+review
+done
+
+- Preserve an existing task's status unless the request clearly requires
+  changing it.
+
+CANONICAL FACT RULES
+
+- Include only facts that actually changed.
+- Use short, stable keys.
+- previous_value may be null.
+- new_value must be a string.
+- Do not create duplicate updates.
+
+RESPONSE RULES
+
+- summary must be concise.
+- assistant_message should state what BuilderOS changed.
+- impact_explanation must be 1 to 3 sentences.
+- task_summary should briefly describe task-list changes.
+- Do not ask discovery questions.
+- Do not describe internal reasoning.
+- Return only the structured WorkspaceUpdatePlan response.
+"""
 class RegeneratedWorkspaceSections(BaseModel):
     sections: list[UpdatedWorkspaceSection]
     
@@ -1066,7 +1583,7 @@ def regenerate_affected_workspace_sections_combined(
     analysis: WorkspaceChangeAnalysis,
     updated_facts: dict,
 ) -> dict[str, str]:
-    allowed_section_types = {
+    allowed_text_section_types = {
         "overview",
         "requirements",
         "roadmap",
@@ -1075,62 +1592,61 @@ def regenerate_affected_workspace_sections_combined(
         "learning",
         "documentation",
         "testing",
-        "tasks",
     }
 
     affected_sections = [
         section_type
-        for section_type in analysis.affected_sections
-        if section_type in allowed_section_types
+        for section_type
+        in analysis.affected_sections
+        if section_type
+        in allowed_text_section_types
     ]
 
     if not affected_sections:
         return {}
 
-    discovery_text = "\n\n".join(
-        f"{message.role.upper()}: {message.content}"
-        for message in project.messages.order_by("created_at")
-    )
-
-    assistant_conversation = "\n\n".join(
-        f"{message.role.upper()}: {message.content}"
-        for message in project.workspace_messages.order_by(
-            "created_at"
+    discovery_text = (
+        build_compact_discovery_text(
+            project
         )
     )
 
-    workspace_text = "\n\n".join(
-        (
-            f"SECTION TYPE: {folder.folder_type}\n"
-            f"SECTION NAME: {folder.name}\n"
-            f"CURRENT CONTENT:\n{folder.description}"
+    assistant_conversation = (
+        build_recent_workspace_messages(
+            project,
+            limit=4,
         )
-        for folder in project.folders.order_by("order")
     )
 
-    tasks_text = "\n\n".join(
-    (
-        f"TASK ID: {task.pk}\n"
-        f"TITLE: {task.title}\n"
-        f"DESCRIPTION: {task.description}\n"
-        f"PRIORITY: {task.get_priority_display()}\n"
-        f"COMPLETED: {task.completed}"
+    workspace_text = (
+        build_compact_workspace_text(
+            project,
+            content_limit=1200,
+        )
     )
-    for task in project.tasks.order_by("order")
-)
 
-    sections_to_rewrite_text = "\n".join(
-        f"- {section_type}"
-        for section_type in affected_sections
+    tasks_text = (
+        build_compact_tasks_text(
+            project,
+            include_descriptions=False,
+        )
+    )
+
+    sections_to_rewrite_text = (
+        "\n".join(
+            f"- {section_type}"
+            for section_type
+            in affected_sections
+        )
     )
 
     generation_input = f"""
-ORIGINAL PROJECT DISCOVERY:
+PROJECT DISCOVERY SUMMARY:
 
 {discovery_text}
 
 
-WORKSPACE ASSISTANT CONVERSATION:
+RECENT WORKSPACE ASSISTANT CONVERSATION:
 
 {assistant_conversation}
 
@@ -1155,24 +1671,58 @@ CURRENT WORKSPACE:
 {workspace_text}
 
 
-SECTIONS TO REWRITE:
+TEXT SECTIONS TO REWRITE:
 
 {sections_to_rewrite_text}
 """
 
+    print(
+        "SECTION REGENERATION INPUT: "
+        f"{len(generation_input)} characters"
+    )
+
+    started_at = time.monotonic()
+
     response = client.responses.parse(
         model="gpt-5-mini",
-        instructions=COMBINED_CASCADE_PROMPT,
+        reasoning={
+            "effort": "minimal",
+        },
+        instructions=(
+            COMBINED_CASCADE_PROMPT
+        ),
         input=generation_input,
-        text_format=RegeneratedWorkspaceSections,
+        text_format=(
+            RegeneratedWorkspaceSections
+        ),
+    )
+
+    elapsed = (
+        time.monotonic()
+        - started_at
+    )
+
+    print(
+        "SECTION REGENERATION TIME: "
+        f"{elapsed:.2f} seconds"
     )
 
     result = response.output_parsed
 
+    if result is None:
+        raise ValueError(
+            "AI returned no regenerated "
+            "workspace sections."
+        )
+
     returned_sections = {}
 
     for section in result.sections:
-        section_type = section.folder_type.strip().lower()
+        section_type = (
+            section.folder_type
+            .strip()
+            .lower()
+        )
 
         if section_type not in affected_sections:
             continue
@@ -1182,7 +1732,9 @@ SECTIONS TO REWRITE:
         if not content:
             continue
 
-        returned_sections[section_type] = content
+        returned_sections[
+            section_type
+        ] = content
 
     missing_sections = (
         set(affected_sections)
@@ -1191,12 +1743,14 @@ SECTIONS TO REWRITE:
 
     if missing_sections:
         raise ValueError(
-            "AI omitted required workspace sections: "
-            + ", ".join(sorted(missing_sections))
+            "AI omitted required workspace "
+            "sections: "
+            + ", ".join(
+                sorted(missing_sections)
+            )
         )
 
     return returned_sections
-
 class ProjectHealthFinding(BaseModel):
     key: str
     title: str
@@ -1311,7 +1865,191 @@ Every finding must contain:
 - source_reference
 - suggested_fix
 """
+def generate_workspace_update_plan(
+    project,
+) -> WorkspaceUpdatePlan:
+    project_state = getattr(
+        project,
+        "state",
+        None,
+    )
 
+    current_facts = (
+        project_state.facts
+        if project_state is not None
+        else {}
+    )
+
+    latest_user_message = (
+        project.workspace_messages
+        .filter(role="user")
+        .order_by("-created_at")
+        .first()
+    )
+
+    if latest_user_message is None:
+        raise ValueError(
+            "No workspace assistant user message exists."
+        )
+
+    discovery_text = build_compact_discovery_text(
+        project
+    )
+
+    workspace_text = build_compact_workspace_text(
+        project,
+        content_limit=1400,
+    )
+
+    tasks_text = build_compact_tasks_text(
+        project,
+        include_descriptions=True,
+        description_limit=250,
+    )
+
+    assistant_text = build_recent_workspace_messages(
+        project,
+        limit=6,
+    )
+
+    generation_input = f"""
+PROJECT DISCOVERY SUMMARY:
+
+{discovery_text}
+
+
+CURRENT CANONICAL FACTS:
+
+{current_facts}
+
+
+CURRENT WORKSPACE:
+
+{workspace_text}
+
+
+CURRENT DATABASE-BACKED TASKS:
+
+{tasks_text}
+
+
+RECENT WORKSPACE-ASSISTANT CONVERSATION:
+
+{assistant_text}
+
+
+LATEST USER REQUEST:
+
+{latest_user_message.content}
+"""
+
+    print(
+        "FAST WORKSPACE UPDATE INPUT: "
+        f"{len(generation_input)} characters"
+    )
+
+    started_at = time.monotonic()
+
+    response = client.responses.parse(
+        model="gpt-5-mini",
+        reasoning={
+            "effort": "minimal",
+        },
+        instructions=FAST_WORKSPACE_UPDATE_PROMPT,
+        input=generation_input,
+        text_format=WorkspaceUpdatePlan,
+    )
+
+    elapsed = (
+        time.monotonic()
+        - started_at
+    )
+
+    print(
+        "FAST WORKSPACE UPDATE TIME: "
+        f"{elapsed:.2f} seconds"
+    )
+
+    result = response.output_parsed
+
+    if result is None:
+        raise ValueError(
+            "Workspace update returned no parsed output."
+        )
+
+    result.affected_sections = (
+        normalize_affected_sections(
+            result.affected_sections
+        )
+    )
+
+    allowed_text_sections = {
+        "overview",
+        "requirements",
+        "roadmap",
+        "resources",
+        "budget",
+        "learning",
+        "documentation",
+        "testing",
+    }
+
+    requested_text_sections = {
+        section_type
+        for section_type in result.affected_sections
+        if section_type in allowed_text_sections
+    }
+
+    returned_sections = {}
+
+    for section in result.sections:
+        section_type = (
+            section.folder_type
+            .strip()
+            .lower()
+        )
+
+        content = section.content.strip()
+
+        if section_type not in requested_text_sections:
+            continue
+
+        if not content:
+            continue
+
+        returned_sections[
+            section_type
+        ] = content
+
+    missing_sections = (
+        requested_text_sections
+        - set(returned_sections.keys())
+    )
+
+    if missing_sections:
+        raise ValueError(
+            "AI omitted affected workspace sections: "
+            + ", ".join(
+                sorted(missing_sections)
+            )
+        )
+
+    result.sections = [
+        section
+        for section in result.sections
+        if (
+            section.folder_type.strip().lower()
+            in requested_text_sections
+            and section.content.strip()
+        )
+    ]
+
+    print(
+        "FAST AFFECTED SECTIONS:",
+        result.affected_sections,
+    )
+
+    return result
 def review_project(project) -> ProjectHealthReview:
     project_state = getattr(project, "state", None)
 
@@ -1375,6 +2113,9 @@ CURRENT TASKS:
 
     response = client.responses.parse(
         model="gpt-5-mini",
+        reasoning={
+            "effort": "minimal",
+        },
         instructions=PROJECT_HEALTH_PROMPT,
         input=review_input,
         text_format=ProjectHealthReview,
@@ -1583,6 +2324,9 @@ CURRENT TASKS:
 
     response = client.responses.parse(
         model="gpt-5-mini",
+        reasoning={
+            "effort": "minimal",
+        },
         instructions=PROJECT_SCHEDULING_PROMPT,
         input=scheduling_input,
         text_format=ProjectSchedule,
