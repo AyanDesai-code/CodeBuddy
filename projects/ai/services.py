@@ -260,6 +260,7 @@ Rules:
 - Most tasks should have zero to two direct dependencies.
 - Final testing or release tasks may depend on multiple implementation
   tasks.
+
 IMPORTANT LATENCY REQUIREMENTS
 
 Your goal is to produce a useful FIRST workspace as quickly as possible.

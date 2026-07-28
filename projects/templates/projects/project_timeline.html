@@ -119,13 +119,14 @@
     .task-actions {
         margin-top: 11px;
     }
+
     .task-flowchart-card {
-    margin-bottom: 28px;
-    padding: 22px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-}
+        margin-bottom: 28px;
+        padding: 22px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+    }
 
     .task-flowchart-header {
         display: flex;
@@ -215,57 +216,6 @@
         filter: brightness(0.96);
     }
 </style>
-<section class="task-flowchart-card">
-    <div class="task-flowchart-header">
-        <div>
-            <h2>Task Flow</h2>
-
-            <p>
-                Generated from live task dependencies.
-                Click a task to edit it.
-            </p>
-        </div>
-    </div>
-
-    <div class="task-flowchart-legend">
-        <span class="legend-item">
-            <span class="legend-dot legend-todo"></span>
-            To Do
-        </span>
-
-        <span class="legend-item">
-            <span class="legend-dot legend-progress"></span>
-            In Progress
-        </span>
-
-        <span class="legend-item">
-            <span class="legend-dot legend-review"></span>
-            Review
-        </span>
-
-        <span class="legend-item">
-            <span class="legend-dot legend-done"></span>
-            Done
-        </span>
-
-        <span class="legend-item">
-            <span class="legend-dot legend-blocked"></span>
-            Blocked
-        </span>
-    </div>
-
-    {% if task_flowchart %}
-        <div class="task-flowchart-wrapper">
-            <pre class="mermaid">{{ task_flowchart }}</pre>
-        </div>
-    {% else %}
-        <p>
-            Add tasks to generate a task flowchart.
-        </p>
-    {% endif %}
-</section>
-
-
 {% endblock %}
 
 {% block content %}
@@ -346,6 +296,56 @@
     </div>
 </div>
 
+<section class="task-flowchart-card">
+    <div class="task-flowchart-header">
+        <div>
+            <h2>Task Flow</h2>
+
+            <p>
+                Generated from live task dependencies.
+                Click a task to edit it.
+            </p>
+        </div>
+    </div>
+
+    <div class="task-flowchart-legend">
+        <span class="legend-item">
+            <span class="legend-dot legend-todo"></span>
+            To Do
+        </span>
+
+        <span class="legend-item">
+            <span class="legend-dot legend-progress"></span>
+            In Progress
+        </span>
+
+        <span class="legend-item">
+            <span class="legend-dot legend-review"></span>
+            Review
+        </span>
+
+        <span class="legend-item">
+            <span class="legend-dot legend-done"></span>
+            Done
+        </span>
+
+        <span class="legend-item">
+            <span class="legend-dot legend-blocked"></span>
+            Blocked
+        </span>
+    </div>
+
+    {% if task_flowchart %}
+        <div class="task-flowchart-wrapper">
+            <pre class="mermaid">{{ task_flowchart }}</pre>
+        </div>
+    {% else %}
+        <p>
+            Add tasks to generate a task flowchart.
+        </p>
+    {% endif %}
+</section>
+
 {% for milestone in milestones %}
     <section class="milestone">
         <div class="milestone-header">
@@ -396,6 +396,7 @@
     </ul>
 </section>
 {% endblock %}
+
 {% block extra_js %}
 <script type="module">
     import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
