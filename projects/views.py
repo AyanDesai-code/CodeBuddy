@@ -5331,3 +5331,183 @@ def build_task_flowchart(project):
     )
 
     return "\n".join(lines)
+def build_task_flowchart(project):
+    tasks = list(
+        project.tasks
+        .prefetch_related(
+            "dependencies",
+        )
+        .order_by(
+            "order",
+            "pk",
+        )
+    )
+
+    if not tasks:
+        return ""
+
+    lines = [
+        "flowchart LR",
+    ]
+
+    task_ids = {
+        task.pk
+        for task in tasks
+    }
+
+    for task in tasks:
+        safe_title = escape_mermaid_text(
+            task.title
+        )
+
+        status_label = (
+            task.get_status_display()
+        )
+
+        priority_label = (
+            task.get_priority_display()
+        )
+
+        node_label = (
+            f"{safe_title}<br/>"
+            f"{status_label} · "
+            f"{priority_label}"
+        )
+
+        lines.append(
+            f'T{task.pk}["{node_label}"]'
+        )
+
+        task_url = reverse(
+            "edit_task",
+            kwargs={
+                "project_pk": project.pk,
+                "task_pk": task.pk,
+            },
+        )
+
+        lines.append(
+            f'click T{task.pk} "{task_url}" '
+            f'"Open {safe_title}"'
+        )
+
+    connection_count = 0
+
+    for task in tasks:
+        for dependency in (
+            task.dependencies.all()
+        ):
+            if dependency.pk not in task_ids:
+                continue
+
+            lines.append(
+                f"T{dependency.pk} --> "
+                f"T{task.pk}"
+            )
+
+            connection_count += 1
+
+    if connection_count == 0:
+        lines.append(
+            'NO_DEPS["No dependencies '
+            'have been defined yet"]'
+        )
+
+        lines.append(
+            "class NO_DEPS empty"
+        )
+
+    for task in tasks:
+        classes = []
+
+        if task.status == Task.Status.DONE:
+            classes.append("done")
+
+        elif task.status == (
+            Task.Status.IN_PROGRESS
+        ):
+            classes.append("inProgress")
+
+        elif task.status == Task.Status.REVIEW:
+            classes.append("review")
+
+        else:
+            classes.append("todo")
+
+        if task.priority == Task.Priority.HIGH:
+            classes.append("highPriority")
+
+        elif task.priority == (
+            Task.Priority.MEDIUM
+        ):
+            classes.append("mediumPriority")
+
+        else:
+            classes.append("lowPriority")
+
+        if task.is_blocked:
+            classes.append("blocked")
+
+        lines.append(
+            f"class T{task.pk} "
+            + ",".join(classes)
+        )
+
+    lines.extend(
+        [
+            (
+                "classDef todo "
+                "fill:#f8fafc,"
+                "stroke:#64748b,"
+                "color:#0f172a"
+            ),
+            (
+                "classDef inProgress "
+                "fill:#dbeafe,"
+                "stroke:#2563eb,"
+                "color:#1e3a8a"
+            ),
+            (
+                "classDef review "
+                "fill:#fef3c7,"
+                "stroke:#d97706,"
+                "color:#78350f"
+            ),
+            (
+                "classDef done "
+                "fill:#dcfce7,"
+                "stroke:#16a34a,"
+                "color:#14532d"
+            ),
+            (
+                "classDef blocked "
+                "fill:#fee2e2,"
+                "stroke:#dc2626,"
+                "stroke-width:3px,"
+                "color:#7f1d1d"
+            ),
+            (
+                "classDef highPriority "
+                "stroke:#ef4444,"
+                "stroke-width:3px"
+            ),
+            (
+                "classDef mediumPriority "
+                "stroke:#f59e0b,"
+                "stroke-width:2px"
+            ),
+            (
+                "classDef lowPriority "
+                "stroke:#64748b,"
+                "stroke-width:1px"
+            ),
+            (
+                "classDef empty "
+                "fill:#f8fafc,"
+                "stroke:#94a3b8,"
+                "color:#475569"
+            ),
+        ]
+    )
+
+    return "\n".join(lines)
