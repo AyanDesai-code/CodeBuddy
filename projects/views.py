@@ -4093,99 +4093,132 @@ def project_timeline(
     request,
     project_pk,
 ):
-    project = get_project_for_user(
-        project_pk=project_pk,
-        user=request.user,
-    )
+    try:
+        print("TIMELINE 1: Loading project")
 
-    milestones = (
-        project.milestones
-        .prefetch_related(
-            "tasks",
-            "tasks__dependencies",
-            "tasks__dependents",
+        project = get_project_for_user(
+            project_pk=project_pk,
+            user=request.user,
         )
-        .order_by(
-            "order",
-            "target_date",
-            "created_at",
-        )
-    )
 
-    unscheduled_tasks = (
-        project.tasks
-        .filter(
-            milestone__isnull=True
-        )
-        .prefetch_related(
-            "dependencies",
-            "dependents",
-        )
-        .order_by(
-            "start_date",
-            "due_date",
-            "order",
-        )
-    )
+        print("TIMELINE 2: Loading milestones")
 
-    all_tasks = list(
-        project.tasks
-        .prefetch_related(
-            "dependencies",
-            "dependents",
+        milestones = (
+            project.milestones
+            .prefetch_related(
+                "tasks",
+                "tasks__dependencies",
+                "tasks__dependents",
+            )
+            .order_by(
+                "order",
+                "target_date",
+                "created_at",
+            )
         )
-    )
 
-    blocked_tasks = [
-        task
-        for task in all_tasks
-        if task.is_blocked
-    ]
+        print("TIMELINE 3: Loading unscheduled tasks")
 
-    overdue_tasks = [
-        task
-        for task in all_tasks
-        if task.is_overdue
-    ]
+        unscheduled_tasks = (
+            project.tasks
+            .filter(milestone__isnull=True)
+            .prefetch_related(
+                "dependencies",
+                "dependents",
+            )
+            .order_by(
+                "start_date",
+                "due_date",
+                "order",
+            )
+        )
 
-    schedule_message = (
-        request.session.pop(
+        print("TIMELINE 4: Loading all tasks")
+
+        all_tasks = list(
+            project.tasks
+            .prefetch_related(
+                "dependencies",
+                "dependents",
+            )
+            .order_by("order", "pk")
+        )
+
+        print("TIMELINE 5: Checking blocked tasks")
+
+        blocked_tasks = [
+            task
+            for task in all_tasks
+            if task.is_blocked
+        ]
+
+        print("TIMELINE 6: Checking overdue tasks")
+
+        overdue_tasks = [
+            task
+            for task in all_tasks
+            if task.is_overdue
+        ]
+
+        print("TIMELINE 7: Building flowchart")
+
+        task_flowchart = build_task_flowchart(
+            project
+        )
+
+        print(
+            "TIMELINE 8: Flowchart built:",
+            len(task_flowchart),
+            "characters",
+        )
+
+        schedule_message = request.session.pop(
             "schedule_message",
             None,
         )
-    )
 
-    schedule_message_type = (
-        request.session.pop(
+        schedule_message_type = request.session.pop(
             "schedule_message_type",
             None,
         )
-    )
-    permission_context = project_permission_context(
-        project=project,
-        user=request.user,
-    )
-    task_flowchart = build_task_flowchart(
-        project
-    )
 
-    return render(
-        request,
-        "projects/project_timeline.html",
-        {
-            "project": project,
-            "milestones": milestones,
-            "unscheduled_tasks": unscheduled_tasks,
-            "blocked_tasks": blocked_tasks,
-            "overdue_tasks": overdue_tasks,
-            "schedule_message": schedule_message,
-            "schedule_message_type": (
-                schedule_message_type
-            ),
-            "task_flowchart": task_flowchart,
-            **permission_context,
-        },
-    )
+        permission_context = (
+            project_permission_context(
+                project=project,
+                user=request.user,
+            )
+        )
+
+        print("TIMELINE 9: Rendering template")
+
+        return render(
+            request,
+            "projects/project_timeline.html",
+            {
+                "project": project,
+                "milestones": milestones,
+                "unscheduled_tasks": (
+                    unscheduled_tasks
+                ),
+                "blocked_tasks": blocked_tasks,
+                "overdue_tasks": overdue_tasks,
+                "schedule_message": (
+                    schedule_message
+                ),
+                "schedule_message_type": (
+                    schedule_message_type
+                ),
+                "task_flowchart": task_flowchart,
+                **permission_context,
+            },
+        )
+
+    except Exception:
+        print("\n" + "=" * 80)
+        print("TIMELINE PAGE FAILED")
+        traceback.print_exc()
+        print("=" * 80 + "\n")
+        raise
 def task_depends_on(
     *,
     task,
