@@ -5421,7 +5421,9 @@ def build_task_flowchart(project):
         if task.status == Task.Status.DONE:
             classes = ["done"]
 
-        elif task.status == Task.Status.IN_PROGRESS:
+        elif task.status == (
+            Task.Status.IN_PROGRESS
+        ):
             classes = ["inProgress"]
 
         elif task.status == Task.Status.REVIEW:
@@ -5439,63 +5441,48 @@ def build_task_flowchart(project):
         )
 
     lines.extend(
-    [
-        (
-            "classDef todo "
-            "fill:#334155,"
-            "stroke:#64748b,"
-            "stroke-width:2px,"
-            "color:#f8fafc"
-        ),
-        (
-            "classDef inProgress "
-            "fill:#1d4ed8,"
-            "stroke:#60a5fa,"
-            "stroke-width:2px,"
-            "color:#ffffff"
-        ),
-        (
-            "classDef review "
-            "fill:#92400e,"
-            "stroke:#f59e0b,"
-            "stroke-width:2px,"
-            "color:#ffffff"
-        ),
-        (
-            "classDef done "
-            "fill:#166534,"
-            "stroke:#4ade80,"
-            "stroke-width:2px,"
-            "color:#ffffff"
-        ),
-        (
-            "classDef blocked "
-            "stroke:#ef4444,"
-            "stroke-width:4px,"
-            "stroke-dasharray:6 3"
-        ),
-        (
-            "classDef highPriority "
-            "stroke:#ef4444,"
-            "stroke-width:3px"
-        ),
-        (
-            "classDef mediumPriority "
-            "stroke:#f59e0b,"
-            "stroke-width:2px"
-        ),
-        (
-            "classDef lowPriority "
-            "stroke:#64748b,"
-            "stroke-width:1px"
-        ),
-        (
-            "classDef empty "
-            "fill:#1e293b,"
-            "stroke:#64748b,"
-            "color:#cbd5e1"
-        ),
-    ]
-)
+        [
+            (
+                "classDef todo "
+                "fill:#334155,"
+                "stroke:#64748b,"
+                "stroke-width:2px,"
+                "color:#f8fafc"
+            ),
+            (
+                "classDef inProgress "
+                "fill:#1d4ed8,"
+                "stroke:#60a5fa,"
+                "stroke-width:2px,"
+                "color:#ffffff"
+            ),
+            (
+                "classDef review "
+                "fill:#92400e,"
+                "stroke:#f59e0b,"
+                "stroke-width:2px,"
+                "color:#ffffff"
+            ),
+            (
+                "classDef done "
+                "fill:#166534,"
+                "stroke:#4ade80,"
+                "stroke-width:2px,"
+                "color:#ffffff"
+            ),
+            (
+                "classDef blocked "
+                "stroke:#ef4444,"
+                "stroke-width:4px,"
+                "stroke-dasharray:6 3"
+            ),
+            (
+                "classDef empty "
+                "fill:#1e293b,"
+                "stroke:#64748b,"
+                "color:#cbd5e1"
+            ),
+        ]
+    )
 
     return "\n".join(lines)
