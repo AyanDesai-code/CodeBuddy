@@ -3978,6 +3978,116 @@ def move_task_on_board(
             "completed": task.completed,
         }
     )
+def escape_mermaid_text(value):
+    return (
+        str(value)
+        .replace('"', "'")
+        .replace("\n", " ")
+        .replace("[", "(")
+        .replace("]", ")")
+        .strip()
+    )
+
+
+def build_task_flowchart(project):
+    tasks = list(
+        project.tasks
+        .prefetch_related("dependencies")
+        .order_by("order", "pk")
+    )
+
+    if not tasks:
+        return ""
+
+    lines = [
+        "flowchart TD",
+    ]
+
+    status_classes = {
+        Task.Status.TODO: "todo",
+        Task.Status.IN_PROGRESS: "inProgress",
+        Task.Status.REVIEW: "review",
+        Task.Status.DONE: "done",
+    }
+
+    task_ids = {
+        task.pk
+        for task in tasks
+    }
+
+    for task in tasks:
+        safe_title = escape_mermaid_text(
+            task.title
+        )
+
+        lines.append(
+            f'T{task.pk}["{safe_title}"]'
+        )
+
+        class_name = status_classes.get(
+            task.status,
+            "todo",
+        )
+
+        lines.append(
+            f"class T{task.pk} {class_name}"
+        )
+
+    connection_count = 0
+
+    for task in tasks:
+        for dependency in task.dependencies.all():
+            if dependency.pk not in task_ids:
+                continue
+
+            lines.append(
+                f"T{dependency.pk} --> T{task.pk}"
+            )
+
+            connection_count += 1
+
+    # If no dependencies exist yet, show tasks
+    # sequentially using their current order.
+    if connection_count == 0:
+        for previous_task, next_task in zip(
+            tasks,
+            tasks[1:],
+        ):
+            lines.append(
+                f"T{previous_task.pk} --> "
+                f"T{next_task.pk}"
+            )
+
+    lines.extend(
+        [
+            (
+                "classDef todo "
+                "fill:#f8fafc,"
+                "stroke:#64748b,"
+                "color:#0f172a"
+            ),
+            (
+                "classDef inProgress "
+                "fill:#dbeafe,"
+                "stroke:#2563eb,"
+                "color:#1e3a8a"
+            ),
+            (
+                "classDef review "
+                "fill:#fef3c7,"
+                "stroke:#d97706,"
+                "color:#78350f"
+            ),
+            (
+                "classDef done "
+                "fill:#dcfce7,"
+                "stroke:#16a34a,"
+                "color:#14532d"
+            ),
+        ]
+    )
+
+    return "\n".join(lines)
 @login_required
 def project_timeline(
     request,
