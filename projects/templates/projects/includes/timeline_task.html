@@ -1,0 +1,77 @@
+<li class="task-card">
+    <div class="task-heading">
+        <div>
+            <h3>
+                {% if task.completed %}
+                    <s>{{ task.title }}</s>
+                {% else %}
+                    {{ task.title }}
+                {% endif %}
+            </h3>
+
+            {% if task.description %}
+                <p>{{ task.description }}</p>
+            {% endif %}
+        </div>
+
+        <span class="status">
+            {{ task.get_status_display }}
+        </span>
+    </div>
+
+    <div class="task-details">
+        <span>
+            <strong>Priority:</strong>
+            {{ task.get_priority_display }}
+        </span>
+
+        {% if task.start_date %}
+            <span>
+                <strong>Start:</strong>
+                {{ task.start_date|date:"M j, Y" }}
+            </span>
+        {% endif %}
+
+        {% if task.due_date %}
+            <span>
+                <strong>Due:</strong>
+                {{ task.due_date|date:"M j, Y" }}
+            </span>
+        {% endif %}
+
+        {% if task.estimated_hours %}
+            <span>
+                <strong>Estimate:</strong>
+                {{ task.estimated_hours }} hours
+            </span>
+        {% endif %}
+    </div>
+
+    {% if task.dependencies.exists %}
+        <div class="dependency-box">
+            <strong>Depends on:</strong>
+
+            {% for dependency in task.dependencies.all %}
+                {{ dependency.title }}
+                {% if not forloop.last %}, {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if task.is_blocked %}
+        <div class="dependency-box">
+            <strong>Blocked:</strong>
+            One or more required tasks are incomplete.
+        </div>
+    {% endif %}
+
+    {% if can_edit %}
+        <div class="task-actions">
+            <a
+                href="{% url 'edit_task_dependencies' project.pk task.pk %}"
+            >
+                Edit dependencies
+            </a>
+        </div>
+    {% endif %}
+</li>
