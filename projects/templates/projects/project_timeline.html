@@ -41,6 +41,10 @@
         color: #e3b341;
     }
 
+    .notice.warning p {
+        margin-bottom: 0;
+    }
+
     .timeline-metrics {
         display: flex;
         gap: 12px;
@@ -49,6 +53,7 @@
     }
 
     .timeline-metric {
+        min-width: 120px;
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: 9px;
@@ -97,6 +102,7 @@
         border-radius: 999px;
         padding: 2px 7px;
         font-size: 12px;
+        white-space: nowrap;
     }
 
     .task-details {
@@ -117,6 +123,9 @@
     }
 
     .task-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
         margin-top: 11px;
     }
 
@@ -131,8 +140,9 @@
     .task-flowchart-header {
         display: flex;
         justify-content: space-between;
-        gap: 16px;
+        gap: 18px;
         align-items: flex-start;
+        flex-wrap: wrap;
         margin-bottom: 18px;
     }
 
@@ -145,13 +155,53 @@
         color: var(--text-muted);
     }
 
+    .flowchart-header-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .flowchart-header-actions a,
+    .flowchart-controls button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 36px;
+        padding: 7px 11px;
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        background: var(--surface);
+        color: var(--text);
+        text-decoration: none;
+        cursor: pointer;
+        font: inherit;
+    }
+
+    .flowchart-header-actions a:hover,
+    .flowchart-controls button:hover {
+        background: var(--surface-hover);
+    }
+
     .task-flowchart-legend {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px 14px;
+        gap: 9px 16px;
         margin-bottom: 16px;
         color: var(--text-muted);
         font-size: 13px;
+    }
+
+    .legend-group {
+        display: inline-flex;
+        gap: 9px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .legend-divider {
+        width: 1px;
+        min-height: 18px;
+        background: var(--border);
     }
 
     .legend-item {
@@ -164,6 +214,15 @@
         width: 10px;
         height: 10px;
         border-radius: 999px;
+        flex: 0 0 auto;
+    }
+
+    .legend-border {
+        width: 15px;
+        height: 11px;
+        border-radius: 3px;
+        background: transparent;
+        flex: 0 0 auto;
     }
 
     .legend-todo {
@@ -186,22 +245,67 @@
         background: #dc2626;
     }
 
+    .legend-high {
+        border: 3px solid #ef4444;
+    }
+
+    .legend-medium {
+        border: 2px solid #f59e0b;
+    }
+
+    .legend-low {
+        border: 1px solid #64748b;
+    }
+
+    .flowchart-controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .flowchart-zoom-label {
+        min-width: 52px;
+        color: var(--text-muted);
+        font-size: 13px;
+        text-align: center;
+    }
+
     .task-flowchart-wrapper {
-        overflow: auto;
-        min-height: 280px;
-        padding: 22px;
+        position: relative;
+        overflow: hidden;
+        min-height: 360px;
+        padding: 0;
         background: var(--background);
         border: 1px solid var(--border);
         border-radius: 9px;
+        cursor: grab;
+        user-select: none;
+        touch-action: none;
     }
 
-    .task-flowchart-wrapper .mermaid {
-        display: flex;
-        justify-content: flex-start;
+    .task-flowchart-wrapper.is-dragging {
+        cursor: grabbing;
+    }
+
+    .task-flowchart-canvas {
+        display: inline-block;
         min-width: max-content;
+        padding: 28px;
+        transform-origin: top left;
+        will-change: transform;
+    }
+
+    .task-flowchart-canvas .mermaid {
+        display: block;
+        width: max-content;
+        min-width: max-content;
+        margin: 0;
     }
 
     .task-flowchart-wrapper svg {
+        display: block;
         max-width: none !important;
         height: auto;
     }
@@ -213,7 +317,72 @@
     .task-flowchart-wrapper .node:hover rect,
     .task-flowchart-wrapper .node:hover polygon,
     .task-flowchart-wrapper .node:hover path {
-        filter: brightness(0.96);
+        filter: brightness(0.94);
+    }
+
+    .flowchart-help {
+        margin: 12px 0 0;
+        color: var(--text-muted);
+        font-size: 13px;
+    }
+
+    .task-flowchart-card.is-fullscreen {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        margin: 0;
+        border: 0;
+        border-radius: 0;
+        padding: 22px;
+        background: var(--background);
+        overflow: auto;
+    }
+
+    .task-flowchart-card.is-fullscreen
+    .task-flowchart-wrapper {
+        min-height: calc(100vh - 230px);
+    }
+
+    body.flowchart-fullscreen-open {
+        overflow: hidden;
+    }
+
+    .empty-flowchart {
+        padding: 24px;
+        color: var(--text-muted);
+        text-align: center;
+    }
+
+    @media (max-width: 720px) {
+        .task-flowchart-card {
+            padding: 16px;
+        }
+
+        .task-flowchart-header {
+            display: block;
+        }
+
+        .flowchart-header-actions {
+            margin-top: 14px;
+        }
+
+        .legend-divider {
+            display: none;
+        }
+
+        .task-flowchart-wrapper {
+            min-height: 300px;
+        }
+
+        .milestone-header,
+        .task-heading {
+            display: block;
+        }
+
+        .status {
+            display: inline-block;
+            margin-top: 8px;
+        }
     }
 </style>
 {% endblock %}
@@ -296,7 +465,10 @@
     </div>
 </div>
 
-<section class="task-flowchart-card">
+<section
+    class="task-flowchart-card"
+    id="task-flowchart-card"
+>
     <div class="task-flowchart-header">
         <div>
             <h2>Task Flow</h2>
@@ -306,45 +478,133 @@
                 Click a task to edit it.
             </p>
         </div>
+
+        <div class="flowchart-header-actions">
+            <a href="#task-list">
+                Manage dependencies
+            </a>
+
+            <button
+                type="button"
+                id="flowchart-fullscreen"
+            >
+                Full screen
+            </button>
+        </div>
     </div>
 
     <div class="task-flowchart-legend">
-        <span class="legend-item">
-            <span class="legend-dot legend-todo"></span>
-            To Do
-        </span>
+        <div class="legend-group">
+            <span class="legend-item">
+                <span class="legend-dot legend-todo"></span>
+                To Do
+            </span>
 
-        <span class="legend-item">
-            <span class="legend-dot legend-progress"></span>
-            In Progress
-        </span>
+            <span class="legend-item">
+                <span class="legend-dot legend-progress"></span>
+                In Progress
+            </span>
 
-        <span class="legend-item">
-            <span class="legend-dot legend-review"></span>
-            Review
-        </span>
+            <span class="legend-item">
+                <span class="legend-dot legend-review"></span>
+                Review
+            </span>
 
-        <span class="legend-item">
-            <span class="legend-dot legend-done"></span>
-            Done
-        </span>
+            <span class="legend-item">
+                <span class="legend-dot legend-done"></span>
+                Done
+            </span>
 
-        <span class="legend-item">
-            <span class="legend-dot legend-blocked"></span>
-            Blocked
-        </span>
+            <span class="legend-item">
+                <span class="legend-dot legend-blocked"></span>
+                Blocked
+            </span>
+        </div>
+
+        <span class="legend-divider"></span>
+
+        <div class="legend-group">
+            <span class="legend-item">
+                <span class="legend-border legend-high"></span>
+                High priority
+            </span>
+
+            <span class="legend-item">
+                <span class="legend-border legend-medium"></span>
+                Medium priority
+            </span>
+
+            <span class="legend-item">
+                <span class="legend-border legend-low"></span>
+                Low priority
+            </span>
+        </div>
     </div>
 
     {% if task_flowchart %}
-        <div class="task-flowchart-wrapper">
-            <pre class="mermaid">{{ task_flowchart }}</pre>
+        <div class="flowchart-controls">
+            <button
+                type="button"
+                id="flowchart-zoom-out"
+                aria-label="Zoom out"
+            >
+                −
+            </button>
+
+            <span
+                class="flowchart-zoom-label"
+                id="flowchart-zoom-label"
+            >
+                100%
+            </span>
+
+            <button
+                type="button"
+                id="flowchart-zoom-in"
+                aria-label="Zoom in"
+            >
+                +
+            </button>
+
+            <button
+                type="button"
+                id="flowchart-fit"
+            >
+                Fit
+            </button>
+
+            <button
+                type="button"
+                id="flowchart-reset"
+            >
+                Reset
+            </button>
         </div>
-    {% else %}
-        <p>
-            Add tasks to generate a task flowchart.
+
+        <div
+            class="task-flowchart-wrapper"
+            id="task-flowchart-wrapper"
+        >
+            <div
+                class="task-flowchart-canvas"
+                id="task-flowchart-canvas"
+            >
+                <pre class="mermaid">{{ task_flowchart }}</pre>
+            </div>
+        </div>
+
+        <p class="flowchart-help">
+            Drag to pan. Use the mouse wheel to zoom.
+            Click a task node to open it.
         </p>
+    {% else %}
+        <div class="empty-flowchart">
+            Add tasks to generate a task flowchart.
+        </div>
     {% endif %}
 </section>
+
+<div id="task-list"></div>
 
 {% for milestone in milestones %}
     <section class="milestone">
@@ -402,7 +662,7 @@
     import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
 
     mermaid.initialize({
-        startOnLoad: true,
+        startOnLoad: false,
         securityLevel: "loose",
         theme: "base",
         flowchart: {
@@ -418,5 +678,435 @@
             lineColor: "#64748b",
         },
     });
+
+    const diagrams = document.querySelectorAll(
+        ".mermaid"
+    );
+
+    if (diagrams.length > 0) {
+        await mermaid.run({
+            nodes: diagrams,
+        });
+    }
+
+    const wrapper = document.getElementById(
+        "task-flowchart-wrapper"
+    );
+
+    const canvas = document.getElementById(
+        "task-flowchart-canvas"
+    );
+
+    const card = document.getElementById(
+        "task-flowchart-card"
+    );
+
+    const zoomLabel = document.getElementById(
+        "flowchart-zoom-label"
+    );
+
+    const zoomInButton = document.getElementById(
+        "flowchart-zoom-in"
+    );
+
+    const zoomOutButton = document.getElementById(
+        "flowchart-zoom-out"
+    );
+
+    const resetButton = document.getElementById(
+        "flowchart-reset"
+    );
+
+    const fitButton = document.getElementById(
+        "flowchart-fit"
+    );
+
+    const fullscreenButton = document.getElementById(
+        "flowchart-fullscreen"
+    );
+
+    if (
+        wrapper
+        && canvas
+        && zoomLabel
+    ) {
+        const MIN_SCALE = 0.35;
+        const MAX_SCALE = 2.5;
+        const SCALE_STEP = 0.1;
+
+        let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
+
+        let dragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let originalTranslateX = 0;
+        let originalTranslateY = 0;
+
+        function clampScale(value) {
+            return Math.min(
+                MAX_SCALE,
+                Math.max(
+                    MIN_SCALE,
+                    value
+                )
+            );
+        }
+
+        function renderTransform() {
+            canvas.style.transform = (
+                `translate(${translateX}px, ${translateY}px) `
+                + `scale(${scale})`
+            );
+
+            zoomLabel.textContent = (
+                `${Math.round(scale * 100)}%`
+            );
+        }
+
+        function setScale(
+            nextScale,
+            originX = wrapper.clientWidth / 2,
+            originY = wrapper.clientHeight / 2,
+        ) {
+            const previousScale = scale;
+            const clampedScale = clampScale(
+                nextScale
+            );
+
+            if (
+                clampedScale
+                === previousScale
+            ) {
+                return;
+            }
+
+            const scaleRatio = (
+                clampedScale
+                / previousScale
+            );
+
+            translateX = (
+                originX
+                - (
+                    originX
+                    - translateX
+                ) * scaleRatio
+            );
+
+            translateY = (
+                originY
+                - (
+                    originY
+                    - translateY
+                ) * scaleRatio
+            );
+
+            scale = clampedScale;
+            renderTransform();
+        }
+
+        function resetView() {
+            scale = 1;
+            translateX = 0;
+            translateY = 0;
+            renderTransform();
+        }
+
+        function fitDiagram() {
+            const svg = canvas.querySelector(
+                "svg"
+            );
+
+            if (!svg) {
+                resetView();
+                return;
+            }
+
+            const diagramWidth = (
+                svg.getBoundingClientRect().width
+                / scale
+            );
+
+            const diagramHeight = (
+                svg.getBoundingClientRect().height
+                / scale
+            );
+
+            if (
+                diagramWidth <= 0
+                || diagramHeight <= 0
+            ) {
+                resetView();
+                return;
+            }
+
+            const horizontalPadding = 50;
+            const verticalPadding = 50;
+
+            const availableWidth = Math.max(
+                wrapper.clientWidth
+                - horizontalPadding,
+                1,
+            );
+
+            const availableHeight = Math.max(
+                wrapper.clientHeight
+                - verticalPadding,
+                1,
+            );
+
+            scale = clampScale(
+                Math.min(
+                    availableWidth
+                    / diagramWidth,
+                    availableHeight
+                    / diagramHeight,
+                    1,
+                )
+            );
+
+            translateX = Math.max(
+                (
+                    wrapper.clientWidth
+                    - diagramWidth * scale
+                ) / 2,
+                0,
+            );
+
+            translateY = Math.max(
+                (
+                    wrapper.clientHeight
+                    - diagramHeight * scale
+                ) / 2,
+                0,
+            );
+
+            renderTransform();
+        }
+
+        zoomInButton?.addEventListener(
+            "click",
+            function () {
+                setScale(
+                    scale + SCALE_STEP
+                );
+            }
+        );
+
+        zoomOutButton?.addEventListener(
+            "click",
+            function () {
+                setScale(
+                    scale - SCALE_STEP
+                );
+            }
+        );
+
+        resetButton?.addEventListener(
+            "click",
+            resetView
+        );
+
+        fitButton?.addEventListener(
+            "click",
+            fitDiagram
+        );
+
+        wrapper.addEventListener(
+            "wheel",
+            function (event) {
+                event.preventDefault();
+
+                const bounds = (
+                    wrapper.getBoundingClientRect()
+                );
+
+                const originX = (
+                    event.clientX
+                    - bounds.left
+                );
+
+                const originY = (
+                    event.clientY
+                    - bounds.top
+                );
+
+                const direction = (
+                    event.deltaY < 0
+                    ? 1
+                    : -1
+                );
+
+                setScale(
+                    scale
+                    + direction * SCALE_STEP,
+                    originX,
+                    originY,
+                );
+            },
+            {
+                passive: false,
+            }
+        );
+
+        wrapper.addEventListener(
+            "pointerdown",
+            function (event) {
+                const clickedNode = (
+                    event.target.closest(
+                        ".node"
+                    )
+                );
+
+                if (clickedNode) {
+                    return;
+                }
+
+                dragging = true;
+                dragStartX = event.clientX;
+                dragStartY = event.clientY;
+                originalTranslateX = (
+                    translateX
+                );
+                originalTranslateY = (
+                    translateY
+                );
+
+                wrapper.classList.add(
+                    "is-dragging"
+                );
+
+                wrapper.setPointerCapture(
+                    event.pointerId
+                );
+            }
+        );
+
+        wrapper.addEventListener(
+            "pointermove",
+            function (event) {
+                if (!dragging) {
+                    return;
+                }
+
+                translateX = (
+                    originalTranslateX
+                    + event.clientX
+                    - dragStartX
+                );
+
+                translateY = (
+                    originalTranslateY
+                    + event.clientY
+                    - dragStartY
+                );
+
+                renderTransform();
+            }
+        );
+
+        function stopDragging(event) {
+            if (!dragging) {
+                return;
+            }
+
+            dragging = false;
+
+            wrapper.classList.remove(
+                "is-dragging"
+            );
+
+            if (
+                event
+                && wrapper.hasPointerCapture(
+                    event.pointerId
+                )
+            ) {
+                wrapper.releasePointerCapture(
+                    event.pointerId
+                );
+            }
+        }
+
+        wrapper.addEventListener(
+            "pointerup",
+            stopDragging
+        );
+
+        wrapper.addEventListener(
+            "pointercancel",
+            stopDragging
+        );
+
+        function setFullscreen(
+            shouldOpen
+        ) {
+            card.classList.toggle(
+                "is-fullscreen",
+                shouldOpen,
+            );
+
+            document.body.classList.toggle(
+                "flowchart-fullscreen-open",
+                shouldOpen,
+            );
+
+            fullscreenButton.textContent = (
+                shouldOpen
+                ? "Exit full screen"
+                : "Full screen"
+            );
+
+            window.setTimeout(
+                fitDiagram,
+                50,
+            );
+        }
+
+        fullscreenButton?.addEventListener(
+            "click",
+            function () {
+                setFullscreen(
+                    !card.classList.contains(
+                        "is-fullscreen"
+                    )
+                );
+            }
+        );
+
+        document.addEventListener(
+            "keydown",
+            function (event) {
+                if (
+                    event.key === "Escape"
+                    && card.classList.contains(
+                        "is-fullscreen"
+                    )
+                ) {
+                    setFullscreen(false);
+                }
+            }
+        );
+
+        window.addEventListener(
+            "resize",
+            function () {
+                if (
+                    card.classList.contains(
+                        "is-fullscreen"
+                    )
+                ) {
+                    fitDiagram();
+                }
+            }
+        );
+
+        window.setTimeout(
+            fitDiagram,
+            100,
+        );
+    }
 </script>
 {% endblock %}
