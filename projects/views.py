@@ -5418,32 +5418,17 @@ def build_task_flowchart(project):
         )
 
     for task in tasks:
-        classes = []
-
         if task.status == Task.Status.DONE:
-            classes.append("done")
+            classes = ["done"]
 
-        elif task.status == (
-            Task.Status.IN_PROGRESS
-        ):
-            classes.append("inProgress")
+        elif task.status == Task.Status.IN_PROGRESS:
+            classes = ["inProgress"]
 
         elif task.status == Task.Status.REVIEW:
-            classes.append("review")
+            classes = ["review"]
 
         else:
-            classes.append("todo")
-
-        if task.priority == Task.Priority.HIGH:
-            classes.append("highPriority")
-
-        elif task.priority == (
-            Task.Priority.MEDIUM
-        ):
-            classes.append("mediumPriority")
-
-        else:
-            classes.append("lowPriority")
+            classes = ["todo"]
 
         if task.is_blocked:
             classes.append("blocked")
@@ -5454,60 +5439,63 @@ def build_task_flowchart(project):
         )
 
     lines.extend(
-        [
-            (
-                "classDef todo "
-                "fill:#f8fafc,"
-                "stroke:#64748b,"
-                "color:#0f172a"
-            ),
-            (
-                "classDef inProgress "
-                "fill:#dbeafe,"
-                "stroke:#2563eb,"
-                "color:#1e3a8a"
-            ),
-            (
-                "classDef review "
-                "fill:#fef3c7,"
-                "stroke:#d97706,"
-                "color:#78350f"
-            ),
-            (
-                "classDef done "
-                "fill:#dcfce7,"
-                "stroke:#16a34a,"
-                "color:#14532d"
-            ),
-            (
-                "classDef blocked "
-                "fill:#fee2e2,"
-                "stroke:#dc2626,"
-                "stroke-width:3px,"
-                "color:#7f1d1d"
-            ),
-            (
-                "classDef highPriority "
-                "stroke:#ef4444,"
-                "stroke-width:3px"
-            ),
-            (
-                "classDef mediumPriority "
-                "stroke:#f59e0b,"
-                "stroke-width:2px"
-            ),
-            (
-                "classDef lowPriority "
-                "stroke:#64748b,"
-                "stroke-width:1px"
-            ),
-            (
-                "classDef empty "
-                "fill:#f8fafc,"
-                "stroke:#94a3b8,"
-                "color:#475569"
-            ),
-        ]
-    )
+    [
+        (
+            "classDef todo "
+            "fill:#334155,"
+            "stroke:#64748b,"
+            "stroke-width:2px,"
+            "color:#f8fafc"
+        ),
+        (
+            "classDef inProgress "
+            "fill:#1d4ed8,"
+            "stroke:#60a5fa,"
+            "stroke-width:2px,"
+            "color:#ffffff"
+        ),
+        (
+            "classDef review "
+            "fill:#92400e,"
+            "stroke:#f59e0b,"
+            "stroke-width:2px,"
+            "color:#ffffff"
+        ),
+        (
+            "classDef done "
+            "fill:#166534,"
+            "stroke:#4ade80,"
+            "stroke-width:2px,"
+            "color:#ffffff"
+        ),
+        (
+            "classDef blocked "
+            "stroke:#ef4444,"
+            "stroke-width:4px,"
+            "stroke-dasharray:6 3"
+        ),
+        (
+            "classDef highPriority "
+            "stroke:#ef4444,"
+            "stroke-width:3px"
+        ),
+        (
+            "classDef mediumPriority "
+            "stroke:#f59e0b,"
+            "stroke-width:2px"
+        ),
+        (
+            "classDef lowPriority "
+            "stroke:#64748b,"
+            "stroke-width:1px"
+        ),
+        (
+            "classDef empty "
+            "fill:#1e293b,"
+            "stroke:#64748b,"
+            "color:#cbd5e1"
+        ),
+    ]
+)
 
     return "\n".join(lines)
