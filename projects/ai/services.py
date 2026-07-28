@@ -222,7 +222,44 @@ Tasks must:
 - be achievable as individual pieces of work
 - avoid combining several major activities into one task
 - reflect the roadmap and project requirements
+For every task return:
 
+- title: a short, actionable task title
+- description: practical details explaining the task
+- priority: exactly 1, 2, or 3
+- status
+TASK DEPENDENCY RULES
+
+dependency_indexes must contain the 1-based positions of tasks that must
+be completed before the current task can begin.
+
+Example:
+
+Task 1: Define requirements
+dependency_indexes: []
+
+Task 2: Create wireframes
+dependency_indexes: [1]
+
+Task 3: Choose the technology stack
+dependency_indexes: [1]
+
+Task 4: Build the application
+dependency_indexes: [2, 3]
+
+Rules:
+
+- Use 1-based task positions, not database IDs.
+- A task may depend only on tasks appearing before it.
+- Never make a task depend on itself.
+- Never reference a task position that does not exist.
+- Avoid circular dependencies.
+- Use only direct dependencies.
+- Do not make every task depend on the immediately previous task.
+- Create parallel branches wherever work can happen independently.
+- Most tasks should have zero to two direct dependencies.
+- Final testing or release tasks may depend on multiple implementation
+  tasks.
 IMPORTANT LATENCY REQUIREMENTS
 
 Your goal is to produce a useful FIRST workspace as quickly as possible.
@@ -260,6 +297,9 @@ class GeneratedTask(BaseModel):
     priority: int
     status: TaskStatus = "todo"
 
+    # References other generated tasks by their
+    # 1-based position in the returned task list.
+    dependency_indexes: list[int] = []
 class GeneratedWorkspace(BaseModel):
     project_name: str
     sections: list[WorkspaceSection]

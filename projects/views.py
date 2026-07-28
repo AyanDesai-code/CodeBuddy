@@ -776,6 +776,7 @@ def generate_workspace(request, pk):
                 }
 
                 generated_tasks = []
+                dependency_indexes_by_order = {}
 
                 for index, generated_task in enumerate(
                     generated.tasks,
@@ -802,24 +803,65 @@ def generate_workspace(request, pk):
                     if status not in valid_statuses:
                         status = Task.Status.TODO
 
-                    generated_tasks.append(
-                        Task(
-                            project=project,
-                            title=title,
-                            description=description,
-                            priority=(
-                                normalize_task_priority(
-                                    generated_task.priority
-                                )
-                            ),
-                            status=status,
-                            completed=(
-                                status
-                                == Task.Status.DONE
-                            ),
-                            order=index,
-                        )
+                    task = Task(
+                        project=project,
+                        title=title,
+                        description=description,
+                        priority=(
+                            normalize_task_priority(
+                                generated_task.priority
+                            )
+                        ),
+                        status=status,
+                        completed=(
+                            status == Task.Status.DONE
+                        ),
+                        order=index,
                     )
+
+                    generated_tasks.append(
+                        task
+                    )
+
+                    raw_dependency_indexes = (
+                        getattr(
+                            generated_task,
+                            "dependency_indexes",
+                            [],
+                        )
+                        or []
+                    )
+
+                    valid_dependency_indexes = []
+
+                    for dependency_index in (
+                        raw_dependency_indexes
+                    ):
+                        if not isinstance(
+                            dependency_index,
+                            int,
+                        ):
+                            continue
+
+                        if dependency_index < 1:
+                            continue
+
+                        if dependency_index >= index:
+                            continue
+
+                        if (
+                            dependency_index
+                            in valid_dependency_indexes
+                        ):
+                            continue
+
+                        valid_dependency_indexes.append(
+                            dependency_index
+                        )
+
+                    dependency_indexes_by_order[
+                        index
+                    ] = valid_dependency_indexes
 
                 if not generated_tasks:
                     raise ValueError(
@@ -831,10 +873,64 @@ def generate_workspace(request, pk):
                     generated_tasks
                 )
 
+                created_tasks = list(
+                    project.tasks.order_by(
+                        "order",
+                        "pk",
+                    )
+                )
+
+                tasks_by_order = {
+                    task.order: task
+                    for task in created_tasks
+                }
+
+                dependency_count = 0
+
+                for (
+                    task_order,
+                    dependency_indexes,
+                ) in (
+                    dependency_indexes_by_order
+                    .items()
+                ):
+                    task = tasks_by_order.get(
+                        task_order
+                    )
+
+                    if task is None:
+                        continue
+
+                    dependencies = [
+                        tasks_by_order[
+                            dependency_index
+                        ]
+                        for dependency_index
+                        in dependency_indexes
+                        if (
+                            dependency_index
+                            in tasks_by_order
+                        )
+                    ]
+
+                    if not dependencies:
+                        continue
+
+                    task.dependencies.add(
+                        *dependencies
+                    )
+
+                    dependency_count += len(
+                        dependencies
+                    )
+
                 print(
                     "7. Created "
-                    f"{len(generated_tasks)} tasks."
+                    f"{len(generated_tasks)} tasks "
+                    f"with {dependency_count} "
+                    "dependencies."
                 )
+
             else:
                 print(
                     "7. Existing tasks preserved."
@@ -884,6 +980,15 @@ def generate_workspace(request, pk):
 
             task_count = project.tasks.count()
 
+            dependency_count = (
+                Task.dependencies.through.objects
+                .filter(
+                    from_task__project=project,
+                    to_task__project=project,
+                )
+                .count()
+            )
+
             record_project_event(
                 project=project,
                 event_type=(
@@ -894,14 +999,19 @@ def generate_workspace(request, pk):
                 description=(
                     f"Generated "
                     f"{len(sections_by_type)} "
-                    "workspace sections and "
-                    f"{task_count} tasks."
+                    "workspace sections, "
+                    f"{task_count} tasks, and "
+                    f"{dependency_count} task "
+                    "dependencies."
                 ),
                 metadata={
                     "section_count": (
                         len(sections_by_type)
                     ),
                     "task_count": task_count,
+                    "dependency_count": (
+                        dependency_count
+                    ),
                 },
             )
 
@@ -927,11 +1037,6 @@ def generate_workspace(request, pk):
             ),
         )
 
-        return redirect(
-            "workspace",
-            pk=project.pk,
-        )
-
     except Exception:
         print("\n" + "=" * 80)
         print("WORKSPACE GENERATION FAILED")
@@ -950,6 +1055,11 @@ def generate_workspace(request, pk):
             "project_setup",
             pk=project.pk,
         )
+
+    return redirect(
+        "workspace",
+        project_pk=project.pk,
+    )
 @login_required
 def workspace(request, project_pk):
     project = get_project_for_user(
