@@ -53,7 +53,9 @@ from .permissions import (
     user_is_project_owner,
 )
 import traceback
+from django.core.exceptions import PermissionDenied
 
+User = get_user_model()
 def record_project_event(
     *,
     project,
@@ -5096,12 +5098,6 @@ def invite_project_member(
         user=request.user,
     )
 
-    if not user_is_project_owner(
-        project=project,
-        user=request.user,
-    ):
-        raise PermissionDenied
-
     username = request.POST.get(
         "username",
         "",
@@ -5112,6 +5108,17 @@ def invite_project_member(
         ProjectMembership.Role.VIEWER,
     )
 
+    if not username:
+        messages.error(
+            request,
+            "Enter a username.",
+        )
+
+        return redirect(
+            "project_members",
+            project_pk=project.pk,
+        )
+
     allowed_roles = {
         ProjectMembership.Role.EDITOR,
         ProjectMembership.Role.VIEWER,
@@ -5120,11 +5127,15 @@ def invite_project_member(
     if role not in allowed_roles:
         role = ProjectMembership.Role.VIEWER
 
-    invited_user = User.objects.filter(
-        username__iexact=username,
-    ).first()
+    invited_user = (
+        User.objects
+        .filter(
+            username__iexact=username,
+        )
+        .first()
+    )
 
-    if not invited_user:
+    if invited_user is None:
         messages.error(
             request,
             "No account exists with that username.",
@@ -5159,14 +5170,37 @@ def invite_project_member(
     if created:
         messages.success(
             request,
-            f"{invited_user.username} was added.",
+            (
+                f"{invited_user.username} "
+                "was added to the project."
+            ),
         )
+
+        record_project_event(
+            project=project,
+            event_type=(
+                ProjectEvent.EventType
+                .MEMBER_ADDED
+            ),
+            title="Project member added",
+            description=(
+                f"{invited_user.username} "
+                f"was added as {membership.get_role_display()}."
+            ),
+            metadata={
+                "membership_id": membership.pk,
+                "user_id": invited_user.pk,
+                "username": invited_user.username,
+                "role": membership.role,
+            },
+        )
+
     else:
         messages.success(
             request,
             (
-                f"{invited_user.username}'s role "
-                "was updated."
+                f"{invited_user.username}'s "
+                "role was updated."
             ),
         )
 
