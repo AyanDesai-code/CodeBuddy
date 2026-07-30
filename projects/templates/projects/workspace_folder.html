@@ -265,6 +265,7 @@
         </div>
     {% endif %}
 {% endif %}
+
 <div class="content">
 
     {% if folder.folder_type == "tasks" %}
@@ -280,117 +281,6 @@
         {% include "projects/includes/ai_text_section.html" %}
     {% endif %}
 
-</div>
-<div class="content">
-    {% if folder.folder_type == "tasks" %}
-        <div class="progress-container">
-            <h2>Project Progress</h2>
-
-            <div class="progress-track">
-                <div
-                    class="progress-fill"
-                    style="width: {{ progress }}%;"
-                ></div>
-            </div>
-
-            <p class="progress-text">
-                {{ completed_tasks }} of
-                {{ total_tasks }} tasks complete
-                ({{ progress }}%)
-            </p>
-        </div>
-
-        {% for task in tasks %}
-            <div class="task-card">
-                <div class="task-row">
-                    {% if can_edit %}
-                        <form
-                            method="POST"
-                            action="{% url 'toggle_task' project.pk task.pk %}"
-                        >
-                            {% csrf_token %}
-
-                            <button
-                                type="submit"
-                                class="toggle-button"
-                                aria-label="Toggle task completion"
-                            >
-                                {% if task.completed %}
-                                    ☑
-                                {% else %}
-                                    ☐
-                                {% endif %}
-                            </button>
-                        </form>
-                    {% else %}
-                        <span
-                            class="toggle-button"
-                            aria-hidden="true"
-                        >
-                            {% if task.completed %}
-                                ☑
-                            {% else %}
-                                ☐
-                            {% endif %}
-                        </span>
-                    {% endif %}
-
-                    <div class="task-main">
-                        <h3 class="task-title">
-                            {% if task.completed %}
-                                <s>{{ task.title }}</s>
-                            {% else %}
-                                {{ task.title }}
-                            {% endif %}
-                        </h3>
-
-                        {% if task.description %}
-                            <p>
-                                {{ task.description }}
-                            </p>
-                        {% endif %}
-
-                        <p>
-                            <strong>Priority:</strong>
-                            {{ task.get_priority_display }}
-                        </p>
-
-                        {% if can_edit %}
-                            <div class="task-controls">
-                                <a
-                                    href="{% url 'edit_task' project.pk task.pk %}"
-                                >
-                                    ✏ Edit
-                                </a>
-
-                                <form
-                                    method="POST"
-                                    action="{% url 'delete_task' project.pk task.pk %}"
-                                >
-                                    {% csrf_token %}
-
-                                    <button
-                                        type="submit"
-                                        onclick="
-                                            return confirm(
-                                                'Delete this task?'
-                                            );
-                                        "
-                                    >
-                                        🗑 Delete
-                                    </button>
-                                </form>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        {% empty %}
-            <p>No tasks yet.</p>
-        {% endfor %}
-    {% else %}
-        {{ folder.description|linebreaks }}
-    {% endif %}
 </div>
 {% endblock %}
 
