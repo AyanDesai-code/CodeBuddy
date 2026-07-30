@@ -388,6 +388,57 @@
         },
     });
 </script>
+{% if folder.folder_type == "budget" and budget_chart_data %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    const budgetData = JSON.parse(
+        document.getElementById(
+            "budget-chart-data"
+        ).textContent
+    );
+
+    const canvas = document.getElementById(
+        "budget-chart"
+    );
+
+    new Chart(canvas, {
+        type: "bar",
+        data: {
+            labels: budgetData.map(
+                item => item.category
+            ),
+            datasets: [
+                {
+                    label: "Estimated cost",
+                    data: budgetData.map(
+                        item => item.amount
+                    ),
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false,
+                },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback(value) {
+                            return "$" + value;
+                        },
+                    },
+                },
+            },
+        },
+    });
+</script>
+{% endif %}
 {% endblock %}
 </body>
 </html>

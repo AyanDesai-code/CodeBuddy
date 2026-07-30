@@ -1,0 +1,9 @@
+<section class="ai-text-section">
+    {% if folder.description %}
+        {{ folder.description|linebreaks }}
+    {% else %}
+        <div class="empty-state">
+            This section has no generated content yet.
+        </div>
+    {% endif %}
+</section>

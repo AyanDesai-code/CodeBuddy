@@ -196,6 +196,7 @@
 {% endblock %}
 
 {% block content %}
+
 <div class="toolbar">
     <a href="{% url 'workspace' project.pk %}">
         ← Back to Workspace
@@ -264,7 +265,22 @@
         </div>
     {% endif %}
 {% endif %}
+<div class="content">
 
+    {% if folder.folder_type == "tasks" %}
+        {% include "projects/includes/task_section.html" %}
+
+    {% elif folder.folder_type == "budget" %}
+        {% include "projects/includes/budget_section.html" %}
+
+    {% elif folder.folder_type == "learning" or folder.folder_type == "documentation" or folder.folder_type == "resources" %}
+        {% include "projects/includes/resource_section.html" %}
+
+    {% else %}
+        {% include "projects/includes/ai_text_section.html" %}
+    {% endif %}
+
+</div>
 <div class="content">
     {% if folder.folder_type == "tasks" %}
         <div class="progress-container">

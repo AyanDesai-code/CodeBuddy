@@ -1,0 +1,55 @@
+<section class="resource-section">
+    {% if folder.description %}
+        <div class="section-introduction">
+            {{ folder.description|linebreaks }}
+        </div>
+    {% endif %}
+
+    <div class="resource-grid">
+        {% for resource in resources %}
+            <article class="resource-card">
+                <div class="resource-header">
+                    <h3>
+                        <a
+                            href="{{ resource.url }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            {{ resource.title }}
+                            ↗
+                        </a>
+                    </h3>
+
+                    {% if resource.is_official %}
+                        <span class="official-badge">
+                            Official
+                        </span>
+                    {% endif %}
+                </div>
+
+                {% if resource.description %}
+                    <p>
+                        {{ resource.description }}
+                    </p>
+                {% endif %}
+
+                <div class="resource-meta">
+                    <span>
+                        {{ resource.get_resource_type_display }}
+                    </span>
+
+                    {% if resource.difficulty %}
+                        <span>
+                            {{ resource.difficulty|title }}
+                        </span>
+                    {% endif %}
+                </div>
+            </article>
+        {% empty %}
+            <div class="empty-state">
+                No structured resources have been
+                generated yet.
+            </div>
+        {% endfor %}
+    </div>
+</section>

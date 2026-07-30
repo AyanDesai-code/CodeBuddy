@@ -1,0 +1,204 @@
+<div class="progress-container">
+    <h2>Project Progress</h2>
+
+    <div class="progress-track">
+        <div
+            class="progress-fill"
+            style="width: {{ progress }}%;"
+        ></div>
+    </div>
+
+    <p class="progress-text">
+        {{ completed_tasks }} of
+        {{ total_tasks }} tasks complete
+        ({{ progress }}%)
+    </p>
+</div>
+
+{% for task in tasks %}
+    <article class="task-card">
+        <div class="task-row">
+
+            {% if can_edit %}
+                <form
+                    method="POST"
+                    action="{% url 'toggle_task' project.pk task.pk %}"
+                >
+                    {% csrf_token %}
+
+                    <button
+                        type="submit"
+                        class="toggle-button"
+                        aria-label="
+                            {% if task.completed %}
+                                Reopen {{ task.title }}
+                            {% else %}
+                                Complete {{ task.title }}
+                            {% endif %}
+                        "
+                        title="
+                            {% if task.completed %}
+                                Mark as incomplete
+                            {% else %}
+                                Mark as complete
+                            {% endif %}
+                        "
+                    >
+                        {% if task.completed %}
+                            ☑
+                        {% else %}
+                            ☐
+                        {% endif %}
+                    </button>
+                </form>
+            {% else %}
+                <span
+                    class="toggle-button"
+                    aria-hidden="true"
+                >
+                    {% if task.completed %}
+                        ☑
+                    {% else %}
+                        ☐
+                    {% endif %}
+                </span>
+            {% endif %}
+
+            <div class="task-main">
+                <h3 class="task-title">
+                    {% if task.completed %}
+                        <s>{{ task.title }}</s>
+                    {% else %}
+                        {{ task.title }}
+                    {% endif %}
+                </h3>
+
+                {% if task.description %}
+                    <p class="task-description">
+                        {{ task.description }}
+                    </p>
+                {% endif %}
+
+                <p>
+                    <strong>Status:</strong>
+                    {{ task.get_status_display }}
+                </p>
+
+                <p>
+                    <strong>Priority:</strong>
+                    {{ task.get_priority_display }}
+                </p>
+
+                {% if task.start_date or task.due_date %}
+                    <p>
+                        {% if task.start_date %}
+                            <strong>Start:</strong>
+                            {{ task.start_date|date:"F j, Y" }}
+                        {% endif %}
+
+                        {% if task.start_date and task.due_date %}
+                            ·
+                        {% endif %}
+
+                        {% if task.due_date %}
+                            <strong>Due:</strong>
+                            {{ task.due_date|date:"F j, Y" }}
+                        {% endif %}
+                    </p>
+                {% endif %}
+
+                {% if task.estimated_hours %}
+                    <p>
+                        <strong>Estimated time:</strong>
+                        {{ task.estimated_hours }}
+                        hour{{ task.estimated_hours|pluralize }}
+                    </p>
+                {% endif %}
+
+                {% if task.milestone %}
+                    <p>
+                        <strong>Milestone:</strong>
+                        {{ task.milestone.name }}
+                    </p>
+                {% endif %}
+
+                {% if task.dependencies.exists %}
+                    <div class="dependency-box">
+                        <strong>Depends on:</strong>
+
+                        <ul>
+                            {% for dependency in task.dependencies.all %}
+                                <li>
+                                    {{ dependency.title }}
+
+                                    {% if dependency.status == "done" %}
+                                        — complete
+                                    {% else %}
+                                        — {{ dependency.get_status_display }}
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                {% if task.is_blocked %}
+                    <p class="task-warning">
+                        This task is blocked by unfinished dependencies.
+                    </p>
+                {% endif %}
+
+                {% if task.is_overdue %}
+                    <p class="task-warning">
+                        This task is overdue.
+                    </p>
+                {% endif %}
+
+                {% if can_edit %}
+                    <div class="task-controls">
+                        <a
+                            href="{% url 'edit_task' project.pk task.pk %}"
+                        >
+                            ✏ Edit
+                        </a>
+
+                        <a
+                            href="{% url 'edit_task_dependencies' project.pk task.pk %}"
+                        >
+                            Dependencies
+                        </a>
+
+                        <form
+                            method="POST"
+                            action="{% url 'delete_task' project.pk task.pk %}"
+                        >
+                            {% csrf_token %}
+
+                            <button
+                                type="submit"
+                                onclick="
+                                    return confirm(
+                                        'Delete this task?'
+                                    );
+                                "
+                            >
+                                🗑 Delete
+                            </button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </article>
+
+{% empty %}
+    <div class="empty-state">
+        <p>No tasks yet.</p>
+
+        {% if can_edit %}
+            <a href="{% url 'new_task' project.pk %}">
+                Create the first task
+            </a>
+        {% endif %}
+    </div>
+{% endfor %}

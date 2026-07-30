@@ -1,0 +1,102 @@
+<section class="budget-section">
+    <div class="budget-summary">
+        <article class="budget-total-card">
+            <span>Estimated one-time cost</span>
+            <strong>
+                ${{ one_time_total|floatformat:2 }}
+            </strong>
+        </article>
+
+        <article class="budget-total-card">
+            <span>Estimated monthly cost</span>
+            <strong>
+                ${{ monthly_total|floatformat:2 }}
+            </strong>
+        </article>
+    </div>
+
+    {% if budget_chart_data %}
+        {{ budget_chart_data|json_script:"budget-chart-data" }}
+
+        <div class="budget-chart-card">
+            <h2>Budget by Category</h2>
+
+            <canvas id="budget-chart"></canvas>
+        </div>
+    {% endif %}
+
+    <div class="budget-table-wrapper">
+        <table class="budget-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Category</th>
+                    <th>Quantity</th>
+                    <th>Unit cost</th>
+                    <th>Total</th>
+                    <th>Billing</th>
+                    <th>Source</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for item in budget_items %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.name }}</strong>
+
+                            {% if item.description %}
+                                <small>
+                                    {{ item.description }}
+                                </small>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {{ item.get_category_display }}
+                        </td>
+
+                        <td>{{ item.quantity }}</td>
+
+                        <td>
+                            ${{ item.unit_cost|floatformat:2 }}
+                        </td>
+
+                        <td>
+                            ${{ item.total_cost|floatformat:2 }}
+                        </td>
+
+                        <td>
+                            {% if item.is_recurring %}
+                                Monthly
+                            {% else %}
+                                One-time
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if item.source_url %}
+                                <a
+                                    href="{{ item.source_url }}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    View ↗
+                                </a>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7">
+                            No budget items have been
+                            generated yet.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
