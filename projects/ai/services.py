@@ -1,11 +1,64 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from openai import OpenAI
 from typing import Literal
 from datetime import date
 import time
+
 client = OpenAI()
 
 
+class GeneratedBudgetItem(BaseModel):
+    name: str
+    description: str = ""
+
+    category: Literal[
+    "hardware",
+    "electronics",
+    "mechanical",
+    "software",
+    "api",
+    "hosting",
+    "design",
+    "marketing",
+    "labor",
+    "other",
+] = "other"
+
+    requirement_level: Literal[
+        "required",
+        "recommended",
+        "optional",
+    ] = "required"
+
+    quantity: int = Field(
+        default=1,
+        ge=1,
+    )
+
+    unit_cost: float = Field(
+        default=0,
+        ge=0,
+    )
+
+    is_recurring: bool = False
+    is_physical_part: bool = False
+
+    source_name: str = ""
+    source_url: str = ""
+
+    alternative_notes: str = ""
+
+    confidence: int = Field(
+        default=3,
+        ge=1,
+        le=5,
+    )
+class GeneratedProjectBudget(BaseModel):
+    summary: str = ""
+
+    budget_items: list[
+        GeneratedBudgetItem
+    ] = Field(default_factory=list)
 class ProjectInterviewReply(BaseModel):
     message: str
     ready: bool
@@ -113,6 +166,7 @@ Return:
 
 - a clear project name
 - content for every requested workspace section
+- a structured task list
 
 The workspace should help a beginner move from idea to completion.
 
@@ -145,8 +199,8 @@ Create ordered phases from research and planning through prototyping,
 testing, refinement, and completion.
 
 tasks:
-Create a detailed checklist ordered by what should be done first.
-Mention dependencies where useful.
+Summarize the major work that must be completed. The detailed task list
+is returned separately in the tasks field.
 
 resources:
 Recommend initial hardware parts, materials, software, libraries,
@@ -154,8 +208,9 @@ frameworks, APIs, services, and tools. Only include categories relevant
 to the project. Clearly label recommendations requiring verification.
 
 budget:
-Provide an editable preliminary budget. Separate one-time, recurring,
-optional, and contingency costs. Clearly label estimates.
+Provide a concise preliminary budget summary. Mention likely one-time,
+recurring, optional, and contingency costs. Clearly label estimates.
+Do not attempt to return structured budget records in this section.
 
 learning:
 Recommend what the user needs to learn and which official documentation
@@ -171,6 +226,7 @@ criteria.
 
 Do not claim uncertain prices, compatibility, or technical facts as
 guaranteed. Mark estimates and assumptions clearly.
+
 You MUST return exactly one section for every required folder type.
 
 Every folder_type must exactly match one of:
@@ -187,16 +243,34 @@ testing
 
 Do not omit any section.
 
-Also generate a structured task list.
+TASK REQUIREMENTS
+
+Generate between 8 and 10 useful tasks.
 
 For every task return:
 
-- title: a short, actionable task title
-- description: practical details explaining the task
-- priority: exactly 1, 2, or 3
--status
+- title
+- description
+- priority
+- status
+- dependency_indexes
 
-status must be exactly one of:
+Task titles must:
+
+- be specific to this project
+- begin with an action verb
+- represent one clear piece of work
+- be ordered from earliest to latest
+
+Keep every task description under 25 words.
+
+Priority must be exactly:
+
+1 = Low
+2 = Medium
+3 = High
+
+Status must be exactly one of:
 
 todo
 in_progress
@@ -206,28 +280,6 @@ done
 New tasks should normally use "todo" unless the project context clearly
 indicates the work is already underway or completed.
 
-Priority meanings:
-
-1 = Low
-2 = Medium
-3 = High
-
-Generate approximately 8 to 15 useful tasks.
-
-Tasks must:
-
-- be specific to this project
-- be ordered from earliest to latest
-- begin with an action verb
-- be achievable as individual pieces of work
-- avoid combining several major activities into one task
-- reflect the roadmap and project requirements
-For every task return:
-
-- title: a short, actionable task title
-- description: practical details explaining the task
-- priority: exactly 1, 2, or 3
-- status
 TASK DEPENDENCY RULES
 
 dependency_indexes must contain the 1-based positions of tasks that must
@@ -256,41 +308,46 @@ Rules:
 - Avoid circular dependencies.
 - Use only direct dependencies.
 - Do not make every task depend on the immediately previous task.
-- Create parallel branches wherever work can happen independently.
+- Create parallel branches where work can happen independently.
 - Most tasks should have zero to two direct dependencies.
 - Final testing or release tasks may depend on multiple implementation
   tasks.
 
 IMPORTANT LATENCY REQUIREMENTS
 
-Your goal is to produce a useful FIRST workspace as quickly as possible.
+Your goal is to produce a useful first workspace quickly.
 
-Do NOT generate an exhaustive project plan.
+Do not generate an exhaustive project plan.
 
 Generate only enough information for the user to immediately begin work.
 
-Limit every workspace section to approximately 75–150 words.
+Limit every workspace section to approximately 75 to 150 words.
 
 Generate exactly one section for each required folder type.
 
-Generate between 8 and 10 tasks.
-
-Keep every task description under 25 words.
-
 Do not repeat information across sections.
 
-Do not generate large explanations.
-
-Do not generate long paragraphs.
+Do not generate large explanations or long paragraphs.
 
 Prefer bullet lists whenever possible.
 
-Assume additional details can be generated later using BuilderOS tools.
+Assume additional detail can be generated later using BuilderOS tools.
 
 Optimize for speed while remaining useful.
 """
-class WorkspaceSection(BaseModel):
-    folder_type: str
+class GeneratedSection(BaseModel):
+    folder_type: Literal[
+        "overview",
+        "requirements",
+        "roadmap",
+        "tasks",
+        "resources",
+        "budget",
+        "learning",
+        "documentation",
+        "testing",
+    ]
+
     content: str
 class GeneratedTask(BaseModel):
     title: str
@@ -300,59 +357,261 @@ class GeneratedTask(BaseModel):
 
     # References other generated tasks by their
     # 1-based position in the returned task list.
-    dependency_indexes: list[int] = []
-class GeneratedWorkspace(BaseModel):
-    project_name: str
-    sections: list[WorkspaceSection]
-    tasks: list[GeneratedTask]
+    dependency_indexes: list[int] = Field(
+        default_factory=list
+    )
 import time
 
+from pydantic import BaseModel
 
-def generate_workspace_content(
-    project,
-) -> GeneratedWorkspace:
-    messages = list(
-        project.messages
-        .order_by("-created_at")[:12]
-    )
 
+class GeneratedWorkspace(BaseModel):
+    project_name: str
+    sections: list[GeneratedSection]
+    tasks: list[GeneratedTask]
+
+
+def generate_workspace_content(project) -> GeneratedWorkspace:
     conversation = build_workspace_generation_input(project)
 
     started_at = time.monotonic()
-    print("Calling OpenAI...")
+
+    try:
+        print("Calling OpenAI...")
+
+        response = client.responses.parse(
+            model="gpt-5-mini",
+            reasoning={
+                "effort": "minimal",
+            },
+            instructions=WORKSPACE_PROMPT,
+            input=conversation,
+            text_format=GeneratedWorkspace,
+        )
+
+        print("OpenAI finished.")
+
+        generated_workspace = response.output_parsed
+
+        if generated_workspace is None:
+            print("Raw output:")
+            print(response.output)
+
+            raise ValueError(
+                "Workspace generation returned no parsed output."
+            )
+
+        elapsed = time.monotonic() - started_at
+
+        print("Parsed successfully.")
+        print(
+            "WORKSPACE GENERATION TIME: "
+            f"{elapsed:.2f} seconds"
+        )
+
+        return generated_workspace
+
+    except Exception:
+        elapsed = time.monotonic() - started_at
+
+        print(
+            "WORKSPACE GENERATION FAILED AFTER: "
+            f"{elapsed:.2f} seconds"
+        )
+
+   
+BUDGET_PROMPT = """
+You are BuilderOS's project budget and parts-list generator.
+
+Using the project discovery conversation and current workspace, generate
+a realistic structured budget and parts list.
+
+Return:
+
+- summary
+- budget_items
+
+The budget_items list must contain the meaningful expenses needed to
+build, test, operate, and launch the project.
+
+For hardware or mixed projects, consider:
+
+- electronics
+- mechanical components
+- structural materials
+- fasteners
+- wires
+- connectors
+- adapters
+- power supplies
+- batteries
+- development equipment
+- testing equipment
+- useful spare parts
+
+For software or mixed projects, consider:
+
+- hosting
+- databases
+- APIs
+- domains
+- software subscriptions
+- design tools
+- testing services
+- deployment services
+
+For each budget item return:
+
+- name
+- description
+- category
+- requirement_level
+- quantity
+- unit_cost
+- is_recurring
+- is_physical_part
+- source_name
+- source_url
+- alternative_notes
+- confidence
+
+Allowed category values:
+
+hardware
+electronics
+mechanical
+software
+api
+hosting
+design
+marketing
+labor
+other
+
+requirement_level must be exactly one of:
+
+required
+recommended
+optional
+
+confidence must be an integer from 1 through 5.
+
+Rules:
+
+- Do not create zero-cost placeholder items.
+- Use realistic estimated costs in USD.
+- Do not claim prices are live or exact.
+- Include source URLs only when reasonably confident they are valid.
+- Use an empty string when no reliable URL is available.
+- Put required items before recommended and optional items.
+- Separate one-time and recurring costs correctly.
+- Include only categories relevant to this project.
+- Ensure suggested physical parts are mutually compatible.
+- Explain cheaper or compatible alternatives when useful.
+- Return at least one usable budget item.
+"""
+def generate_project_budget(
+    project,
+) -> GeneratedProjectBudget:
+    discovery_text = build_compact_discovery_text(
+        project
+    )
+
+    workspace_text = build_compact_workspace_text(
+        project,
+        section_types={
+            "overview",
+            "requirements",
+            "roadmap",
+            "resources",
+            "budget",
+        },
+        content_limit=1600,
+    )
+
+    project_state = getattr(
+        project,
+        "state",
+        None,
+    )
+
+    canonical_facts = (
+        project_state.facts
+        if project_state is not None
+        else {}
+    )
+
+    generation_input = f"""
+PROJECT NAME:
+
+{project.name}
+
+
+PROJECT DISCOVERY:
+
+{discovery_text}
+
+
+CANONICAL PROJECT FACTS:
+
+{canonical_facts}
+
+
+CURRENT WORKSPACE:
+
+{workspace_text}
+"""
+
+    started_at = time.monotonic()
+
+    print("Calling OpenAI for project budget...")
+
     response = client.responses.parse(
         model="gpt-5-mini",
         reasoning={
             "effort": "minimal",
         },
-        instructions=WORKSPACE_PROMPT,
-        input=conversation,
-        text_format=GeneratedWorkspace,
+        instructions=BUDGET_PROMPT,
+        input=generation_input,
+        text_format=GeneratedProjectBudget,
     )
-    print("OpenAI finished.")
-    print(response)
-    if response.output_parsed is None:
-        print(response.output)
-        raise ValueError(
-            "No parsed output."
-        )
 
-    print("Parsed successfully.")
-    elapsed = time.monotonic() - started_at
+    elapsed = (
+        time.monotonic()
+        - started_at
+    )
 
     print(
-        "WORKSPACE GENERATION TIME: "
+        "BUDGET GENERATION TIME: "
         f"{elapsed:.2f} seconds"
     )
 
-    if response.output_parsed is None:
+    result = response.output_parsed
+
+    if result is None:
+        print(response.output)
+
         raise ValueError(
-            "Workspace generation returned no parsed output."
+            "Budget generation returned "
+            "no parsed output."
         )
 
-    return response.output_parsed
+    if not result.budget_items:
+        raise ValueError(
+            "Budget generation returned "
+            "no budget items."
+        )
+
+    print(
+        "Generated "
+        f"{len(result.budget_items)} "
+        "budget items."
+    )
+
+    return result
 class RegeneratedSection(BaseModel):
     content: str
+
 SECTION_REGENERATION_PROMPT = """
 You are BuilderOS, an AI project-planning assistant.
 
@@ -1844,45 +2103,15 @@ CURRENT TASKS:
         )
 
     return schedule
+
+
 def build_workspace_generation_input(project):
-    messages = list(
-        project.messages.order_by("created_at")
-    )
-
-    if not messages:
-        return []
-
-    first_user_message = next(
-        (
-            message
-            for message in messages
-            if message.role == "user"
-        ),
-        None,
-    )
-
-    final_assistant_message = next(
-        (
-            message
-            for message in reversed(messages)
-            if message.role == "assistant"
-        ),
-        None,
-    )
-
-    selected_messages = [
-        message
-        for message in [
-            first_user_message,
-            final_assistant_message,
-        ]
-        if message is not None
-    ]
-
     return [
         {
             "role": message.role,
             "content": message.content,
         }
-        for message in selected_messages
+        for message in project.messages.order_by(
+            "created_at"
+        )
     ]

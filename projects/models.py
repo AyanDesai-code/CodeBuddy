@@ -683,6 +683,8 @@ class ProjectResource(models.Model):
 class BudgetItem(models.Model):
     class Category(models.TextChoices):
         HARDWARE = "hardware", "Hardware"
+        ELECTRONICS = "electronics", "Electronics"
+        MECHANICAL = "mechanical", "Mechanical"
         SOFTWARE = "software", "Software"
         API = "api", "API"
         HOSTING = "hosting", "Hosting"
@@ -691,19 +693,25 @@ class BudgetItem(models.Model):
         LABOR = "labor", "Labor"
         OTHER = "other", "Other"
 
+    class RequirementLevel(models.TextChoices):
+        REQUIRED = "required", "Required"
+        RECOMMENDED = "recommended", "Recommended"
+        OPTIONAL = "optional", "Optional"
+
+    class PurchaseStatus(models.TextChoices):
+        PLANNED = "planned", "Planned"
+        ORDERED = "ordered", "Ordered"
+        PURCHASED = "purchased", "Purchased"
+        SKIPPED = "skipped", "Skipped"
+
     project = models.ForeignKey(
         "Project",
         on_delete=models.CASCADE,
         related_name="budget_items",
     )
 
-    name = models.CharField(
-        max_length=255,
-    )
-
-    description = models.TextField(
-        blank=True,
-    )
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
 
     category = models.CharField(
         max_length=30,
@@ -711,9 +719,19 @@ class BudgetItem(models.Model):
         default=Category.OTHER,
     )
 
-    quantity = models.PositiveIntegerField(
-        default=1,
+    requirement_level = models.CharField(
+        max_length=20,
+        choices=RequirementLevel.choices,
+        default=RequirementLevel.REQUIRED,
     )
+
+    purchase_status = models.CharField(
+        max_length=20,
+        choices=PurchaseStatus.choices,
+        default=PurchaseStatus.PLANNED,
+    )
+
+    quantity = models.PositiveIntegerField(default=1)
 
     unit_cost = models.DecimalField(
         max_digits=12,
@@ -721,17 +739,35 @@ class BudgetItem(models.Model):
         default=Decimal("0.00"),
     )
 
-    is_recurring = models.BooleanField(
-        default=False,
-    )
-
-    source_url = models.URLField(
+    actual_unit_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
         blank=True,
     )
 
-    order = models.PositiveIntegerField(
-        default=0,
+    is_recurring = models.BooleanField(default=False)
+
+    is_physical_part = models.BooleanField(
+        default=False,
     )
+
+    source_name = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    source_url = models.URLField(blank=True)
+
+    alternative_notes = models.TextField(
+        blank=True,
+    )
+
+    confidence = models.PositiveSmallIntegerField(
+        default=3,
+    )
+
+    order = models.PositiveIntegerField(default=0)
 
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -742,17 +778,22 @@ class BudgetItem(models.Model):
     )
 
     class Meta:
-        ordering = [
-            "order",
-            "pk",
-        ]
+        ordering = ["order", "pk"]
 
     @property
-    def total_cost(self):
+    def estimated_total(self):
+        return self.quantity * self.unit_cost
+
+    @property
+    def actual_total(self):
+        if self.actual_unit_cost is None:
+            return None
+
         return (
             self.quantity
-            * self.unit_cost
+            * self.actual_unit_cost
         )
 
     def __str__(self):
         return self.name
+    

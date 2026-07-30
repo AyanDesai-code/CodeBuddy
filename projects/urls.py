@@ -38,4 +38,5 @@ urlpatterns = [
     path("<int:project_pk>/members/",views.project_members,name="project_members",),
     path("<int:project_pk>/members/invite/",views.invite_project_member,name="invite_project_member",),
     path("<int:project_pk>/members/<int:membership_pk>/remove/",views.remove_project_member,name="remove_project_member",),
+    path("<int:project_pk>/budget/regenerate/",views.regenerate_project_budget,name="regenerate_project_budget",),
 ]

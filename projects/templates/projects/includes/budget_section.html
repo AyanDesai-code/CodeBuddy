@@ -1,7 +1,14 @@
 <section class="budget-section">
+    {% if folder.description %}
+        <div class="budget-description">
+            {{ folder.description|linebreaks }}
+        </div>
+    {% endif %}
+
     <div class="budget-summary">
         <article class="budget-total-card">
             <span>Estimated one-time cost</span>
+
             <strong>
                 ${{ one_time_total|floatformat:2 }}
             </strong>
@@ -9,6 +16,7 @@
 
         <article class="budget-total-card">
             <span>Estimated monthly cost</span>
+
             <strong>
                 ${{ monthly_total|floatformat:2 }}
             </strong>
@@ -25,12 +33,36 @@
         </div>
     {% endif %}
 
+    {% if can_edit %}
+        <div class="budget-toolbar">
+            <form
+                method="POST"
+                action="{% url 'regenerate_project_budget' project.pk %}"
+                class="loading-form"
+            >
+                {% csrf_token %}
+
+                <button
+                    type="submit"
+                    data-loading-text="Regenerating Budget..."
+                >
+                    {% if budget_items %}
+                        Regenerate Budget & Parts
+                    {% else %}
+                        Generate Budget & Parts
+                    {% endif %}
+                </button>
+            </form>
+        </div>
+    {% endif %}
+
     <div class="budget-table-wrapper">
         <table class="budget-table">
             <thead>
                 <tr>
                     <th>Item</th>
                     <th>Category</th>
+                    <th>Requirement</th>
                     <th>Quantity</th>
                     <th>Unit cost</th>
                     <th>Total</th>
@@ -43,7 +75,9 @@
                 {% for item in budget_items %}
                     <tr>
                         <td>
-                            <strong>{{ item.name }}</strong>
+                            <strong>
+                                {{ item.name }}
+                            </strong>
 
                             {% if item.description %}
                                 <small>
@@ -56,14 +90,20 @@
                             {{ item.get_category_display }}
                         </td>
 
-                        <td>{{ item.quantity }}</td>
+                        <td>
+                            {{ item.get_requirement_level_display }}
+                        </td>
+
+                        <td>
+                            {{ item.quantity }}
+                        </td>
 
                         <td>
                             ${{ item.unit_cost|floatformat:2 }}
                         </td>
 
                         <td>
-                            ${{ item.total_cost|floatformat:2 }}
+                            ${{ item.estimated_total|floatformat:2 }}
                         </td>
 
                         <td>
@@ -81,7 +121,11 @@
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >
-                                    View ↗
+                                    {% if item.source_name %}
+                                        {{ item.source_name }} ↗
+                                    {% else %}
+                                        View ↗
+                                    {% endif %}
                                 </a>
                             {% else %}
                                 —
@@ -90,7 +134,7 @@
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="7">
+                        <td colspan="8">
                             No budget items have been
                             generated yet.
                         </td>

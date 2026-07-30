@@ -220,7 +220,7 @@
         ← Back to Workspace
     </a>
 
-    {% if can_edit %}
+    {% if can_edit and folder.folder_type != "budget" %}
         <div class="folder-actions">
             <a
                 href="{% url 'edit_workspace_folder' project.pk folder.pk %}"
@@ -288,6 +288,7 @@
 
 <div class="content">
     {% if folder.folder_type == "tasks" %}
+
         <div class="progress-container">
             <h2>Project Progress</h2>
 
@@ -393,10 +394,18 @@
         {% empty %}
             <p>No tasks yet.</p>
         {% endfor %}
+
+    {% elif folder.folder_type == "budget" %}
+
+        {% include "projects/partials/budget_section.html" %}
+
     {% else %}
+
         {{ folder.description|linebreaks }}
+
     {% endif %}
 </div>
+
 {% endblock %}
 
 {% block extra_js %}

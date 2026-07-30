@@ -29,6 +29,7 @@ from .ai.services import (
     generate_workspace_update_plan,
     regenerate_workspace_section,
     review_project,
+    generate_project_budget,
 )
 from .models import (
     Project,
@@ -44,7 +45,8 @@ from .models import (
     WorkspaceFolder,
     WorkspaceMessage,
     BudgetItem,
-    ProjectResource
+    ProjectResource,
+    WorkspaceFolder
 )
 
 from .permissions import (
@@ -90,6 +92,115 @@ def mark_schedule_for_refresh(
             "updated_at",
         ]
     )
+
+def build_budget_items_from_ai(
+    *,
+    project,
+    generated_items,
+):
+    valid_categories = {
+        value
+        for value, _
+        in BudgetItem.Category.choices
+    }
+
+    valid_requirement_levels = {
+        value
+        for value, _
+        in BudgetItem.RequirementLevel.choices
+    }
+
+    budget_items = []
+
+    for order, generated_item in enumerate(
+        generated_items,
+        start=1,
+    ):
+        name = (generated_item.name or "").strip()
+
+        if not name:
+            continue
+
+        category = (
+            generated_item.category or "other"
+        ).strip().lower()
+
+        if category not in valid_categories:
+            category = BudgetItem.Category.OTHER
+
+        requirement_level = (
+            generated_item.requirement_level
+            or "required"
+        ).strip().lower()
+
+        if requirement_level not in valid_requirement_levels:
+            requirement_level = (
+                BudgetItem.RequirementLevel.REQUIRED
+            )
+
+        try:
+            quantity = max(
+                int(generated_item.quantity),
+                1,
+            )
+        except (TypeError, ValueError):
+            quantity = 1
+
+        try:
+            unit_cost = Decimal(
+                str(generated_item.unit_cost)
+            )
+        except (InvalidOperation, TypeError, ValueError):
+            unit_cost = Decimal("0.00")
+
+        if unit_cost < 0:
+            unit_cost = Decimal("0.00")
+
+        try:
+            confidence = int(
+                generated_item.confidence
+            )
+        except (TypeError, ValueError):
+            confidence = 3
+
+        confidence = max(1, min(5, confidence))
+
+        budget_items.append(
+            BudgetItem(
+                project=project,
+                order=order,
+                name=name,
+                description=(
+                    generated_item.description or ""
+                ).strip(),
+                category=category,
+                requirement_level=requirement_level,
+                purchase_status=(
+                    BudgetItem.PurchaseStatus.PLANNED
+                ),
+                quantity=quantity,
+                unit_cost=unit_cost,
+                is_recurring=bool(
+                    generated_item.is_recurring
+                ),
+                is_physical_part=bool(
+                    generated_item.is_physical_part
+                ),
+                source_name=(
+                    generated_item.source_name or ""
+                ).strip(),
+                source_url=(
+                    generated_item.source_url or ""
+                ).strip(),
+                alternative_notes=(
+                    generated_item.alternative_notes
+                    or ""
+                ).strip(),
+                confidence=confidence,
+            )
+        )
+
+    return budget_items
 def build_text_diff(before_text, after_text):
     before_lines = (before_text or "").splitlines()
     after_lines = (after_text or "").splitlines()
@@ -629,19 +740,22 @@ def generate_workspace(request, pk):
 
         print("1. Calling workspace generator.")
 
-        generated = generate_workspace_content(
-            project
+        generated_workspace = (
+            generate_workspace_content(
+                project
+            )
         )
 
         print("2. Workspace generator returned.")
 
-        if generated is None:
+        if generated_workspace is None:
             raise ValueError(
                 "Workspace generation returned None."
             )
 
         project_name = (
-            generated.project_name or ""
+            generated_workspace.project_name
+            or ""
         ).strip()
 
         if not project_name:
@@ -657,27 +771,24 @@ def generate_workspace(request, pk):
 
         sections_by_type = {}
 
-        for section in generated.sections:
+        for section in generated_workspace.sections:
             folder_type = (
-                section.folder_type or ""
+                section.folder_type
+                or ""
             ).strip().lower()
 
             content = (
-                section.content or ""
+                section.content
+                or ""
             ).strip()
 
-            if (
-                folder_type
-                not in required_folder_types
-            ):
+            if folder_type not in required_folder_types:
                 continue
 
             if not content:
                 continue
 
-            sections_by_type[
-                folder_type
-            ] = content
+            sections_by_type[folder_type] = content
 
         print(
             "3. Parsed "
@@ -686,7 +797,7 @@ def generate_workspace(request, pk):
 
         missing_sections = (
             required_folder_types
-            - set(sections_by_type.keys())
+            - set(sections_by_type)
         )
 
         if missing_sections:
@@ -698,20 +809,59 @@ def generate_workspace(request, pk):
                 )
             )
 
-        if not generated.tasks:
+        if not generated_workspace.tasks:
             raise ValueError(
                 "Workspace generation returned "
                 "no tasks."
             )
 
+        print("4. Calling budget generator.")
+
+        generated_budget = (
+            generate_project_budget(
+                project
+            )
+        )
+
+        print("5. Budget generator returned.")
+
+        if generated_budget is None:
+            raise ValueError(
+                "Budget generation returned None."
+            )
+
+        budget_items = build_budget_items_from_ai(
+            project=project,
+            generated_items=(
+                generated_budget.budget_items
+            ),
+        )
+
+        if not budget_items:
+            raise ValueError(
+                "Budget generation returned "
+                "no usable budget items."
+            )
+
+        budget_summary = (
+            generated_budget.summary
+            or ""
+        ).strip()
+
+        if budget_summary:
+            sections_by_type["budget"] = (
+                budget_summary
+            )
+
         with transaction.atomic():
             print(
-                "4. Starting database transaction."
+                "6. Starting database transaction."
             )
 
             existing_folders = {
                 folder.folder_type: folder
-                for folder in project.folders.all()
+                for folder
+                in project.folders.all()
             }
 
             folders_to_create = []
@@ -742,12 +892,12 @@ def generate_workspace(request, pk):
                 )
 
                 print(
-                    "5. Created "
+                    "7. Created "
                     f"{len(folders_to_create)} folders."
                 )
             else:
                 print(
-                    "5. No folders needed creation."
+                    "7. No folders needed creation."
                 )
 
             folders_to_update = list(
@@ -755,24 +905,31 @@ def generate_workspace(request, pk):
             )
 
             for folder in folders_to_update:
-                folder.description = (
-                    sections_by_type[
+                section_content = (
+                    sections_by_type.get(
                         folder.folder_type
-                    ]
+                    )
+                )
+
+                if section_content is None:
+                    continue
+
+                folder.description = (
+                    section_content
                 )
 
             if folders_to_update:
                 WorkspaceFolder.objects.bulk_update(
                     folders_to_update,
-                    [
-                        "description",
-                    ],
+                    ["description"],
                 )
 
             print(
-                "6. Updated "
+                "8. Updated "
                 f"{len(folders_to_update)} folders."
             )
+
+            dependency_count = 0
 
             if not project.tasks.exists():
                 valid_statuses = {
@@ -782,14 +939,16 @@ def generate_workspace(request, pk):
                 }
 
                 generated_tasks = []
+
                 dependency_indexes_by_order = {}
 
                 for index, generated_task in enumerate(
-                    generated.tasks,
+                    generated_workspace.tasks,
                     start=1,
                 ):
                     title = (
-                        generated_task.title or ""
+                        generated_task.title
+                        or ""
                     ).strip()
 
                     if not title:
@@ -809,24 +968,23 @@ def generate_workspace(request, pk):
                     if status not in valid_statuses:
                         status = Task.Status.TODO
 
-                    task = Task(
-                        project=project,
-                        title=title,
-                        description=description,
-                        priority=(
-                            normalize_task_priority(
-                                generated_task.priority
-                            )
-                        ),
-                        status=status,
-                        completed=(
-                            status == Task.Status.DONE
-                        ),
-                        order=index,
-                    )
-
                     generated_tasks.append(
-                        task
+                        Task(
+                            project=project,
+                            title=title,
+                            description=description,
+                            priority=(
+                                normalize_task_priority(
+                                    generated_task.priority
+                                )
+                            ),
+                            status=status,
+                            completed=(
+                                status
+                                == Task.Status.DONE
+                            ),
+                            order=index,
+                        )
                     )
 
                     raw_dependency_indexes = (
@@ -891,8 +1049,6 @@ def generate_workspace(request, pk):
                     for task in created_tasks
                 }
 
-                dependency_count = 0
-
                 for (
                     task_order,
                     dependency_indexes,
@@ -931,16 +1087,37 @@ def generate_workspace(request, pk):
                     )
 
                 print(
-                    "7. Created "
+                    "9. Created "
                     f"{len(generated_tasks)} tasks "
                     f"with {dependency_count} "
                     "dependencies."
                 )
 
             else:
-                print(
-                    "7. Existing tasks preserved."
+                dependency_count = (
+                    Task.dependencies.through.objects
+                    .filter(
+                        from_task__project=project,
+                        to_task__project=project,
+                    )
+                    .count()
                 )
+
+                print(
+                    "9. Existing tasks preserved."
+                )
+
+            project.budget_items.all().delete()
+
+            BudgetItem.objects.bulk_create(
+                budget_items
+            )
+
+            print(
+                "10. Created "
+                f"{len(budget_items)} budget "
+                "and parts-list items."
+            )
 
             project.name = project_name
             project.status = (
@@ -956,7 +1133,7 @@ def generate_workspace(request, pk):
             )
 
             print(
-                "8. Project saved as active."
+                "11. Project saved as active."
             )
 
             ProjectMembership.objects.get_or_create(
@@ -970,7 +1147,7 @@ def generate_workspace(request, pk):
             )
 
             print(
-                "9. Owner membership confirmed."
+                "12. Owner membership confirmed."
             )
 
             ProjectState.objects.get_or_create(
@@ -981,7 +1158,7 @@ def generate_workspace(request, pk):
             )
 
             print(
-                "10. Project state confirmed."
+                "13. Project state confirmed."
             )
 
             task_count = project.tasks.count()
@@ -1006,9 +1183,11 @@ def generate_workspace(request, pk):
                     f"Generated "
                     f"{len(sections_by_type)} "
                     "workspace sections, "
-                    f"{task_count} tasks, and "
+                    f"{task_count} tasks, "
                     f"{dependency_count} task "
-                    "dependencies."
+                    "dependencies, and "
+                    f"{len(budget_items)} budget "
+                    "items."
                 ),
                 metadata={
                     "section_count": (
@@ -1018,11 +1197,14 @@ def generate_workspace(request, pk):
                     "dependency_count": (
                         dependency_count
                     ),
+                    "budget_item_count": (
+                        len(budget_items)
+                    ),
                 },
             )
 
             print(
-                "11. Workspace event recorded."
+                "14. Workspace event recorded."
             )
 
         generation_seconds = (
@@ -1183,30 +1365,66 @@ def workspace_folder(
             folder.folder_type,
         )
 
-        permission_context = project_permission_context(
-            project=project,
-            user=request.user,
+        permission_context = (
+            project_permission_context(
+                project=project,
+                user=request.user,
+            )
         )
 
+        # Default values for every folder type.
         tasks = None
         resources = None
         budget_items = None
+        physical_parts = None
+        recurring_items = None
 
         total_tasks = 0
         completed_tasks = 0
         progress = 0
 
-        one_time_total = Decimal("0.00")
-        monthly_total = Decimal("0.00")
+        estimated_one_time_total = Decimal(
+            "0.00"
+        )
+
+        estimated_monthly_total = Decimal(
+            "0.00"
+        )
+
+        required_total = Decimal("0.00")
+        recommended_total = Decimal("0.00")
+        optional_total = Decimal("0.00")
+
+        physical_parts_total = Decimal(
+            "0.00"
+        )
+
+        actual_spent_total = Decimal(
+            "0.00"
+        )
+
+        budget_variance = Decimal("0.00")
+
+        category_totals = {}
         budget_chart_data = []
 
         if folder.folder_type == "tasks":
-            print("WORKSPACE FOLDER 4: Loading tasks")
+            print(
+                "WORKSPACE FOLDER 4: "
+                "Loading tasks"
+            )
 
-            tasks = project.tasks.order_by(
-                "completed",
-                "order",
-                "pk",
+            tasks = (
+                project.tasks
+                .select_related("milestone")
+                .prefetch_related(
+                    "dependencies",
+                )
+                .order_by(
+                    "completed",
+                    "order",
+                    "pk",
+                )
             )
 
             total_tasks = tasks.count()
@@ -1227,15 +1445,25 @@ def workspace_folder(
             "documentation",
             "resources",
         }:
-            print("WORKSPACE FOLDER 4: Loading resources")
+            print(
+                "WORKSPACE FOLDER 4: "
+                "Loading resources"
+            )
 
-            resources = folder.resources.all().order_by(
-                "order",
-                "pk",
+            resources = (
+                folder.resources
+                .all()
+                .order_by(
+                    "order",
+                    "pk",
+                )
             )
 
         elif folder.folder_type == "budget":
-            print("WORKSPACE FOLDER 4: Loading budget")
+            print(
+                "WORKSPACE FOLDER 4: "
+                "Loading budget"
+            )
 
             budget_items = (
                 project.budget_items
@@ -1246,24 +1474,90 @@ def workspace_folder(
                 )
             )
 
-            category_totals = {}
+            physical_parts = (
+                budget_items.filter(
+                    is_physical_part=True,
+                )
+            )
+
+            recurring_items = (
+                budget_items.filter(
+                    is_recurring=True,
+                )
+            )
 
             for item in budget_items:
-                item_total = item.total_cost
-                category = item.get_category_display()
+                # Uses the upgraded property:
+                # quantity * unit_cost
+                item_total = (
+                    item.estimated_total
+                )
 
-                category_totals[category] = (
+                category_name = (
+                    item.get_category_display()
+                )
+
+                category_totals[
+                    category_name
+                ] = (
                     category_totals.get(
-                        category,
+                        category_name,
                         Decimal("0.00"),
                     )
                     + item_total
                 )
 
                 if item.is_recurring:
-                    monthly_total += item_total
+                    estimated_monthly_total += (
+                        item_total
+                    )
                 else:
-                    one_time_total += item_total
+                    estimated_one_time_total += (
+                        item_total
+                    )
+
+                if (
+                    item.requirement_level
+                    == BudgetItem
+                    .RequirementLevel
+                    .REQUIRED
+                ):
+                    required_total += item_total
+
+                elif (
+                    item.requirement_level
+                    == BudgetItem
+                    .RequirementLevel
+                    .RECOMMENDED
+                ):
+                    recommended_total += (
+                        item_total
+                    )
+
+                elif (
+                    item.requirement_level
+                    == BudgetItem
+                    .RequirementLevel
+                    .OPTIONAL
+                ):
+                    optional_total += item_total
+
+                if item.is_physical_part:
+                    physical_parts_total += (
+                        item_total
+                    )
+
+                if item.actual_total is not None:
+                    actual_spent_total += (
+                        item.actual_total
+                    )
+
+            # Compare actual purchases against
+            # estimated one-time costs.
+            budget_variance = (
+                actual_spent_total
+                - estimated_one_time_total
+            )
 
             budget_chart_data = [
                 {
@@ -1271,10 +1565,17 @@ def workspace_folder(
                     "amount": float(amount),
                 }
                 for category, amount
-                in category_totals.items()
+                in sorted(
+                    category_totals.items(),
+                    key=lambda pair: pair[1],
+                    reverse=True,
+                )
             ]
 
-        print("WORKSPACE FOLDER 5: Rendering template")
+        print(
+            "WORKSPACE FOLDER 5: "
+            "Rendering template"
+        )
 
         return render(
             request,
@@ -1282,15 +1583,52 @@ def workspace_folder(
             {
                 "project": project,
                 "folder": folder,
+
+                # Tasks
                 "tasks": tasks,
-                "resources": resources,
-                "budget_items": budget_items,
                 "total_tasks": total_tasks,
-                "completed_tasks": completed_tasks,
+                "completed_tasks": (
+                    completed_tasks
+                ),
                 "progress": progress,
-                "one_time_total": one_time_total,
-                "monthly_total": monthly_total,
-                "budget_chart_data": budget_chart_data,
+
+                # Resources
+                "resources": resources,
+
+                # Budget records
+                "budget_items": budget_items,
+                "physical_parts": physical_parts,
+                "recurring_items": (
+                    recurring_items
+                ),
+
+                # Budget totals
+                "one_time_total": (
+                    estimated_one_time_total
+                ),
+                "monthly_total": (
+                    estimated_monthly_total
+                ),
+                "required_total": required_total,
+                "recommended_total": (
+                    recommended_total
+                ),
+                "optional_total": optional_total,
+                "physical_parts_total": (
+                    physical_parts_total
+                ),
+                "actual_spent_total": (
+                    actual_spent_total
+                ),
+                "budget_variance": (
+                    budget_variance
+                ),
+
+                # Chart
+                "budget_chart_data": (
+                    budget_chart_data
+                ),
+
                 **permission_context,
             },
         )
@@ -1569,24 +1907,7 @@ def toggle_task(
         project_pk=project.pk,
         folder_pk=tasks_folder.pk,
     )
-def normalize_task_priority(
-    raw_priority,
-    default=Task.Priority.MEDIUM,
-):
-    try:
-        priority = int(raw_priority)
-    except (TypeError, ValueError):
-        return default
 
-    valid_priorities = {
-        value
-        for value, _ in Task.Priority.choices
-    }
-
-    if priority not in valid_priorities:
-        return default
-
-    return priority
 @login_required
 def new_task(
     request,
@@ -2470,6 +2791,24 @@ def apply_workspace_change(
             facts_changed
         ),
     }
+def normalize_task_priority(
+    raw_priority,
+    default=Task.Priority.MEDIUM,
+):
+    try:
+        priority = int(raw_priority)
+    except (TypeError, ValueError):
+        return default
+
+    valid_priorities = {
+        value
+        for value, _ in Task.Priority.choices
+    }
+
+    if priority not in valid_priorities:
+        return default
+
+    return priority
 @login_required
 def workspace_assistant(
     request,
@@ -5623,3 +5962,122 @@ def build_task_flowchart(project):
     )
 
     return "\n".join(lines)
+
+@login_required
+@require_POST
+def regenerate_project_budget(
+    request,
+    project_pk,
+):
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    budget_folder = get_object_or_404(
+        WorkspaceFolder,
+        project=project,
+        folder_type="budget",
+    )
+
+    try:
+        generated_budget = generate_project_budget(
+            project
+        )
+
+        budget_items = build_budget_items_from_ai(
+            project=project,
+            generated_items=(
+                generated_budget.budget_items
+            ),
+        )
+
+        if not budget_items:
+            raise ValueError(
+                "Budget generation returned "
+                "no usable budget items."
+            )
+
+        with transaction.atomic():
+            project.budget_items.all().delete()
+
+            BudgetItem.objects.bulk_create(
+                budget_items
+            )
+
+            budget_folder.description = (
+                generated_budget.summary or ""
+            ).strip()
+
+            budget_folder.save(
+                update_fields=[
+                    "description",
+                    "updated_at",
+                ]
+            )
+
+            record_project_event(
+                project=project,
+                event_type=(
+                    ProjectEvent.EventType
+                    .WORKSPACE_UPDATED
+                ),
+                title=(
+                    "Budget and parts list "
+                    "regenerated"
+                ),
+                description=(
+                    f"Generated "
+                    f"{len(budget_items)} "
+                    "budget items."
+                ),
+                metadata={
+                    "folder_id": budget_folder.pk,
+                    "folder_type": (
+                        budget_folder.folder_type
+                    ),
+                    "item_count": len(
+                        budget_items
+                    ),
+                },
+            )
+
+        mark_schedule_for_refresh(
+            project=project,
+            reason=(
+                "The budget and parts list "
+                "were regenerated."
+            ),
+        )
+
+        messages.success(
+            request,
+            (
+                "Budget and parts list "
+                "were regenerated successfully."
+            ),
+        )
+
+    except Exception:
+        print("\n" + "=" * 80)
+        print(
+            "BUDGET AND PARTS LIST "
+            "REGENERATION FAILED"
+        )
+        traceback.print_exc()
+        print("=" * 80 + "\n")
+
+        messages.error(
+            request,
+            (
+                "Projivo could not regenerate "
+                "the budget and parts list. "
+                "Please try again."
+            ),
+        )
+
+    return redirect(
+        "workspace_folder",
+        project_pk=project.pk,
+        folder_pk=budget_folder.pk,
+    )
