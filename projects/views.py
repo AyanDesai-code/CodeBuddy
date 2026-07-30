@@ -1160,133 +1160,147 @@ def workspace_folder(
     project_pk,
     folder_pk,
 ):
-    project = get_project_for_user(
-        project_pk=project_pk,
-        user=request.user,
-    )
+    try:
+        print("=" * 70)
+        print("WORKSPACE FOLDER 1: Loading project")
 
-    folder = get_object_or_404(
-        WorkspaceFolder,
-        pk=folder_pk,
-        project=project,
-    )
+        project = get_project_for_user(
+            project_pk=project_pk,
+            user=request.user,
+        )
 
-    permission_context = project_permission_context(
-        project=project,
-        user=request.user,
-    )
+        print("WORKSPACE FOLDER 2: Loading folder")
 
-    tasks = None
-    total_tasks = 0
-    completed_tasks = 0
-    progress = 0
+        folder = get_object_or_404(
+            WorkspaceFolder,
+            pk=folder_pk,
+            project=project,
+        )
 
-    resources = None
-    budget_items = None
-    one_time_total = Decimal("0.00")
-    monthly_total = Decimal("0.00")
-    budget_chart_data = []
+        print(
+            "WORKSPACE FOLDER 3:",
+            folder.name,
+            folder.folder_type,
+        )
 
-    if folder.folder_type == "tasks":
-        tasks = (
-            project.tasks
-            .order_by(
+        permission_context = project_permission_context(
+            project=project,
+            user=request.user,
+        )
+
+        tasks = None
+        resources = None
+        budget_items = None
+
+        total_tasks = 0
+        completed_tasks = 0
+        progress = 0
+
+        one_time_total = Decimal("0.00")
+        monthly_total = Decimal("0.00")
+        budget_chart_data = []
+
+        if folder.folder_type == "tasks":
+            print("WORKSPACE FOLDER 4: Loading tasks")
+
+            tasks = project.tasks.order_by(
                 "completed",
                 "order",
                 "pk",
             )
-        )
 
-        total_tasks = tasks.count()
+            total_tasks = tasks.count()
 
-        completed_tasks = tasks.filter(
-            status=Task.Status.DONE,
-        ).count()
+            completed_tasks = tasks.filter(
+                status=Task.Status.DONE,
+            ).count()
 
-        if total_tasks > 0:
-            progress = round(
-                completed_tasks
-                / total_tasks
-                * 100
-            )
-
-    elif folder.folder_type in {
-        "learning",
-        "documentation",
-        "resources",
-    }:
-        resources = (
-            folder.resources
-            .all()
-            .order_by(
-                "order",
-                "pk",
-            )
-        )
-
-    elif folder.folder_type == "budget":
-        budget_items = (
-            project.budget_items
-            .all()
-            .order_by(
-                "order",
-                "pk",
-            )
-        )
-
-        category_totals = {}
-
-        for item in budget_items:
-            item_total = item.total_cost
-
-            category_name = (
-                item.get_category_display()
-            )
-
-            category_totals[
-                category_name
-            ] = (
-                category_totals.get(
-                    category_name,
-                    Decimal("0.00"),
+            if total_tasks:
+                progress = round(
+                    completed_tasks
+                    / total_tasks
+                    * 100
                 )
-                + item_total
+
+        elif folder.folder_type in {
+            "learning",
+            "documentation",
+            "resources",
+        }:
+            print("WORKSPACE FOLDER 4: Loading resources")
+
+            resources = folder.resources.all().order_by(
+                "order",
+                "pk",
             )
 
-            if item.is_recurring:
-                monthly_total += item_total
-            else:
-                one_time_total += item_total
+        elif folder.folder_type == "budget":
+            print("WORKSPACE FOLDER 4: Loading budget")
 
-        budget_chart_data = [
+            budget_items = (
+                project.budget_items
+                .all()
+                .order_by(
+                    "order",
+                    "pk",
+                )
+            )
+
+            category_totals = {}
+
+            for item in budget_items:
+                item_total = item.total_cost
+                category = item.get_category_display()
+
+                category_totals[category] = (
+                    category_totals.get(
+                        category,
+                        Decimal("0.00"),
+                    )
+                    + item_total
+                )
+
+                if item.is_recurring:
+                    monthly_total += item_total
+                else:
+                    one_time_total += item_total
+
+            budget_chart_data = [
+                {
+                    "category": category,
+                    "amount": float(amount),
+                }
+                for category, amount
+                in category_totals.items()
+            ]
+
+        print("WORKSPACE FOLDER 5: Rendering template")
+
+        return render(
+            request,
+            "projects/workspace_folder.html",
             {
-                "category": category,
-                "amount": float(amount),
-            }
-            for category, amount
-            in category_totals.items()
-        ]
+                "project": project,
+                "folder": folder,
+                "tasks": tasks,
+                "resources": resources,
+                "budget_items": budget_items,
+                "total_tasks": total_tasks,
+                "completed_tasks": completed_tasks,
+                "progress": progress,
+                "one_time_total": one_time_total,
+                "monthly_total": monthly_total,
+                "budget_chart_data": budget_chart_data,
+                **permission_context,
+            },
+        )
 
-    return render(
-        request,
-        "projects/workspace_folder.html",
-        {
-            "project": project,
-            "folder": folder,
-            "tasks": tasks,
-            "resources": resources,
-            "budget_items": budget_items,
-            "total_tasks": total_tasks,
-            "completed_tasks": completed_tasks,
-            "progress": progress,
-            "one_time_total": one_time_total,
-            "monthly_total": monthly_total,
-            "budget_chart_data": (
-                budget_chart_data
-            ),
-            **permission_context,
-        },
-    )
+    except Exception:
+        print("\n" + "=" * 80)
+        print("WORKSPACE FOLDER PAGE FAILED")
+        traceback.print_exc()
+        print("=" * 80 + "\n")
+        raise
 @login_required
 def edit_workspace_folder(
     request,
