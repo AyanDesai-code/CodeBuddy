@@ -604,3 +604,155 @@ class ProjectMembership(models.Model):
             f"{self.project} — "
             f"{self.get_role_display()}"
         )
+from decimal import Decimal
+
+from django.db import models
+
+
+class ProjectResource(models.Model):
+    class ResourceType(models.TextChoices):
+        DOCUMENTATION = (
+            "documentation",
+            "Documentation",
+        )
+        TUTORIAL = "tutorial", "Tutorial"
+        VIDEO = "video", "Video"
+        ARTICLE = "article", "Article"
+        COURSE = "course", "Course"
+        TOOL = "tool", "Tool"
+
+    project = models.ForeignKey(
+        "Project",
+        on_delete=models.CASCADE,
+        related_name="resources",
+    )
+
+    folder = models.ForeignKey(
+        "WorkspaceFolder",
+        on_delete=models.CASCADE,
+        related_name="resources",
+    )
+
+    title = models.CharField(
+        max_length=255,
+    )
+
+    url = models.URLField()
+
+    description = models.TextField(
+        blank=True,
+    )
+
+    resource_type = models.CharField(
+        max_length=30,
+        choices=ResourceType.choices,
+        default=ResourceType.DOCUMENTATION,
+    )
+
+    difficulty = models.CharField(
+        max_length=30,
+        blank=True,
+    )
+
+    is_official = models.BooleanField(
+        default=False,
+    )
+
+    order = models.PositiveIntegerField(
+        default=0,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = [
+            "order",
+            "pk",
+        ]
+
+    def __str__(self):
+        return self.title
+
+
+class BudgetItem(models.Model):
+    class Category(models.TextChoices):
+        HARDWARE = "hardware", "Hardware"
+        SOFTWARE = "software", "Software"
+        API = "api", "API"
+        HOSTING = "hosting", "Hosting"
+        DESIGN = "design", "Design"
+        MARKETING = "marketing", "Marketing"
+        LABOR = "labor", "Labor"
+        OTHER = "other", "Other"
+
+    project = models.ForeignKey(
+        "Project",
+        on_delete=models.CASCADE,
+        related_name="budget_items",
+    )
+
+    name = models.CharField(
+        max_length=255,
+    )
+
+    description = models.TextField(
+        blank=True,
+    )
+
+    category = models.CharField(
+        max_length=30,
+        choices=Category.choices,
+        default=Category.OTHER,
+    )
+
+    quantity = models.PositiveIntegerField(
+        default=1,
+    )
+
+    unit_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    is_recurring = models.BooleanField(
+        default=False,
+    )
+
+    source_url = models.URLField(
+        blank=True,
+    )
+
+    order = models.PositiveIntegerField(
+        default=0,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = [
+            "order",
+            "pk",
+        ]
+
+    @property
+    def total_cost(self):
+        return (
+            self.quantity
+            * self.unit_cost
+        )
+
+    def __str__(self):
+        return self.name

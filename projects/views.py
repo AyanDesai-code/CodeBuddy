@@ -43,6 +43,8 @@ from .models import (
     Task,
     WorkspaceFolder,
     WorkspaceMessage,
+    BudgetItem,
+    ProjectResource
 )
 
 from .permissions import (
@@ -52,6 +54,8 @@ from .permissions import (
     project_permission_context,
     user_is_project_owner,
 )
+from collections import defaultdict
+from decimal import Decimal
 import traceback
 from django.core.exceptions import PermissionDenied
 
@@ -1151,7 +1155,11 @@ def workspace(request, project_pk):
     },
 )
 @login_required
-def workspace_folder(request, project_pk, folder_pk):
+def workspace_folder(
+    request,
+    project_pk,
+    folder_pk,
+):
     project = get_project_for_user(
         project_pk=project_pk,
         user=request.user,
@@ -1163,27 +1171,101 @@ def workspace_folder(request, project_pk, folder_pk):
         project=project,
     )
 
+    permission_context = project_permission_context(
+        project=project,
+        user=request.user,
+    )
+
     tasks = None
     total_tasks = 0
     completed_tasks = 0
     progress = 0
 
+    resources = None
+    budget_items = None
+    one_time_total = Decimal("0.00")
+    monthly_total = Decimal("0.00")
+    budget_chart_data = []
+
     if folder.folder_type == "tasks":
-        tasks = project.tasks.order_by(
-            "completed",
-            "order",
+        tasks = (
+            project.tasks
+            .order_by(
+                "completed",
+                "order",
+                "pk",
+            )
         )
+
         total_tasks = tasks.count()
-        completed_tasks = tasks.filter(completed=True).count()
+
+        completed_tasks = tasks.filter(
+            status=Task.Status.DONE,
+        ).count()
 
         if total_tasks > 0:
             progress = round(
-                completed_tasks / total_tasks * 100
+                completed_tasks
+                / total_tasks
+                * 100
             )
-        permission_context = project_permission_context(
-            project=project,
-            user=request.user,
+
+    elif folder.folder_type in {
+        "learning",
+        "documentation",
+        "resources",
+    }:
+        resources = (
+            folder.resources
+            .all()
+            .order_by(
+                "order",
+                "pk",
+            )
         )
+
+    elif folder.folder_type == "budget":
+        budget_items = (
+            project.budget_items
+            .all()
+            .order_by(
+                "order",
+                "pk",
+            )
+        )
+
+        category_totals = {}
+
+        for item in budget_items:
+            item_total = item.total_cost
+
+            category_name = (
+                item.get_category_display()
+            )
+
+            category_totals[
+                category_name
+            ] = (
+                category_totals.get(
+                    category_name,
+                    Decimal("0.00"),
+                )
+                + item_total
+            )
+
+            if item.is_recurring:
+                monthly_total += item_total
+            else:
+                one_time_total += item_total
+
+        budget_chart_data = [
+            {
+                "category": category,
+                "amount": float(amount),
+            }
+            for category, amount
+            in category_totals.items()
+        ]
 
     return render(
         request,
@@ -1192,9 +1274,16 @@ def workspace_folder(request, project_pk, folder_pk):
             "project": project,
             "folder": folder,
             "tasks": tasks,
+            "resources": resources,
+            "budget_items": budget_items,
             "total_tasks": total_tasks,
             "completed_tasks": completed_tasks,
             "progress": progress,
+            "one_time_total": one_time_total,
+            "monthly_total": monthly_total,
+            "budget_chart_data": (
+                budget_chart_data
+            ),
             **permission_context,
         },
     )
