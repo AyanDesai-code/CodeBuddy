@@ -509,6 +509,24 @@ Rules:
 - Ensure suggested physical parts are mutually compatible.
 - Explain cheaper or compatible alternatives when useful.
 - Return at least one usable budget item.
+Critical budgeting rules:
+
+1. Respect the user's stated target budget.
+2. The required baseline items should fit within the target whenever
+   technically reasonable.
+3. Do not include the user's own labor in the purchase-cost total.
+4. Labor may only be included as an optional item and must be clearly
+   described as notional labor value.
+5. Mark physical components and initial consumables as one-time costs.
+6. Only mark genuine subscriptions or ongoing services as recurring.
+7. For recurring items, quantity must normally be 1 and unit_cost must
+   represent the monthly price.
+8. Do not use quantity to represent the number of subscription months.
+9. Optional upgrades must not be necessary for the baseline build.
+10. Avoid duplicate or overlapping components.
+11. Prefer practical low-cost components appropriate for a prototype.
+12. Source URLs must be real URLs or blank. Never invent URLs.
+
 """
 def generate_project_budget(
     project,

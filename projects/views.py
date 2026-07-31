@@ -110,19 +110,27 @@ def build_budget_items_from_ai(
         in BudgetItem.RequirementLevel.choices
     }
 
+    recurring_categories = {
+        BudgetItem.Category.HOSTING,
+        BudgetItem.Category.API,
+    }
+
     budget_items = []
 
     for order, generated_item in enumerate(
         generated_items,
         start=1,
     ):
-        name = (generated_item.name or "").strip()
+        name = (
+            generated_item.name or ""
+        ).strip()
 
         if not name:
             continue
 
         category = (
-            generated_item.category or "other"
+            generated_item.category
+            or BudgetItem.Category.OTHER
         ).strip().lower()
 
         if category not in valid_categories:
@@ -130,10 +138,13 @@ def build_budget_items_from_ai(
 
         requirement_level = (
             generated_item.requirement_level
-            or "required"
+            or BudgetItem.RequirementLevel.REQUIRED
         ).strip().lower()
 
-        if requirement_level not in valid_requirement_levels:
+        if (
+            requirement_level
+            not in valid_requirement_levels
+        ):
             requirement_level = (
                 BudgetItem.RequirementLevel.REQUIRED
             )
@@ -150,11 +161,25 @@ def build_budget_items_from_ai(
             unit_cost = Decimal(
                 str(generated_item.unit_cost)
             )
-        except (InvalidOperation, TypeError, ValueError):
+        except (
+            InvalidOperation,
+            TypeError,
+            ValueError,
+        ):
             unit_cost = Decimal("0.00")
 
         if unit_cost < 0:
             unit_cost = Decimal("0.00")
+
+        is_recurring = bool(
+            generated_item.is_recurring
+        )
+
+        if category not in recurring_categories:
+            is_recurring = False
+
+        if is_recurring:
+            quantity = 1
 
         try:
             confidence = int(
@@ -163,7 +188,10 @@ def build_budget_items_from_ai(
         except (TypeError, ValueError):
             confidence = 3
 
-        confidence = max(1, min(5, confidence))
+        confidence = max(
+            1,
+            min(5, confidence),
+        )
 
         budget_items.append(
             BudgetItem(
@@ -171,29 +199,36 @@ def build_budget_items_from_ai(
                 order=order,
                 name=name,
                 description=(
-                    generated_item.description or ""
+                    generated_item.description
+                    or ""
                 ).strip(),
                 category=category,
-                requirement_level=requirement_level,
+                requirement_level=(
+                    requirement_level
+                ),
                 purchase_status=(
-                    BudgetItem.PurchaseStatus.PLANNED
+                    BudgetItem
+                    .PurchaseStatus
+                    .PLANNED
                 ),
                 quantity=quantity,
                 unit_cost=unit_cost,
-                is_recurring=bool(
-                    generated_item.is_recurring
-                ),
+                is_recurring=is_recurring,
                 is_physical_part=bool(
-                    generated_item.is_physical_part
+                    generated_item
+                    .is_physical_part
                 ),
                 source_name=(
-                    generated_item.source_name or ""
+                    generated_item.source_name
+                    or ""
                 ).strip(),
                 source_url=(
-                    generated_item.source_url or ""
+                    generated_item.source_url
+                    or ""
                 ).strip(),
                 alternative_notes=(
-                    generated_item.alternative_notes
+                    generated_item
+                    .alternative_notes
                     or ""
                 ).strip(),
                 confidence=confidence,
@@ -1396,6 +1431,7 @@ def workspace_folder(
         estimated_monthly_total = Decimal(
             "0.00"
         )
+        labor_total=Decimal("0.00")
 
         required_total = Decimal("0.00")
         recommended_total = Decimal("0.00")
@@ -1513,10 +1549,17 @@ def workspace_folder(
                     + item_total
                 )
 
-                if item.is_recurring:
+                if (
+                    item.category
+                    == BudgetItem.Category.LABOR
+                ):
+                    labor_total += item_total
+
+                elif item.is_recurring:
                     estimated_monthly_total += (
                         item_total
                     )
+
                 else:
                     estimated_one_time_total += (
                         item_total
@@ -1628,6 +1671,9 @@ def workspace_folder(
                 ),
                 "budget_variance": (
                     budget_variance
+                ),
+                "labor_total": (
+                    labor_total
                 ),
 
                 # Chart
