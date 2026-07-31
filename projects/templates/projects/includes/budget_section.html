@@ -7,7 +7,31 @@
 
     <div class="budget-summary">
         <article class="budget-total-card">
-            <span>Estimated one-time cost</span>
+            <span>Required baseline</span>
+
+            <strong>
+                ${{ required_total|floatformat:2 }}
+            </strong>
+        </article>
+
+        <article class="budget-total-card">
+            <span>Recommended additions</span>
+
+            <strong>
+                ${{ recommended_total|floatformat:2 }}
+            </strong>
+        </article>
+
+        <article class="budget-total-card">
+            <span>Optional upgrades</span>
+
+            <strong>
+                ${{ optional_total|floatformat:2 }}
+            </strong>
+        </article>
+
+        <article class="budget-total-card">
+            <span>All one-time purchases</span>
 
             <strong>
                 ${{ one_time_total|floatformat:2 }}
@@ -15,12 +39,22 @@
         </article>
 
         <article class="budget-total-card">
-            <span>Estimated monthly cost</span>
+            <span>Monthly operating cost</span>
 
             <strong>
                 ${{ monthly_total|floatformat:2 }}
             </strong>
         </article>
+
+        {% if labor_total %}
+            <article class="budget-total-card">
+                <span>Optional labor value</span>
+
+                <strong>
+                    ${{ labor_total|floatformat:2 }}
+                </strong>
+            </article>
+        {% endif %}
     </div>
 
     {% if budget_chart_data %}

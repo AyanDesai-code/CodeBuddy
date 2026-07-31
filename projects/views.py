@@ -118,66 +118,61 @@ def build_budget_items_from_ai(
 
     budget_items = []
 
-    for order, generated_item in enumerate(
-        generated_items,
-        start=1,
-    ):
-        name = (
-            generated_item.name or ""
-        ).strip()
+    for item in budget_items:
+        item_total = item.estimated_total
 
-        if not name:
-            continue
-
-        category = (
-            generated_item.category
-            or BudgetItem.Category.OTHER
-        ).strip().lower()
-
-        if category not in valid_categories:
-            category = BudgetItem.Category.OTHER
-
-        requirement_level = (
-            generated_item.requirement_level
-            or BudgetItem.RequirementLevel.REQUIRED
-        ).strip().lower()
-
-        if (
-            requirement_level
-            not in valid_requirement_levels
-        ):
-            requirement_level = (
-                BudgetItem.RequirementLevel.REQUIRED
-            )
-
-        try:
-            quantity = max(
-                int(generated_item.quantity),
-                1,
-            )
-        except (TypeError, ValueError):
-            quantity = 1
-
-        try:
-            unit_cost = Decimal(
-                str(generated_item.unit_cost)
-            )
-        except (
-            InvalidOperation,
-            TypeError,
-            ValueError,
-        ):
-            unit_cost = Decimal("0.00")
-
-        if unit_cost < 0:
-            unit_cost = Decimal("0.00")
-
-        is_recurring = bool(
-            generated_item.is_recurring
+        category_name = (
+            item.get_category_display()
         )
 
-        if category not in recurring_categories:
-            is_recurring = False
+        category_totals[
+            category_name
+        ] = (
+            category_totals.get(
+                category_name,
+                Decimal("0.00"),
+            )
+            + item_total
+        )
+
+        # Keep labor completely separate.
+        if (
+            item.category
+            == BudgetItem.Category.LABOR
+        ):
+            labor_total += item_total
+
+        # Genuine recurring costs only.
+        elif item.is_recurring:
+            estimated_monthly_total += item_total
+
+        # All non-recurring, non-labor purchases.
+        else:
+            estimated_one_time_total += item_total
+
+            if (
+                item.requirement_level
+                == BudgetItem.RequirementLevel.REQUIRED
+            ):
+                required_total += item_total
+
+            elif (
+                item.requirement_level
+                == BudgetItem.RequirementLevel.RECOMMENDED
+            ):
+                recommended_total += item_total
+
+            elif (
+                item.requirement_level
+                == BudgetItem.RequirementLevel.OPTIONAL
+            ):
+                optional_total += item_total
+
+        if item.is_physical_part:
+            physical_parts_total += item_total
+
+        if item.actual_total is not None:
+            actual_spent_total += item.actual_total
 
         if is_recurring:
             quantity = 1
