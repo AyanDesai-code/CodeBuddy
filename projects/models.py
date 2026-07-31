@@ -3,7 +3,7 @@
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-
+from pydantic import BaseModel, Field
 
 class Project(models.Model):
     class Status(models.TextChoices):
@@ -637,7 +637,9 @@ class ProjectResource(models.Model):
         max_length=255,
     )
 
-    url = models.URLField()
+    url = models.URLField(
+        blank=True,
+    )
 
     description = models.TextField(
         blank=True,
@@ -668,6 +670,19 @@ class ProjectResource(models.Model):
 
     updated_at = models.DateTimeField(
         auto_now=True,
+    )
+    topic = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    reason_needed = models.TextField(
+        blank=True,
+    )
+
+    related_task = models.CharField(
+        max_length=200,
+        blank=True,
     )
 
     class Meta:
@@ -796,4 +811,13 @@ class BudgetItem(models.Model):
 
     def __str__(self):
         return self.name
-    
+
+class GeneratedLearningResource(BaseModel):
+    title: str
+    topic: str
+    url: str
+    description: str
+    reason_needed: str
+    related_task: str
+    difficulty: str
+
