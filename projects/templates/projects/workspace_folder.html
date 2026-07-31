@@ -1,3 +1,4 @@
+```django
 {% extends "projects/base.html" %}
 
 {% block title %}
@@ -29,6 +30,17 @@
     .toolbar a:hover,
     .toolbar button:hover {
         background: var(--surface-raised);
+    }
+
+    .folder-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .folder-actions form {
+        margin: 0;
     }
 
     .updated {
@@ -147,6 +159,10 @@
         padding: 0;
     }
 
+    .toggle-indicator {
+        cursor: default;
+    }
+
     .readonly-note {
         margin-top: 18px;
         padding: 12px 14px;
@@ -154,6 +170,74 @@
         border-radius: 8px;
         background: var(--warning-background);
         color: var(--text);
+    }
+
+    .resource-list {
+        display: grid;
+        gap: 18px;
+    }
+
+    .resource-card {
+        padding: 20px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+    }
+
+    .resource-card h2 {
+        margin-top: 0;
+        margin-bottom: 10px;
+    }
+
+    .resource-card h2 a {
+        color: var(--text);
+        text-decoration: none;
+    }
+
+    .resource-card h2 a:hover {
+        color: var(--accent);
+    }
+
+    .resource-badges {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+    }
+
+    .resource-badges span {
+        padding: 3px 9px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface-soft);
+        color: var(--text-muted);
+        font-size: 12px;
+    }
+
+    .resource-description {
+        margin-top: 12px;
+    }
+
+    .resource-detail {
+        margin-top: 16px;
+        padding: 14px;
+        border-left: 3px solid var(--accent);
+        background: var(--surface-soft);
+        border-radius: 6px;
+    }
+
+    .resource-detail strong {
+        display: block;
+        margin-bottom: 6px;
+    }
+
+    .documentation-content {
+        max-width: 900px;
+        line-height: 1.75;
+    }
+
+    .documentation-content p {
+        margin-bottom: 18px;
     }
 
     button:disabled {
@@ -171,10 +255,19 @@
         .toolbar a,
         .toolbar form,
         .toolbar button,
+        .folder-actions,
+        .folder-actions a,
+        .folder-actions form,
+        .folder-actions button,
         .task-toolbar a,
         .task-toolbar form,
         .task-toolbar button {
             width: 100%;
+        }
+
+        .folder-actions {
+            display: grid;
+            grid-template-columns: 1fr;
         }
 
         .task-row {
@@ -196,38 +289,39 @@
 {% endblock %}
 
 {% block content %}
-
 <div class="toolbar">
     <a href="{% url 'workspace' project.pk %}">
         ← Back to Workspace
     </a>
 
-    {% if can_edit %}
-    <div class="folder-actions">
-        <a
-            href="{% url 'edit_workspace_folder' project.pk folder.pk %}"
-            class="button secondary-button"
-        >
-            Edit Section
-        </a>
-
-        <form
-            method="POST"
-            action="{% url 'regenerate_workspace_folder' project.pk folder.pk %}"
-            class="loading-form"
-        >
-            {% csrf_token %}
-
-            <button
-                type="submit"
+    {% if can_edit and folder.folder_type != "budget" %}
+        <div class="folder-actions">
+            <a
+                href="{% url 'edit_workspace_folder' project.pk folder.pk %}"
                 class="button secondary-button"
-                data-loading-text="Regenerating..."
             >
-                Regenerate
-            </button>
-        </form>
-    </div>
-{% endif %}
+                Edit Section
+            </a>
+
+            <form
+                method="POST"
+                action="{% url 'regenerate_workspace_folder' project.pk folder.pk %}"
+                class="loading-form"
+                id="regenerate-form"
+            >
+                {% csrf_token %}
+
+                <button
+                    type="submit"
+                    class="button secondary-button"
+                    id="regenerate-button"
+                    data-loading-text="Regenerating..."
+                >
+                    Regenerate
+                </button>
+            </form>
+        </div>
+    {% endif %}
 </div>
 
 <h1>{{ folder.name }}</h1>
@@ -267,20 +361,217 @@
 {% endif %}
 
 <div class="content">
-
     {% if folder.folder_type == "tasks" %}
-        {% include "projects/includes/task_section.html" %}
+        <div class="progress-container">
+            <h2>Project Progress</h2>
+
+            <div class="progress-track">
+                <div
+                    class="progress-fill"
+                    style="width: {{ progress }}%;"
+                ></div>
+            </div>
+
+            <p class="progress-text">
+                {{ completed_tasks }} of
+                {{ total_tasks }} tasks complete
+                ({{ progress }}%)
+            </p>
+        </div>
+
+        {% for task in tasks %}
+            <article class="task-card">
+                <div class="task-row">
+                    {% if can_edit %}
+                        <form
+                            method="POST"
+                            action="{% url 'toggle_task' project.pk task.pk %}"
+                        >
+                            {% csrf_token %}
+
+                            <button
+                                type="submit"
+                                class="toggle-button"
+                                aria-label="Toggle task completion"
+                            >
+                                {% if task.completed %}
+                                    ☑
+                                {% else %}
+                                    ☐
+                                {% endif %}
+                            </button>
+                        </form>
+                    {% else %}
+                        <span
+                            class="toggle-button toggle-indicator"
+                            aria-hidden="true"
+                        >
+                            {% if task.completed %}
+                                ☑
+                            {% else %}
+                                ☐
+                            {% endif %}
+                        </span>
+                    {% endif %}
+
+                    <div class="task-main">
+                        <h3 class="task-title">
+                            {% if task.completed %}
+                                <s>{{ task.title }}</s>
+                            {% else %}
+                                {{ task.title }}
+                            {% endif %}
+                        </h3>
+
+                        {% if task.description %}
+                            <div>
+                                {{ task.description|linebreaks }}
+                            </div>
+                        {% endif %}
+
+                        <p>
+                            <strong>Status:</strong>
+                            {{ task.get_status_display }}
+                        </p>
+
+                        <p>
+                            <strong>Priority:</strong>
+                            {{ task.get_priority_display }}
+                        </p>
+
+                        {% if task.is_blocked %}
+                            <p>
+                                <strong>Blocked:</strong>
+                                Waiting for dependencies.
+                            </p>
+                        {% endif %}
+
+                        {% if can_edit %}
+                            <div class="task-controls">
+                                <a
+                                    href="{% url 'edit_task' project.pk task.pk %}"
+                                >
+                                    ✏ Edit
+                                </a>
+
+                                <a
+                                    href="{% url 'edit_task_dependencies' project.pk task.pk %}"
+                                >
+                                    Dependencies
+                                </a>
+
+                                <form
+                                    method="POST"
+                                    action="{% url 'delete_task' project.pk task.pk %}"
+                                >
+                                    {% csrf_token %}
+
+                                    <button
+                                        type="submit"
+                                        onclick="
+                                            return confirm(
+                                                'Delete this task?'
+                                            );
+                                        "
+                                    >
+                                        🗑 Delete
+                                    </button>
+                                </form>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </article>
+        {% empty %}
+            <p>No tasks have been created yet.</p>
+        {% endfor %}
 
     {% elif folder.folder_type == "budget" %}
-        {% include "projects/includes/budget_section.html" %}
+        {% include "projects/partials/budget_section.html" %}
 
-    {% elif folder.folder_type == "learning" or folder.folder_type == "documentation" or folder.folder_type == "resources" %}
-        {% include "projects/includes/resource_section.html" %}
+    {% elif folder.folder_type == "learning" %}
+        <div class="resource-list">
+            {% for resource in resources %}
+                <article class="resource-card">
+                    <h2>
+                        {% if resource.url %}
+                            <a
+                                href="{{ resource.url }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                {{ resource.title }} ↗
+                            </a>
+                        {% else %}
+                            {{ resource.title }}
+                        {% endif %}
+                    </h2>
+
+                    <div class="resource-badges">
+                        {% if resource.resource_type %}
+                            <span>
+                                {{ resource.get_resource_type_display }}
+                            </span>
+                        {% endif %}
+
+                        {% if resource.difficulty %}
+                            <span>
+                                {{ resource.difficulty }}
+                            </span>
+                        {% endif %}
+
+                        {% if resource.is_official %}
+                            <span>Official</span>
+                        {% endif %}
+                    </div>
+
+                    {% if resource.topic %}
+                        <p>
+                            <strong>Topic:</strong>
+                            {{ resource.topic }}
+                        </p>
+                    {% endif %}
+
+                    {% if resource.description %}
+                        <div class="resource-description">
+                            {{ resource.description|linebreaks }}
+                        </div>
+                    {% endif %}
+
+                    {% if resource.reason_needed %}
+                        <div class="resource-detail">
+                            <strong>Why you need this</strong>
+
+                            {{ resource.reason_needed|linebreaks }}
+                        </div>
+                    {% endif %}
+
+                    {% if resource.related_task %}
+                        <p>
+                            <strong>
+                                Related task or phase:
+                            </strong>
+
+                            {{ resource.related_task }}
+                        </p>
+                    {% endif %}
+                </article>
+            {% empty %}
+                <p>
+                    No learning resources have been
+                    generated yet.
+                </p>
+            {% endfor %}
+        </div>
+
+    {% elif folder.folder_type == "documentation" %}
+        <article class="documentation-content">
+            {{ folder.description|linebreaks }}
+        </article>
 
     {% else %}
-        {% include "projects/includes/ai_text_section.html" %}
+        {{ folder.description|linebreaks }}
     {% endif %}
-
 </div>
 {% endblock %}
 
@@ -306,3 +597,4 @@
     }
 </script>
 {% endblock %}
+```

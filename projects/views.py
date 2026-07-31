@@ -46,7 +46,8 @@ from .models import (
     WorkspaceMessage,
     BudgetItem,
     ProjectResource,
-    WorkspaceFolder
+    WorkspaceFolder,
+    ProjectResource,
 )
 
 from .permissions import (
@@ -236,6 +237,26 @@ def build_budget_items_from_ai(
         )
 
     return budget_items
+def normalize_resource_type(raw_resource_type):
+    valid_types = {
+        value
+        for value, _
+        in ProjectResource.ResourceType.choices
+    }
+
+    normalized = (
+        raw_resource_type
+        or ProjectResource.ResourceType.DOCUMENTATION
+    ).strip().lower()
+
+    if normalized not in valid_types:
+        return (
+            ProjectResource
+            .ResourceType
+            .DOCUMENTATION
+        )
+
+    return normalized
 def build_text_diff(before_text, after_text):
     before_lines = (before_text or "").splitlines()
     after_lines = (after_text or "").splitlines()
@@ -719,13 +740,16 @@ def project_setup(request, pk):
 
 @login_required
 @require_POST
-def generate_workspace(request, pk):
+def generate_workspace(
+    request,
+    pk,
+):
     print(
         "GENERATE WORKSPACE REQUEST:",
         request.method,
         request.path,
     )
-    print("1. Calling workspace generator.")
+
     project = get_owned_project_for_user(
         project_pk=pk,
         user=request.user,
@@ -812,7 +836,9 @@ def generate_workspace(request, pk):
 
         sections_by_type = {}
 
-        for section in generated_workspace.sections:
+        for section in (
+            generated_workspace.sections
+        ):
             folder_type = (
                 section.folder_type
                 or ""
@@ -829,15 +855,120 @@ def generate_workspace(request, pk):
             if not content:
                 continue
 
-            sections_by_type[folder_type] = content
+            sections_by_type[
+                folder_type
+            ] = content
 
         print(
             "3. Parsed "
-            f"{len(sections_by_type)} sections."
+            f"{len(sections_by_type)} "
+            "workspace sections."
+        )
+
+        if not generated_workspace.tasks:
+            raise ValueError(
+                "Workspace generation returned "
+                "no tasks."
+            )
+
+        # Build detailed documentation from the
+        # structured documentation output.
+        documentation_parts = []
+
+        for documentation_section in (
+            generated_workspace
+            .documentation_sections
+        ):
+            title = (
+                documentation_section.title
+                or ""
+            ).strip()
+
+            content = (
+                documentation_section.content
+                or ""
+            ).strip()
+
+            if not title or not content:
+                continue
+
+            section_parts = [
+                title,
+                content,
+            ]
+
+            related_topics = [
+                str(topic).strip()
+                for topic in (
+                    documentation_section
+                    .related_topics
+                    or []
+                )
+                if str(topic).strip()
+            ]
+
+            if related_topics:
+                section_parts.append(
+                    "Related topics:\n"
+                    + "\n".join(
+                        f"- {topic}"
+                        for topic
+                        in related_topics
+                    )
+                )
+
+            reference_urls = [
+                str(url).strip()
+                for url in (
+                    documentation_section
+                    .reference_urls
+                    or []
+                )
+                if str(url).strip()
+            ]
+
+            if reference_urls:
+                section_parts.append(
+                    "References:\n"
+                    + "\n".join(
+                        f"- {url}"
+                        for url
+                        in reference_urls
+                    )
+                )
+
+            documentation_parts.append(
+                "\n\n".join(
+                    section_parts
+                )
+            )
+
+        if documentation_parts:
+            sections_by_type[
+                "documentation"
+            ] = (
+                "\n\n"
+                + "=" * 60
+                + "\n\n"
+            ).join(
+                documentation_parts
+            )
+
+        # The structured documentation replaces the
+        # ordinary documentation section. Therefore,
+        # documentation does not need to be present in
+        # generated_workspace.sections.
+        required_text_sections = (
+            required_folder_types
+            - {
+                "documentation",
+                "learning",
+                "budget",
+            }
         )
 
         missing_sections = (
-            required_folder_types
+            required_text_sections
             - set(sections_by_type)
         )
 
@@ -846,14 +977,28 @@ def generate_workspace(request, pk):
                 "AI omitted required workspace "
                 "sections: "
                 + ", ".join(
-                    sorted(missing_sections)
+                    sorted(
+                        missing_sections
+                    )
                 )
             )
 
-        if not generated_workspace.tasks:
+        if not documentation_parts:
             raise ValueError(
                 "Workspace generation returned "
-                "no tasks."
+                "no documentation sections."
+            )
+
+        learning_resource_output = (
+            generated_workspace
+            .learning_resources
+            or []
+        )
+
+        if not learning_resource_output:
+            raise ValueError(
+                "Workspace generation returned "
+                "no learning resources."
             )
 
         print("4. Calling budget generator.")
@@ -871,11 +1016,14 @@ def generate_workspace(request, pk):
                 "Budget generation returned None."
             )
 
-        budget_items = build_budget_items_from_ai(
-            project=project,
-            generated_items=(
-                generated_budget.budget_items
-            ),
+        budget_items = (
+            build_budget_items_from_ai(
+                project=project,
+                generated_items=(
+                    generated_budget
+                    .budget_items
+                ),
+            )
         )
 
         if not budget_items:
@@ -890,9 +1038,9 @@ def generate_workspace(request, pk):
         ).strip()
 
         if budget_summary:
-            sections_by_type["budget"] = (
-                budget_summary
-            )
+            sections_by_type[
+                "budget"
+            ] = budget_summary
 
         with transaction.atomic():
             print(
@@ -921,8 +1069,12 @@ def generate_workspace(request, pk):
                 folders_to_create.append(
                     WorkspaceFolder(
                         project=project,
-                        name=folder_data["name"],
-                        folder_type=folder_type,
+                        name=folder_data[
+                            "name"
+                        ],
+                        folder_type=(
+                            folder_type
+                        ),
                         order=index,
                     )
                 )
@@ -934,16 +1086,25 @@ def generate_workspace(request, pk):
 
                 print(
                     "7. Created "
-                    f"{len(folders_to_create)} folders."
+                    f"{len(folders_to_create)} "
+                    "folders."
                 )
             else:
                 print(
                     "7. No folders needed creation."
                 )
 
+            # Reload folders so newly created folders
+            # are available with primary keys.
             folders_to_update = list(
                 project.folders.all()
             )
+
+            folders_by_type = {
+                folder.folder_type: folder
+                for folder
+                in folders_to_update
+            }
 
             for folder in folders_to_update:
                 section_content = (
@@ -967,7 +1128,138 @@ def generate_workspace(request, pk):
 
             print(
                 "8. Updated "
-                f"{len(folders_to_update)} folders."
+                f"{len(folders_to_update)} "
+                "folders."
+            )
+
+            learning_folder = (
+                folders_by_type.get(
+                    "learning"
+                )
+            )
+
+            if learning_folder is None:
+                raise ValueError(
+                    "Learning Resources folder "
+                    "was not created."
+                )
+
+            valid_resource_types = {
+                value
+                for value, _
+                in (
+                    ProjectResource
+                    .ResourceType
+                    .choices
+                )
+            }
+
+            learning_resources = []
+
+            for order, resource in enumerate(
+                learning_resource_output,
+                start=1,
+            ):
+                title = (
+                    resource.title
+                    or ""
+                ).strip()
+
+                if not title:
+                    continue
+
+                resource_type = (
+                    getattr(
+                        resource,
+                        "resource_type",
+                        (
+                            ProjectResource
+                            .ResourceType
+                            .DOCUMENTATION
+                        ),
+                    )
+                    or (
+                        ProjectResource
+                        .ResourceType
+                        .DOCUMENTATION
+                    )
+                )
+
+                resource_type = (
+                    str(resource_type)
+                    .strip()
+                    .lower()
+                )
+
+                if (
+                    resource_type
+                    not in valid_resource_types
+                ):
+                    resource_type = (
+                        ProjectResource
+                        .ResourceType
+                        .DOCUMENTATION
+                    )
+
+                learning_resources.append(
+                    ProjectResource(
+                        project=project,
+                        folder=learning_folder,
+                        title=title,
+                        url=(
+                            resource.url
+                            or ""
+                        ).strip(),
+                        description=(
+                            resource.description
+                            or ""
+                        ).strip(),
+                        topic=(
+                            resource.topic
+                            or ""
+                        ).strip(),
+                        reason_needed=(
+                            resource.reason_needed
+                            or ""
+                        ).strip(),
+                        related_task=(
+                            resource.related_task
+                            or ""
+                        ).strip(),
+                        difficulty=(
+                            resource.difficulty
+                            or ""
+                        ).strip(),
+                        resource_type=(
+                            resource_type
+                        ),
+                        is_official=bool(
+                            getattr(
+                                resource,
+                                "is_official",
+                                False,
+                            )
+                        ),
+                        order=order,
+                    )
+                )
+
+            if not learning_resources:
+                raise ValueError(
+                    "Workspace generation returned "
+                    "no usable learning resources."
+                )
+
+            learning_folder.resources.all().delete()
+
+            ProjectResource.objects.bulk_create(
+                learning_resources
+            )
+
+            print(
+                "9. Created "
+                f"{len(learning_resources)} "
+                "learning resources."
             )
 
             dependency_count = 0
@@ -980,7 +1272,6 @@ def generate_workspace(request, pk):
                 }
 
                 generated_tasks = []
-
                 dependency_indexes_by_order = {}
 
                 for index, generated_task in enumerate(
@@ -1016,7 +1307,8 @@ def generate_workspace(request, pk):
                             description=description,
                             priority=(
                                 normalize_task_priority(
-                                    generated_task.priority
+                                    generated_task
+                                    .priority
                                 )
                             ),
                             status=status,
@@ -1031,7 +1323,10 @@ def generate_workspace(request, pk):
                     raw_dependency_indexes = (
                         getattr(
                             generated_task,
-                            "dependency_indexes",
+                            (
+                                "dependency_"
+                                "indexes"
+                            ),
                             [],
                         )
                         or []
@@ -1070,8 +1365,8 @@ def generate_workspace(request, pk):
 
                 if not generated_tasks:
                     raise ValueError(
-                        "Workspace generation returned "
-                        "no valid tasks."
+                        "Workspace generation "
+                        "returned no valid tasks."
                     )
 
                 Task.objects.bulk_create(
@@ -1110,10 +1405,8 @@ def generate_workspace(request, pk):
                         ]
                         for dependency_index
                         in dependency_indexes
-                        if (
-                            dependency_index
-                            in tasks_by_order
-                        )
+                        if dependency_index
+                        in tasks_by_order
                     ]
 
                     if not dependencies:
@@ -1128,24 +1421,31 @@ def generate_workspace(request, pk):
                     )
 
                 print(
-                    "9. Created "
-                    f"{len(generated_tasks)} tasks "
-                    f"with {dependency_count} "
+                    "10. Created "
+                    f"{len(generated_tasks)} "
+                    "tasks with "
+                    f"{dependency_count} "
                     "dependencies."
                 )
 
             else:
                 dependency_count = (
-                    Task.dependencies.through.objects
+                    Task.dependencies.through
+                    .objects
                     .filter(
-                        from_task__project=project,
-                        to_task__project=project,
+                        from_task__project=(
+                            project
+                        ),
+                        to_task__project=(
+                            project
+                        ),
                     )
                     .count()
                 )
 
                 print(
-                    "9. Existing tasks preserved."
+                    "10. Existing tasks "
+                    "preserved."
                 )
 
             project.budget_items.all().delete()
@@ -1155,15 +1455,13 @@ def generate_workspace(request, pk):
             )
 
             print(
-                "10. Created "
-                f"{len(budget_items)} budget "
-                "and parts-list items."
+                "11. Created "
+                f"{len(budget_items)} "
+                "budget and parts-list items."
             )
 
             project.name = project_name
-            project.status = (
-                Project.Status.ACTIVE
-            )
+            project.status = Project.Status.ACTIVE
 
             project.save(
                 update_fields=[
@@ -1174,7 +1472,7 @@ def generate_workspace(request, pk):
             )
 
             print(
-                "11. Project saved as active."
+                "12. Project saved as active."
             )
 
             ProjectMembership.objects.get_or_create(
@@ -1182,13 +1480,15 @@ def generate_workspace(request, pk):
                 user=project.owner,
                 defaults={
                     "role": (
-                        ProjectMembership.Role.OWNER
+                        ProjectMembership
+                        .Role
+                        .OWNER
                     ),
                 },
             )
 
             print(
-                "12. Owner membership confirmed."
+                "13. Owner membership confirmed."
             )
 
             ProjectState.objects.get_or_create(
@@ -1199,13 +1499,14 @@ def generate_workspace(request, pk):
             )
 
             print(
-                "13. Project state confirmed."
+                "14. Project state confirmed."
             )
 
             task_count = project.tasks.count()
 
             dependency_count = (
-                Task.dependencies.through.objects
+                Task.dependencies.through
+                .objects
                 .filter(
                     from_task__project=project,
                     to_task__project=project,
@@ -1226,9 +1527,11 @@ def generate_workspace(request, pk):
                     "workspace sections, "
                     f"{task_count} tasks, "
                     f"{dependency_count} task "
-                    "dependencies, and "
-                    f"{len(budget_items)} budget "
-                    "items."
+                    "dependencies, "
+                    f"{len(learning_resources)} "
+                    "learning resources, and "
+                    f"{len(budget_items)} "
+                    "budget items."
                 ),
                 metadata={
                     "section_count": (
@@ -1238,6 +1541,11 @@ def generate_workspace(request, pk):
                     "dependency_count": (
                         dependency_count
                     ),
+                    "learning_resource_count": (
+                        len(
+                            learning_resources
+                        )
+                    ),
                     "budget_item_count": (
                         len(budget_items)
                     ),
@@ -1245,7 +1553,7 @@ def generate_workspace(request, pk):
             )
 
             print(
-                "14. Workspace event recorded."
+                "15. Workspace event recorded."
             )
 
         generation_seconds = (
@@ -1275,8 +1583,8 @@ def generate_workspace(request, pk):
         messages.error(
             request,
             (
-                "BuilderOS could not generate the "
-                "workspace. Please try again."
+                "BuilderOS could not generate "
+                "the workspace. Please try again."
             ),
         )
 
@@ -1289,6 +1597,7 @@ def generate_workspace(request, pk):
         "workspace",
         project_pk=project.pk,
     )
+
 @login_required
 def workspace(request, project_pk):
     project = get_project_for_user(
@@ -1484,7 +1793,6 @@ def workspace_folder(
 
         elif folder.folder_type in {
             "learning",
-            "documentation",
             "resources",
         }:
             print(
@@ -1500,7 +1808,7 @@ def workspace_folder(
                     "pk",
                 )
             )
-
+        
         elif folder.folder_type == "budget":
             print(
                 "WORKSPACE FOLDER 4: "

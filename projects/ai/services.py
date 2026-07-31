@@ -6,7 +6,29 @@ import time
 
 client = OpenAI()
 
+class GeneratedLearningResource(BaseModel):
+    title: str
+    topic: str
+    url: str
+    description: str
+    reason_needed: str
+    related_task: str
+    difficulty: str
+    resource_type: str = "documentation"
+    is_official: bool = False
 
+
+class GeneratedDocumentationSection(BaseModel):
+    title: str
+    content: str
+
+    related_topics: list[str] = Field(
+        default_factory=list
+    )
+
+    reference_urls: list[str] = Field(
+        default_factory=list
+    )
 class GeneratedBudgetItem(BaseModel):
     name: str
     description: str = ""
@@ -334,6 +356,123 @@ Prefer bullet lists whenever possible.
 Assume additional detail can be generated later using BuilderOS tools.
 
 Optimize for speed while remaining useful.
+
+Generate a complete and practical project workspace.
+
+LEARNING RESOURCES
+
+Generate a structured learning resource for every
+important technology, component, tool, and concept
+the user must understand to complete the project.
+
+Cover relevant:
+
+- programming languages
+- frameworks
+- libraries
+- APIs
+- development tools
+- hardware components
+- communication protocols
+- electrical and mechanical concepts
+- deployment platforms
+- testing tools
+- safety concepts
+
+Each learning resource must include:
+
+- title
+- topic
+- URL
+- description of what the resource teaches
+- why the user needs it for this project
+- the related task or project phase
+- difficulty level
+- resource type
+- whether the source is official
+
+Valid resource_type values are:
+
+- documentation
+- tutorial
+- video
+- article
+- course
+- tool
+
+Use official documentation whenever it exists.
+
+Preferred source order:
+
+1. Official product documentation
+2. Official framework or library documentation
+3. Manufacturer documentation or datasheets
+4. Reputable educational resources
+5. High-quality tutorials
+
+Do not invent URLs.
+
+Only return a URL when you are confident that it is
+a real and relevant destination.
+
+If a reliable URL is not known, return an empty string.
+
+Avoid duplicate resources.
+
+The Learning Resources output should teach the user
+each individual technology or concept required by
+their exact project.
+
+DOCUMENTATION
+
+Generate detailed, project-specific documentation.
+
+This must explain how the user's exact project should
+be understood, built, configured, tested, operated,
+troubleshot, and maintained.
+
+Create documentation sections covering relevant
+parts of:
+
+1. Project overview
+2. Goals and scope
+3. System architecture
+4. Major components
+5. How components interact
+6. Software architecture
+7. Repository and folder structure
+8. Installation and environment setup
+9. Dependencies
+10. Hardware wiring and integration
+11. Power architecture
+12. Configuration
+13. Environment variables
+14. APIs and communication protocols
+15. Database or data model
+16. Main workflows
+17. Commands used to run the project
+18. Testing procedures
+19. Calibration procedures
+20. Troubleshooting
+21. Deployment
+22. Maintenance
+23. Security considerations
+24. Electrical, mechanical, and operational safety
+
+Only include sections that are relevant to the
+project, but explain all relevant sections fully.
+
+The documentation must explain the project itself,
+not merely provide links.
+
+Explain important terms, components, commands,
+decisions, and interactions as though the reader is
+learning them for the first time.
+
+Use relevant learning-resource URLs as references
+where helpful.
+
+Do not replace detailed explanations with links.
 """
 class GeneratedSection(BaseModel):
     folder_type: Literal[
@@ -370,7 +509,17 @@ class GeneratedWorkspace(BaseModel):
     sections: list[GeneratedSection]
     tasks: list[GeneratedTask]
 
+    learning_resources: list[
+        GeneratedLearningResource
+    ] = Field(
+        default_factory=list
+    )
 
+    documentation_sections: list[
+        GeneratedDocumentationSection
+    ] = Field(
+        default_factory=list
+    )
 def generate_workspace_content(project) -> GeneratedWorkspace:
     conversation = build_workspace_generation_input(project)
 
@@ -2133,3 +2282,5 @@ def build_workspace_generation_input(project):
             "created_at"
         )
     ]
+
+
