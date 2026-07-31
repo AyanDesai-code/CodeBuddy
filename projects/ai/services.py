@@ -675,7 +675,32 @@ Critical budgeting rules:
 10. Avoid duplicate or overlapping components.
 11. Prefer practical low-cost components appropriate for a prototype.
 12. Source URLs must be real URLs or blank. Never invent URLs.
+For every budget item include:
 
+- source_name
+- source_url
+
+Requirements:
+
+- source_url must be a complete HTTPS URL.
+- Prefer official manufacturer pages.
+- If unavailable, use a reputable distributor such as:
+  - DigiKey
+  - Mouser
+  - SparkFun
+  - Adafruit
+  - Pololu
+  - McMaster-Carr
+  - Raspberry Pi
+  - Arduino
+  - JLCPCB
+  - PCBWay
+
+Do not write generic text like
+"Amazon", "electronics suppliers", or "robotics stores".
+
+Provide a real URL whenever possible.
+If no reliable URL exists, return an empty string.
 """
 def generate_project_budget(
     project,
