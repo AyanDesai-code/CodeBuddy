@@ -685,6 +685,12 @@ def project_setup(request, pk):
 @login_required
 @require_POST
 def generate_workspace(request, pk):
+    print(
+        "GENERATE WORKSPACE REQUEST:",
+        request.method,
+        request.path,
+    )
+    print("1. Calling workspace generator.")
     project = get_owned_project_for_user(
         project_pk=pk,
         user=request.user,
