@@ -94,3 +94,6 @@ A copy-and-paste friendly onboarding guide is available in [USER_GUIDE.md](USER_
 - This project runs in development mode (`DEBUG = True`).
 - The SQLite database file is `db.sqlite3`.
 - For production usage, update `SECRET_KEY`, `DEBUG`, and database settings.
+
+## To access the actual site visit:
+- https://builderos-beta.onrender.com/projects/
