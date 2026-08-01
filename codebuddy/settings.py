@@ -314,3 +314,35 @@ if not DEBUG:
 DEFAULT_AUTO_FIELD = (
     "django.db.models.BigAutoField"
 )
+REDIS_URL = os.environ.get(
+    "REDIS_URL",
+)
+
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": (
+                "django_redis.cache."
+                "RedisCache"
+            ),
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": (
+                    "django_redis.client."
+                    "DefaultClient"
+                ),
+            },
+        },
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": (
+                "django.core.cache.backends."
+                "locmem.LocMemCache"
+            ),
+            "LOCATION": (
+                "builderos-development"
+            ),
+        },
+    }
