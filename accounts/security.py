@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.cache import cache
 
 
@@ -13,7 +14,11 @@ def get_client_ip(request):
     )
 
     if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
+        return (
+            forwarded_for
+            .split(",")[0]
+            .strip()
+        )
 
     return request.META.get(
         "REMOTE_ADDR",
@@ -50,13 +55,40 @@ def signup_is_rate_limited(request):
     ip_address = get_client_ip(request)
 
     hourly_count = increment_counter(
-        key=f"signup-attempt-hour:{ip_address}",
+        key=(
+            f"signup-attempt-hour:"
+            f"{ip_address}"
+        ),
         timeout=60 * 60,
     )
 
     daily_count = increment_counter(
-        key=f"signup-attempt-day:{ip_address}",
+        key=(
+            f"signup-attempt-day:"
+            f"{ip_address}"
+        ),
         timeout=60 * 60 * 24,
+    )
+
+    print(
+        "SIGNUP LIMIT CHECK:",
+        {
+            "backend": (
+                settings.CACHES[
+                    "default"
+                ]["BACKEND"]
+            ),
+            "ip": ip_address,
+            "hourly_count": hourly_count,
+            "daily_count": daily_count,
+            "hourly_limit": (
+                SIGNUP_ATTEMPTS_PER_HOUR
+            ),
+            "daily_limit": (
+                SIGNUP_ATTEMPTS_PER_DAY
+            ),
+        },
+        flush=True,
     )
 
     return (
@@ -70,18 +102,50 @@ def signup_is_rate_limited(request):
 def record_successful_signup(request):
     ip_address = get_client_ip(request)
 
-    return increment_counter(
-        key=f"signup-success-day:{ip_address}",
+    count = increment_counter(
+        key=(
+            f"signup-success-day:"
+            f"{ip_address}"
+        ),
         timeout=60 * 60 * 24,
     )
+
+    print(
+        "SUCCESSFUL SIGNUP RECORDED:",
+        {
+            "ip": ip_address,
+            "count": count,
+        },
+        flush=True,
+    )
+
+    return count
 
 
 def too_many_successful_signups(request):
     ip_address = get_client_ip(request)
 
     count = cache.get(
-        f"signup-success-day:{ip_address}",
+        (
+            f"signup-success-day:"
+            f"{ip_address}"
+        ),
         0,
     )
 
-    return count >= SUCCESSFUL_SIGNUPS_PER_DAY
+    print(
+        "SUCCESSFUL SIGNUP LIMIT CHECK:",
+        {
+            "ip": ip_address,
+            "count": count,
+            "limit": (
+                SUCCESSFUL_SIGNUPS_PER_DAY
+            ),
+        },
+        flush=True,
+    )
+
+    return (
+        count
+        >= SUCCESSFUL_SIGNUPS_PER_DAY
+    )
