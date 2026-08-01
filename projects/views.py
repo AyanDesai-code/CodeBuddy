@@ -19,6 +19,7 @@ from django.shortcuts import (
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from openai import project
 
 from .ai.services import (
 
@@ -623,12 +624,38 @@ def restore_project(
         status=Project.Status.ARCHIVED,
     )
 
+    if not can_create_project(
+        request.user
+    ):
+        project_limit = (
+            get_active_project_limit(
+                request.user
+            )
+        )
+
+        messages.error(
+            request,
+            (
+                "Core accounts can have up to "
+                f"{project_limit} active projects. "
+                "Archive or delete an active "
+                "project before restoring this one."
+            ),
+        )
+
+        return redirect(
+            f"{reverse('project_list')}"
+            "?archived=1"
+        )
+
     project_name = (
         project.name
         or "Untitled Project"
     )
 
-    project.status = Project.Status.ACTIVE
+    project.status = (
+        Project.Status.ACTIVE
+    )
 
     project.save(
         update_fields=[
@@ -643,44 +670,21 @@ def restore_project(
     )
 
     return redirect(
-        f"{reverse('project_list')}?archived=1"
+        f"{reverse('project_list')}"
+        "?archived=1"
     )
-
-from django.contrib import messages
-from django.shortcuts import redirect
-
-
-CORE_ACTIVE_PROJECT_LIMIT = 3
-
-
 @login_required
 def new_project(request):
-    active_project_count = (
-        request.user.projects
-        .exclude(
-            status=Project.Status.ARCHIVED,
-        )
-        .count()
-    )
-
-    if (
-        active_project_count
-        >= CORE_ACTIVE_PROJECT_LIMIT
-    ):
+    if not can_create_project(request.user):
         messages.warning(
             request,
             (
-                "Core accounts can have up to "
-                f"{CORE_ACTIVE_PROJECT_LIMIT} "
-                "active projects. Archive or "
-                "delete a project to create "
-                "another."
+                f"Core accounts can have up to "
+                f"{get_active_project_limit(request.user)} active projects. "
+                "Archive or delete a project to create another."
             ),
         )
-
-        return redirect(
-            "project_list"
-        )
+        return redirect("project_list")
 
     project = Project.objects.create(
         owner=request.user,
@@ -1718,6 +1722,8 @@ def generate_workspace(
                 "the workspace. Please try again."
             ),
         )
+        project.status = Project.Status.DRAFT
+        project.save(update_fields=["status"])
 
         return redirect(
             "project_setup",
