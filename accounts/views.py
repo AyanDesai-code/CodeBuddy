@@ -99,7 +99,7 @@ def signup(request):
 
     return render(
         request,
-        "registration/signup.html",
+        "accounts/signup.html",
         {
             "form": form,
         },
