@@ -55,4 +55,9 @@ urlpatterns = [
         ),
         name="password_reset_complete",
     ),
+    path(
+        "cache-debug/",
+        views.cache_debug,
+        name="cache_debug",
+    ),
 ]

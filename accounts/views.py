@@ -8,6 +8,10 @@ from .security import (
     signup_is_rate_limited,
     too_many_successful_signups,
 )
+from django.conf import settings
+from django.core.cache import cache
+from django.http import JsonResponse
+
 
 
 User = get_user_model()
@@ -99,4 +103,27 @@ def signup(request):
         {
             "form": form,
         },
+    )
+
+
+def cache_debug(request):
+    cache.set(
+        "redis-test",
+        "working",
+        300,
+    )
+
+    return JsonResponse(
+        {
+            "backend": (
+                settings.CACHES[
+                    "default"
+                ][
+                    "BACKEND"
+                ]
+            ),
+            "cache_value": cache.get(
+                "redis-test"
+            ),
+        }
     )
