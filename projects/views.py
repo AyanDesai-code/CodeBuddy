@@ -377,11 +377,16 @@ def normalize_task_title(title):
 
 @login_required
 def project_list(request):
-    show_archived = request.GET.get("archived") == "1"
+    show_archived = (
+        request.GET.get("archived")
+        == "1"
+    )
 
     projects = (
         Project.objects
-        .filter(memberships__user=request.user)
+        .filter(
+            memberships__user=request.user
+        )
         .select_related("owner")
         .prefetch_related(
             "tasks",
@@ -406,15 +411,25 @@ def project_list(request):
     project_cards = []
 
     for project in projects:
-        total_tasks = project.tasks.count()
-        completed_tasks = project.tasks.filter(
-            status=Task.Status.DONE,
-        ).count()
+        total_tasks = (
+            project.tasks.count()
+        )
+
+        completed_tasks = (
+            project.tasks
+            .filter(
+                status=Task.Status.DONE,
+            )
+            .count()
+        )
 
         task_progress = 0
+
         if total_tasks > 0:
             task_progress = round(
-                completed_tasks / total_tasks * 100
+                completed_tasks
+                / total_tasks
+                * 100
             )
 
         latest_review = (
@@ -430,44 +445,60 @@ def project_list(request):
         )
 
         open_conflict_count = (
-            project.conflicts.filter(
-                status=ProjectConflict.Status.OPEN,
-            ).count()
+            project.conflicts
+            .filter(
+                status=(
+                    ProjectConflict.Status.OPEN
+                ),
+            )
+            .count()
         )
 
-        permission_context = project_permission_context(
-            project=project,
-            user=request.user,
+        permission_context = (
+            project_permission_context(
+                project=project,
+                user=request.user,
+            )
         )
 
         project_cards.append(
             {
                 "project": project,
                 "total_tasks": total_tasks,
-                "completed_tasks": completed_tasks,
-                "task_progress": task_progress,
-                "health_score": health_score,
-                "open_conflict_count": open_conflict_count,
+                "completed_tasks": (
+                    completed_tasks
+                ),
+                "task_progress": (
+                    task_progress
+                ),
+                "health_score": (
+                    health_score
+                ),
+                "open_conflict_count": (
+                    open_conflict_count
+                ),
                 **permission_context,
             }
         )
-        owned_active_project_count = (
-            get_owned_active_project_count(
-                request.user
-            )
-        )
 
-        project_limit = (
-            get_active_project_limit(
-                request.user
-            )
+    # These belong OUTSIDE the loop.
+    owned_active_project_count = (
+        get_owned_active_project_count(
+            request.user
         )
+    )
 
-        user_can_create_project = (
-            can_create_project(
-                request.user
-            )
+    project_limit = (
+        get_active_project_limit(
+            request.user
         )
+    )
+
+    user_can_create_project = (
+        can_create_project(
+            request.user
+        )
+    )
 
     return render(
         request,
@@ -475,9 +506,17 @@ def project_list(request):
         {
             "project_cards": project_cards,
             "show_archived": show_archived,
-            "owned_active_project_count": owned_active_project_count,
-            "project_limit": project_limit,
-            "user_can_create_project": user_can_create_project,
+
+            # Names must match the template.
+            "can_create_project": (
+                user_can_create_project
+            ),
+            "active_project_count": (
+                owned_active_project_count
+            ),
+            "project_limit": (
+                project_limit
+            ),
         },
     )
 
