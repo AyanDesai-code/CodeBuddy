@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import JsonResponse, request
 from django.shortcuts import (
     get_object_or_404,
     redirect,
@@ -57,6 +57,11 @@ from .permissions import (
     project_permission_context,
     user_is_project_owner,
 )
+from .limits import (
+    can_create_project,
+    get_active_project_limit,
+    get_owned_active_project_count,
+)
 from collections import defaultdict
 from decimal import Decimal
 import traceback
@@ -94,6 +99,11 @@ def mark_schedule_for_refresh(
         ]
     )
 
+from decimal import Decimal, InvalidOperation
+
+from .models import BudgetItem
+
+
 def build_budget_items_from_ai(
     *,
     project,
@@ -118,62 +128,105 @@ def build_budget_items_from_ai(
 
     budget_items = []
 
-    for item in budget_items:
-        item_total = item.estimated_total
+    for order, generated_item in enumerate(
+        generated_items or [],
+        start=1,
+    ):
+        name = (
+            generated_item.name
+            or ""
+        ).strip()
 
-        category_name = (
-            item.get_category_display()
-        )
+        if not name:
+            continue
 
-        category_totals[
-            category_name
-        ] = (
-            category_totals.get(
-                category_name,
-                Decimal("0.00"),
-            )
-            + item_total
-        )
+        category = (
+            generated_item.category
+            or ""
+        ).strip().lower()
 
-        # Keep labor completely separate.
+        if category not in valid_categories:
+            category = BudgetItem.Category.OTHER
+
+        requirement_level = (
+            generated_item.requirement_level
+            or ""
+        ).strip().lower()
+
         if (
-            item.category
-            == BudgetItem.Category.LABOR
+            requirement_level
+            not in valid_requirement_levels
         ):
-            labor_total += item_total
+            requirement_level = (
+                BudgetItem
+                .RequirementLevel
+                .RECOMMENDED
+            )
 
-        # Genuine recurring costs only.
-        elif item.is_recurring:
-            estimated_monthly_total += item_total
+        try:
+            quantity = int(
+                generated_item.quantity
+            )
+        except (TypeError, ValueError):
+            quantity = 1
 
-        # All non-recurring, non-labor purchases.
-        else:
-            estimated_one_time_total += item_total
+        quantity = max(1, quantity)
 
-            if (
-                item.requirement_level
-                == BudgetItem.RequirementLevel.REQUIRED
-            ):
-                required_total += item_total
+        try:
+            unit_cost = Decimal(
+                str(
+                    generated_item.unit_cost
+                    or "0"
+                )
+            )
+        except (
+            InvalidOperation,
+            TypeError,
+            ValueError,
+        ):
+            unit_cost = Decimal("0.00")
 
-            elif (
-                item.requirement_level
-                == BudgetItem.RequirementLevel.RECOMMENDED
-            ):
-                recommended_total += item_total
+        unit_cost = max(
+            Decimal("0.00"),
+            unit_cost,
+        )
 
-            elif (
-                item.requirement_level
-                == BudgetItem.RequirementLevel.OPTIONAL
-            ):
-                optional_total += item_total
+        is_recurring = bool(
+            generated_item.is_recurring
+        )
 
-        if item.is_physical_part:
-            physical_parts_total += item_total
+        # Only hosting and API items may be monthly.
+        if category not in recurring_categories:
+            is_recurring = False
 
-        if item.actual_total is not None:
-            actual_spent_total += item.actual_total
+        item_text = (
+            f"{name} "
+            f"{generated_item.description or ''}"
+        ).lower()
 
+        annual_phrases = {
+            "annual",
+            "annually",
+            "yearly",
+            "per year",
+            "first year",
+            "domain name",
+            "domain registration",
+        }
+
+        looks_annual = any(
+            phrase in item_text
+            for phrase in annual_phrases
+        )
+
+        # Until annual billing is supported,
+        # annual expenses are shown as one-time.
+        if looks_annual:
+            is_recurring = False
+
+        # A recurring line represents one month's
+        # charge, not several months multiplied
+        # together.
         if is_recurring:
             quantity = 1
 
@@ -398,6 +451,23 @@ def project_list(request):
                 **permission_context,
             }
         )
+        owned_active_project_count = (
+            get_owned_active_project_count(
+                request.user
+            )
+        )
+
+        project_limit = (
+            get_active_project_limit(
+                request.user
+            )
+        )
+
+        user_can_create_project = (
+            can_create_project(
+                request.user
+            )
+        )
 
     return render(
         request,
@@ -405,6 +475,9 @@ def project_list(request):
         {
             "project_cards": project_cards,
             "show_archived": show_archived,
+            "owned_active_project_count": owned_active_project_count,
+            "project_limit": project_limit,
+            "user_can_create_project": user_can_create_project,
         },
     )
 
@@ -534,28 +607,52 @@ def restore_project(
         f"{reverse('project_list')}?archived=1"
     )
 
+from django.contrib import messages
+from django.shortcuts import redirect
+
+
+CORE_ACTIVE_PROJECT_LIMIT = 3
+
+
 @login_required
 def new_project(request):
+    active_project_count = (
+        request.user.projects
+        .exclude(
+            status=Project.Status.ARCHIVED,
+        )
+        .count()
+    )
+
+    if (
+        active_project_count
+        >= CORE_ACTIVE_PROJECT_LIMIT
+    ):
+        messages.warning(
+            request,
+            (
+                "Core accounts can have up to "
+                f"{CORE_ACTIVE_PROJECT_LIMIT} "
+                "active projects. Archive or "
+                "delete a project to create "
+                "another."
+            ),
+        )
+
+        return redirect(
+            "project_list"
+        )
+
     project = Project.objects.create(
         owner=request.user,
+        name="Untitled Project",
         status=Project.Status.DRAFT,
     )
-    messages.success(
-        request,
-        "New project created.",
-    )
-    ProjectMembership.objects.create(
-        project=project,
-        user=request.user,
-        role=ProjectMembership.Role.OWNER,
-    )
 
-    ProjectState.objects.create(
-        project=project,
-        facts={},
+    return redirect(
+        "project_setup",
+        pk=project.pk,
     )
-
-    return redirect("project_setup", pk=project.pk)
 @login_required
 def project_setup(request, pk):
     project = get_owned_project_for_user(

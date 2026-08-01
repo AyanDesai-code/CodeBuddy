@@ -121,7 +121,7 @@
         width: 100%;
     }
 
-    .rename-form input {
+   .rename-form input {
         flex: 1;
         min-width: 0;
         border: 1px solid var(--border-strong);
@@ -131,9 +131,26 @@
         padding: 8px;
     }
 
+    .disabled-button {
+        opacity: 0.55;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .project-limit-text {
+        margin: 8px 0 0;
+        color: var(--text-muted);
+        font-size: 13px;
+        text-align: right;
+    }
+
     @media (max-width: 650px) {
         .page-header {
             flex-direction: column;
+        }
+
+        .project-limit-text {
+            text-align: left;
         }
     }
 </style>
@@ -155,22 +172,47 @@
         </p>
     </div>
 
-    <div class="header-actions">
-        {% if show_archived %}
-            <a class="button" href="{% url 'project_list' %}">
-                Active Projects
-            </a>
-        {% else %}
-            <a class="button" href="{% url 'new_project' %}">
-                New Project
-            </a>
+    <div>
+        <div class="header-actions">
+            {% if show_archived %}
+                <a
+                    class="button"
+                    href="{% url 'project_list' %}"
+                >
+                    Active Projects
+                </a>
+            {% else %}
+                {% if can_create_project %}
+                    <a
+                        class="button"
+                        href="{% url 'new_project' %}"
+                    >
+                        New Project
+                    </a>
+                {% else %}
+                    <span
+                        class="button disabled-button"
+                        title="Archive or delete a project to create another."
+                    >
+                        Project Limit Reached
+                    </span>
+                {% endif %}
 
-            <a
-                class="button"
-                href="{% url 'project_list' %}?archived=1"
-            >
-                Archived
-            </a>
+                <a
+                    class="button"
+                    href="{% url 'project_list' %}?archived=1"
+                >
+                    Archived
+                </a>
+            {% endif %}
+        </div>
+
+        {% if not show_archived %}
+            <p class="project-limit-text">
+                {{ active_project_count }} of
+                {{ project_limit }}
+                active projects used
+            </p>
         {% endif %}
     </div>
 </div>
