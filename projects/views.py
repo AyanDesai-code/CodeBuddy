@@ -6578,3 +6578,14 @@ def regenerate_project_budget(
         project_pk=project.pk,
         folder_pk=budget_folder.pk,
     )
+def home(request):
+    if request.user.is_authenticated:
+        return render(
+            request,
+            "projects/home.html",
+        )
+
+    return render(
+        request,
+        "projects/home.html",
+    )

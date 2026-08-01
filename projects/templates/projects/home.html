@@ -1,0 +1,643 @@
+{% extends "projects/base.html" %}
+
+{% block title %}
+    BuilderOS | Turn Ideas Into Buildable Projects
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .home-shell {
+        max-width: 1180px;
+        margin: 0 auto;
+    }
+
+    .hero {
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1.15fr)
+            minmax(320px, 0.85fr);
+        gap: 48px;
+        align-items: center;
+        padding: 72px 0 64px;
+    }
+
+    .hero-copy h1 {
+        max-width: 760px;
+        margin: 0;
+        font-size: clamp(
+            42px,
+            7vw,
+            76px
+        );
+        line-height: 0.98;
+        letter-spacing: -0.045em;
+    }
+
+    .hero-copy p {
+        max-width: 680px;
+        margin: 24px 0 0;
+        color: var(--text-muted);
+        font-size: 19px;
+        line-height: 1.7;
+    }
+
+    .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        padding: 7px 11px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface-soft);
+        color: var(--text-muted);
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .eyebrow-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--accent);
+        box-shadow:
+            0 0 18px var(--accent);
+    }
+
+    .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 30px;
+    }
+
+    .hero-button {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 46px;
+        padding: 0 18px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 750;
+    }
+
+    .hero-button.primary {
+        background: var(--accent);
+        color: white;
+        border: 1px solid var(--accent);
+    }
+
+    .hero-button.secondary {
+        background: var(--surface);
+        color: var(--text);
+        border: 1px solid var(--border);
+    }
+
+    .hero-note {
+        margin-top: 13px;
+        color: var(--text-muted);
+        font-size: 13px;
+    }
+
+    .hero-panel {
+        position: relative;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        background:
+            linear-gradient(
+                145deg,
+                var(--surface),
+                var(--surface-soft)
+            );
+        padding: 20px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+    }
+
+    .hero-panel::before {
+        content: "";
+        position: absolute;
+        width: 240px;
+        height: 240px;
+        right: -90px;
+        top: -90px;
+        border-radius: 999px;
+        background: var(--accent);
+        opacity: 0.12;
+        filter: blur(30px);
+    }
+
+    .window-bar {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 18px;
+    }
+
+    .window-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--border-strong);
+    }
+
+    .demo-project {
+        position: relative;
+        z-index: 1;
+    }
+
+    .demo-project h2 {
+        margin: 0 0 8px;
+        font-size: 22px;
+    }
+
+    .demo-project > p {
+        margin: 0;
+        color: var(--text-muted);
+        line-height: 1.6;
+    }
+
+    .demo-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: 11px;
+        margin-top: 20px;
+    }
+
+    .demo-card {
+        min-height: 105px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        padding: 14px;
+    }
+
+    .demo-card span {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--text-muted);
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .demo-card strong {
+        font-size: 17px;
+    }
+
+    .demo-card p {
+        margin: 7px 0 0;
+        color: var(--text-muted);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .section {
+        padding: 70px 0;
+    }
+
+    .section-heading {
+        max-width: 720px;
+        margin-bottom: 32px;
+    }
+
+    .section-heading h2 {
+        margin: 0;
+        font-size: clamp(
+            30px,
+            4vw,
+            48px
+        );
+        letter-spacing: -0.03em;
+    }
+
+    .section-heading p {
+        margin: 14px 0 0;
+        color: var(--text-muted);
+        font-size: 17px;
+        line-height: 1.7;
+    }
+
+    .feature-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .feature-card {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+        padding: 20px;
+        box-shadow: var(--shadow);
+    }
+
+    .feature-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        margin-bottom: 18px;
+        border-radius: 9px;
+        background: var(--surface-soft);
+        color: var(--accent);
+        font-weight: 800;
+    }
+
+    .feature-card h3 {
+        margin: 0;
+        font-size: 19px;
+    }
+
+    .feature-card p {
+        margin: 10px 0 0;
+        color: var(--text-muted);
+        line-height: 1.65;
+    }
+
+    .steps {
+        display: grid;
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .step-card {
+        border-top: 2px solid var(--accent);
+        background: var(--surface-soft);
+        border-radius: 0 0 12px 12px;
+        padding: 20px;
+    }
+
+    .step-card small {
+        color: var(--accent);
+        font-weight: 800;
+    }
+
+    .step-card h3 {
+        margin: 9px 0 0;
+    }
+
+    .step-card p {
+        margin: 9px 0 0;
+        color: var(--text-muted);
+        line-height: 1.6;
+    }
+
+    .cta {
+        margin: 50px 0 20px;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        background:
+            linear-gradient(
+                135deg,
+                var(--surface),
+                var(--surface-soft)
+            );
+        padding: 40px;
+        text-align: center;
+    }
+
+    .cta h2 {
+        margin: 0;
+        font-size: clamp(
+            30px,
+            4vw,
+            46px
+        );
+    }
+
+    .cta p {
+        max-width: 650px;
+        margin: 14px auto 0;
+        color: var(--text-muted);
+        font-size: 17px;
+        line-height: 1.7;
+    }
+
+    .cta .hero-actions {
+        justify-content: center;
+    }
+
+    .home-footer {
+        padding: 30px 0 14px;
+        color: var(--text-muted);
+        text-align: center;
+        font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+        .hero {
+            grid-template-columns: 1fr;
+            padding-top: 42px;
+        }
+
+        .feature-grid,
+        .steps {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .hero-copy h1 {
+            font-size: 44px;
+        }
+
+        .demo-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .hero-actions {
+            flex-direction: column;
+        }
+
+        .hero-button {
+            width: 100%;
+        }
+
+        .cta {
+            padding: 28px 18px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="home-shell">
+    <section class="hero">
+        <div class="hero-copy">
+            <div class="eyebrow">
+                <span class="eyebrow-dot"></span>
+                BuilderOS Beta
+            </div>
+
+            <h1>
+                Turn ambitious ideas into buildable projects.
+            </h1>
+
+            <p>
+                Describe what you want to build and BuilderOS
+                creates a structured workspace with tasks,
+                budgets, materials, documentation, timelines,
+                learning resources, and project guidance.
+            </p>
+
+            <div class="hero-actions">
+                {% if request.user.is_authenticated %}
+                    <a
+                        class="hero-button primary"
+                        href="{% url 'new_project' %}"
+                    >
+                        Start a New Project
+                    </a>
+
+                    <a
+                        class="hero-button secondary"
+                        href="{% url 'project_list' %}"
+                    >
+                        Open My Projects
+                    </a>
+                {% else %}
+                    <a
+                        class="hero-button primary"
+                        href="{% url 'signup' %}"
+                    >
+                        Create Free Account
+                    </a>
+
+                    <a
+                        class="hero-button secondary"
+                        href="{% url 'login' %}"
+                    >
+                        Log In
+                    </a>
+                {% endif %}
+            </div>
+
+            <p class="hero-note">
+                Free during beta. No payment information required.
+            </p>
+        </div>
+
+        <div class="hero-panel">
+            <div class="window-bar">
+                <span class="window-dot"></span>
+                <span class="window-dot"></span>
+                <span class="window-dot"></span>
+            </div>
+
+            <div class="demo-project">
+                <h2>Autonomous Garden Robot</h2>
+
+                <p>
+                    A battery-powered robot that identifies
+                    bare lawn patches and plants grass seed.
+                </p>
+
+                <div class="demo-grid">
+                    <div class="demo-card">
+                        <span>Tasks</span>
+                        <strong>28 generated</strong>
+                        <p>
+                            Ordered by priority, dependencies,
+                            and project phase.
+                        </p>
+                    </div>
+
+                    <div class="demo-card">
+                        <span>Budget</span>
+                        <strong>$684 estimated</strong>
+                        <p>
+                            Parts, tools, subscriptions, and
+                            optional upgrades.
+                        </p>
+                    </div>
+
+                    <div class="demo-card">
+                        <span>Timeline</span>
+                        <strong>8 milestones</strong>
+                        <p>
+                            A structured path from prototype
+                            to testing.
+                        </p>
+                    </div>
+
+                    <div class="demo-card">
+                        <span>Resources</span>
+                        <strong>17 references</strong>
+                        <p>
+                            Documentation and learning material
+                            tied to the build.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-heading">
+            <h2>
+                More than a checklist.
+            </h2>
+
+            <p>
+                BuilderOS turns a rough idea into a connected
+                project system you can understand, edit, and
+                keep improving.
+            </p>
+        </div>
+
+        <div class="feature-grid">
+            <article class="feature-card">
+                <div class="feature-number">01</div>
+
+                <h3>Structured workspace</h3>
+
+                <p>
+                    Generate requirements, roadmaps, testing
+                    plans, documentation, materials, and other
+                    core project sections.
+                </p>
+            </article>
+
+            <article class="feature-card">
+                <div class="feature-number">02</div>
+
+                <h3>Actionable task system</h3>
+
+                <p>
+                    Break large ideas into manageable tasks
+                    with priorities, dependencies, milestones,
+                    statuses, and progress tracking.
+                </p>
+            </article>
+
+            <article class="feature-card">
+                <div class="feature-number">03</div>
+
+                <h3>Budget and parts planning</h3>
+
+                <p>
+                    Estimate one-time and recurring costs,
+                    organize physical parts, and review spending
+                    by category.
+                </p>
+            </article>
+
+            <article class="feature-card">
+                <div class="feature-number">04</div>
+
+                <h3>Project assistant</h3>
+
+                <p>
+                    Explain changes in plain language and update
+                    the affected workspace sections and tasks
+                    without rebuilding everything manually.
+                </p>
+            </article>
+
+            <article class="feature-card">
+                <div class="feature-number">05</div>
+
+                <h3>Review and conflict detection</h3>
+
+                <p>
+                    Analyze project health, reveal missing
+                    decisions, identify contradictions, and
+                    surface risks before they become expensive.
+                </p>
+            </article>
+
+            <article class="feature-card">
+                <div class="feature-number">06</div>
+
+                <h3>Built for real projects</h3>
+
+                <p>
+                    Use BuilderOS for software, hardware,
+                    robotics, products, research, events, and
+                    other complex builds.
+                </p>
+            </article>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-heading">
+            <h2>
+                From idea to execution in three steps.
+            </h2>
+        </div>
+
+        <div class="steps">
+            <article class="step-card">
+                <small>STEP 1</small>
+                <h3>Describe the project</h3>
+                <p>
+                    Explain what you want to build, your budget,
+                    goals, constraints, and experience level.
+                </p>
+            </article>
+
+            <article class="step-card">
+                <small>STEP 2</small>
+                <h3>Generate the workspace</h3>
+                <p>
+                    BuilderOS creates the tasks, budget,
+                    resources, roadmap, and documentation.
+                </p>
+            </article>
+
+            <article class="step-card">
+                <small>STEP 3</small>
+                <h3>Build and adapt</h3>
+                <p>
+                    Track progress, update decisions, regenerate
+                    sections, and keep the project aligned.
+                </p>
+            </article>
+        </div>
+    </section>
+
+    <section class="cta">
+        <h2>
+            Your next project should not start with a blank page.
+        </h2>
+
+        <p>
+            Create a free beta account and turn your idea into
+            a workspace you can actually build from.
+        </p>
+
+        <div class="hero-actions">
+            {% if request.user.is_authenticated %}
+                <a
+                    class="hero-button primary"
+                    href="{% url 'new_project' %}"
+                >
+                    Start Building
+                </a>
+            {% else %}
+                <a
+                    class="hero-button primary"
+                    href="{% url 'signup' %}"
+                >
+                    Join the Beta
+                </a>
+            {% endif %}
+        </div>
+    </section>
+
+    <footer class="home-footer">
+        BuilderOS Beta · AI-generated project guidance should
+        be reviewed before making financial, legal, safety, or
+        engineering decisions.
+    </footer>
+</div>
+{% endblock %}
