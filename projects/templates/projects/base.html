@@ -2,11 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1"
     >
-    <title>{% block title %}BuilderOS{% endblock %}</title>
+
+    <title>
+        {% block title %}
+            BuilderOS
+        {% endblock %}
+    </title>
 
     <style>
         :root {
@@ -31,7 +37,9 @@
             --danger-border: #da3633;
             --info-background: #111d2f;
             --info-border: #1f6feb;
-            --shadow: 0 8px 24px rgba(0, 0, 0, .22);
+            --shadow:
+                0 8px 24px
+                rgba(0, 0, 0, 0.22);
         }
 
         * {
@@ -43,8 +51,13 @@
             background: var(--background);
             color: var(--text);
             font-family:
-                Inter, ui-sans-serif, system-ui, -apple-system,
-                BlinkMacSystemFont, "Segoe UI", sans-serif;
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
             line-height: 1.5;
         }
 
@@ -67,8 +80,10 @@
             position: sticky;
             top: 0;
             z-index: 20;
-            border-bottom: 1px solid var(--border);
-            background: rgba(13, 17, 23, .94);
+            border-bottom:
+                1px solid var(--border);
+            background:
+                rgba(13, 17, 23, 0.94);
             backdrop-filter: blur(12px);
         }
 
@@ -78,15 +93,15 @@
             padding: 12px 20px;
             display: flex;
             align-items: center;
-            gap: 18px;
             justify-content: space-between;
+            gap: 18px;
         }
 
         .brand {
             color: var(--text);
             text-decoration: none;
             font-weight: 800;
-            letter-spacing: -.02em;
+            letter-spacing: -0.02em;
         }
 
         .header-right {
@@ -97,7 +112,8 @@
         }
 
         .project-nav {
-            border-bottom: 1px solid var(--border);
+            border-bottom:
+                1px solid var(--border);
             background: var(--surface);
         }
 
@@ -112,15 +128,16 @@
         }
 
         .project-nav a {
-            color: var(--text-muted);
-            text-decoration: none;
             padding: 7px 10px;
             border-radius: 7px;
+            color: var(--text-muted);
+            text-decoration: none;
         }
 
         .project-nav a:hover {
             color: var(--text);
-            background: var(--surface-raised);
+            background:
+                var(--surface-raised);
         }
 
         .project-title-inline {
@@ -142,14 +159,19 @@
 
         .role-badge {
             color: #79c0ff;
-            background: var(--info-background);
-            border: 1px solid var(--info-border);
+            background:
+                var(--info-background);
+            border:
+                1px solid var(--info-border);
         }
 
         .readonly-badge {
             color: #e3b341;
-            background: var(--warning-background);
-            border: 1px solid var(--warning-border);
+            background:
+                var(--warning-background);
+            border:
+                1px solid
+                var(--warning-border);
         }
 
         main {
@@ -159,10 +181,11 @@
         }
 
         .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
             padding: 18px;
+            border:
+                1px solid var(--border);
+            border-radius: 12px;
+            background: var(--surface);
             box-shadow: var(--shadow);
         }
 
@@ -172,10 +195,13 @@
             align-items: center;
             justify-content: center;
             gap: 7px;
-            border: 1px solid var(--border-strong);
-            border-radius: 8px;
             padding: 9px 13px;
-            background: var(--surface-soft);
+            border:
+                1px solid
+                var(--border-strong);
+            border-radius: 8px;
+            background:
+                var(--surface-soft);
             color: var(--text);
             text-decoration: none;
             cursor: pointer;
@@ -183,13 +209,15 @@
 
         .button:hover,
         button:hover {
-            background: var(--surface-raised);
             border-color: var(--accent);
+            background:
+                var(--surface-raised);
             color: var(--text);
         }
 
         .danger-button {
-            border-color: var(--danger-border);
+            border-color:
+                var(--danger-border);
             color: #ff7b72;
         }
 
@@ -204,26 +232,72 @@
         }
 
         .flash-message {
+            margin-bottom: 10px;
             padding: 12px 14px;
-            border: 1px solid var(--border);
+            border:
+                1px solid var(--border);
             border-radius: 9px;
             background: var(--surface);
-            margin-bottom: 10px;
         }
 
         .flash-message.success {
-            border-color: var(--success-border);
-            background: var(--success-background);
+            border-color:
+                var(--success-border);
+            background:
+                var(--success-background);
         }
 
         .flash-message.error {
-            border-color: var(--danger-border);
-            background: var(--danger-background);
+            border-color:
+                var(--danger-border);
+            background:
+                var(--danger-background);
         }
 
         .flash-message.warning {
-            border-color: var(--warning-border);
-            background: var(--warning-background);
+            border-color:
+                var(--warning-border);
+            background:
+                var(--warning-background);
+        }
+
+        .task-flowchart-card {
+            margin-bottom: 32px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            background: white;
+        }
+
+        .task-flowchart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .task-flowchart-header h2 {
+            margin: 0 0 6px;
+        }
+
+        .task-flowchart-header p {
+            margin: 0;
+            color: #64748b;
+        }
+
+        .task-flowchart-wrapper {
+            min-height: 260px;
+            overflow: auto;
+            padding: 20px;
+            border-radius: 12px;
+            background: #f8fafc;
+        }
+
+        .task-flowchart-wrapper .mermaid {
+            display: flex;
+            justify-content: center;
+            min-width: max-content;
         }
 
         @media (max-width: 760px) {
@@ -242,62 +316,231 @@
                 flex: 0 0 auto;
             }
         }
-        .task-flowchart-card {
-            margin-bottom: 32px;
-            padding: 24px;
-            border: 1px solid #e2e8f0;
-            border-radius: 16px;
-            background: white;
-        }
-
-        .task-flowchart-header {
-            display: flex;
-            justify-content: space-between;
-            gap: 16px;
-            align-items: flex-start;
-            margin-bottom: 24px;
-        }
-
-        .task-flowchart-header h2 {
-            margin: 0 0 6px;
-        }
-
-        .task-flowchart-header p {
-            margin: 0;
-            color: #64748b;
-        }
-
-        .task-flowchart-wrapper {
-            overflow: auto;
-            min-height: 260px;
-            padding: 20px;
-            border-radius: 12px;
-            background: #f8fafc;
-        }
-
-        .task-flowchart-wrapper .mermaid {
-            display: flex;
-            justify-content: center;
-            min-width: max-content;
-}
     </style>
 
-    {% block extra_css %}{% endblock %}
+    {% block extra_css %}
+    {% endblock %}
+
+    {% if POSTHOG_KEY %}
+        <script>
+            !function(t,e){
+                var o,n,p,r;
+
+                e.__SV
+                || (
+                    window.posthog
+                    && window.posthog.__loaded
+                )
+                || (
+                    window.posthog=e,
+                    e._i=[],
+                    e.init=function(i,s,a){
+                        function g(t,e){
+                            var o=e.split(".");
+
+                            if (o.length === 2) {
+                                t=t[o[0]];
+                                e=o[1];
+                            }
+
+                            t[e]=function(){
+                                t.push(
+                                    [e].concat(
+                                        Array.prototype.slice.call(
+                                            arguments,
+                                            0
+                                        )
+                                    )
+                                );
+                            };
+                        }
+
+                        p=t.createElement(
+                            "script"
+                        );
+
+                        p.type="text/javascript";
+                        p.crossOrigin="anonymous";
+                        p.async=true;
+
+                        p.src=(
+                            s.api_host.replace(
+                                ".i.posthog.com",
+                                "-assets.i.posthog.com"
+                            )
+                            + "/static/array.js"
+                        );
+
+                        r=t.getElementsByTagName(
+                            "script"
+                        )[0];
+
+                        r.parentNode.insertBefore(
+                            p,
+                            r
+                        );
+
+                        var u=e;
+
+                        if (a !== undefined) {
+                            u=e[a]=[];
+                        } else {
+                            a="posthog";
+                        }
+
+                        u.people=u.people || [];
+
+                        u.toString=function(t){
+                            var e="posthog";
+
+                            if (a !== "posthog") {
+                                e += "." + a;
+                            }
+
+                            if (!t) {
+                                e += " (stub)";
+                            }
+
+                            return e;
+                        };
+
+                        u.people.toString=function(){
+                            return (
+                                u.toString(1)
+                                + ".people (stub)"
+                            );
+                        };
+
+                        o=(
+                            "init capture register "
+                            + "register_once "
+                            + "register_for_session "
+                            + "unregister "
+                            + "unregister_for_session "
+                            + "getFeatureFlag "
+                            + "getFeatureFlagResult "
+                            + "isFeatureEnabled "
+                            + "reloadFeatureFlags "
+                            + "updateEarlyAccessFeatureEnrollment "
+                            + "getEarlyAccessFeatures "
+                            + "on onFeatureFlags "
+                            + "onSessionId "
+                            + "getSurveys "
+                            + "getActiveMatchingSurveys "
+                            + "renderSurvey "
+                            + "canRenderSurvey "
+                            + "getNextSurveyStep "
+                            + "identify "
+                            + "setPersonProperties "
+                            + "group resetGroups "
+                            + "setPersonPropertiesForFlags "
+                            + "resetPersonPropertiesForFlags "
+                            + "setGroupPropertiesForFlags "
+                            + "resetGroupPropertiesForFlags "
+                            + "reset "
+                            + "get_distinct_id "
+                            + "getGroups "
+                            + "get_session_id "
+                            + "get_session_replay_url "
+                            + "alias set_config "
+                            + "startSessionRecording "
+                            + "stopSessionRecording "
+                            + "sessionRecordingStarted "
+                            + "captureException "
+                            + "loadToolbar "
+                            + "get_property "
+                            + "getSessionProperty "
+                            + "createPersonProfile "
+                            + "opt_in_capturing "
+                            + "opt_out_capturing "
+                            + "has_opted_in_capturing "
+                            + "has_opted_out_capturing "
+                            + "clear_opt_in_out_capturing "
+                            + "debug"
+                        ).split(" ");
+
+                        for (
+                            n=0;
+                            n < o.length;
+                            n++
+                        ) {
+                            g(
+                                u,
+                                o[n]
+                            );
+                        }
+
+                        e._i.push(
+                            [
+                                i,
+                                s,
+                                a
+                            ]
+                        );
+                    },
+                    e.__SV=1
+                );
+            }(
+                document,
+                window.posthog || []
+            );
+
+            posthog.init(
+                "{{ POSTHOG_KEY|escapejs }}",
+                {
+                    api_host:
+                        "{{ POSTHOG_HOST|escapejs }}",
+
+                    defaults:
+                        "2026-05-30",
+
+                    capture_pageview: true,
+
+                    capture_pageleave: true,
+
+                    autocapture: true,
+                }
+            );
+
+            {% if request.user.is_authenticated %}
+                posthog.identify(
+                    "user_{{ request.user.pk }}",
+                    {
+                        username:
+                            "{{ request.user.username|escapejs }}"
+                    }
+                );
+            {% endif %}
+        </script>
+    {% endif %}
 </head>
+
 <body>
 <header class="site-header">
     <div class="site-header-inner">
-        <a class="brand" href="{% url 'project_list' %}">
+        <a
+            class="brand"
+            href="{% url 'project_list' %}"
+        >
             BuilderOS
         </a>
 
         <div class="header-right">
             {% if request.user.is_authenticated %}
-                <span>{{ request.user.username }}</span>
+                <span>
+                    {{ request.user.username }}
+                </span>
 
-                <form method="POST" action="{% url 'logout' %}">
+                <form
+                    method="POST"
+                    action="{% url 'logout' %}"
+                    id="logout-form"
+                >
                     {% csrf_token %}
-                    <button type="submit">Log Out</button>
+
+                    <button type="submit">
+                        Log Out
+                    </button>
                 </form>
             {% endif %}
         </div>
@@ -305,52 +548,80 @@
 </header>
 
 {% if project %}
-<nav class="project-nav">
-    <div class="project-nav-inner">
-        <span class="project-title-inline">
-            {{ project.name|default:"Untitled Project" }}
-        </span>
-
-        {% if membership %}
-            <span class="role-badge">
-                {{ membership.get_role_display }}
+    <nav class="project-nav">
+        <div class="project-nav-inner">
+            <span class="project-title-inline">
+                {{ project.name|default:"Untitled Project" }}
             </span>
-        {% endif %}
 
-        {% if membership and not can_edit %}
-            <span class="readonly-badge">Read only</span>
-        {% endif %}
+            {% if membership %}
+                <span class="role-badge">
+                    {{ membership.get_role_display }}
+                </span>
+            {% endif %}
 
-        <a href="{% url 'workspace' project.pk %}">Workspace</a>
-        <a href="{% url 'workspace_assistant' project.pk %}">Assistant</a>
-        <a href="{% url 'project_board' project.pk %}">Board</a>
-        <a href="{% url 'project_timeline' project.pk %}">Timeline</a>
-        <a href="{% url 'project_review' project.pk %}">Review</a>
-        <a href="{% url 'project_activity' project.pk %}">Activity</a>
-        <a href="{% url 'project_change_history' project.pk %}">History</a>
-        <a href="{% url 'project_members' project.pk %}">Members</a>
-    </div>
-</nav>
+            {% if membership and not can_edit %}
+                <span class="readonly-badge">
+                    Read only
+                </span>
+            {% endif %}
+
+            <a href="{% url 'workspace' project.pk %}">
+                Workspace
+            </a>
+
+            <a href="{% url 'workspace_assistant' project.pk %}">
+                Assistant
+            </a>
+
+            <a href="{% url 'project_board' project.pk %}">
+                Board
+            </a>
+
+            <a href="{% url 'project_timeline' project.pk %}">
+                Timeline
+            </a>
+
+            <a href="{% url 'project_review' project.pk %}">
+                Review
+            </a>
+
+            <a href="{% url 'project_activity' project.pk %}">
+                Activity
+            </a>
+
+            <a href="{% url 'project_change_history' project.pk %}">
+                History
+            </a>
+
+            <a href="{% url 'project_members' project.pk %}">
+                Members
+            </a>
+        </div>
+    </nav>
 {% endif %}
 
 {% if messages %}
-<div class="messages">
-    {% for message in messages %}
-        <div class="flash-message {{ message.tags }}">
-            {{ message }}
-        </div>
-    {% endfor %}
-</div>
+    <div class="messages">
+        {% for message in messages %}
+            <div
+                class="
+                    flash-message
+                    {{ message.tags }}
+                "
+            >
+                {{ message }}
+            </div>
+        {% endfor %}
+    </div>
 {% endif %}
 
 <main>
-    {% block content %}{% endblock %}
+    {% block content %}
+    {% endblock %}
 </main>
 
-{% block extra_js %}
-<script
-    type="module"
->
+<script type="module">
     import mermaid from
         "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
 
@@ -365,57 +636,108 @@
         },
     });
 </script>
+
 {% if folder.folder_type == "budget" and budget_chart_data %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chart.js"
+    ></script>
 
-<script>
-    const budgetData = JSON.parse(
-        document.getElementById(
-            "budget-chart-data"
-        ).textContent
-    );
+    <script>
+        const budgetDataElement =
+            document.getElementById(
+                "budget-chart-data"
+            );
 
-    const canvas = document.getElementById(
-        "budget-chart"
-    );
+        const budgetCanvas =
+            document.getElementById(
+                "budget-chart"
+            );
 
-    new Chart(canvas, {
-        type: "bar",
-        data: {
-            labels: budgetData.map(
-                item => item.category
-            ),
-            datasets: [
+        if (
+            budgetDataElement
+            && budgetCanvas
+        ) {
+            const budgetData = JSON.parse(
+                budgetDataElement.textContent
+            );
+
+            new Chart(
+                budgetCanvas,
                 {
-                    label: "Estimated cost",
-                    data: budgetData.map(
-                        item => item.amount
-                    ),
-                },
-            ],
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false,
-                },
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback(value) {
-                            return "$" + value;
+                    type: "bar",
+
+                    data: {
+                        labels: budgetData.map(
+                            item => item.category
+                        ),
+
+                        datasets: [
+                            {
+                                label:
+                                    "Estimated cost",
+
+                                data: budgetData.map(
+                                    item => item.amount
+                                ),
+                            },
+                        ],
+                    },
+
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+
+                        plugins: {
+                            legend: {
+                                display: false,
+                            },
+                        },
+
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+
+                                ticks: {
+                                    callback(value) {
+                                        return (
+                                            "$" + value
+                                        );
+                                    },
+                                },
+                            },
                         },
                     },
-                },
-            },
-        },
-    });
-</script>
+                }
+            );
+        }
+    </script>
 {% endif %}
+
+{% block extra_js %}
 {% endblock %}
+
+{% if POSTHOG_KEY and request.user.is_authenticated %}
+    <script>
+        const logoutForm =
+            document.getElementById(
+                "logout-form"
+            );
+
+        if (logoutForm) {
+            logoutForm.addEventListener(
+                "submit",
+                function () {
+                    if (
+                        window.posthog
+                        && typeof posthog.reset
+                            === "function"
+                    ) {
+                        posthog.reset();
+                    }
+                }
+            );
+        }
+    </script>
+{% endif %}
 </body>
 </html>

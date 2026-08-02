@@ -1,19 +1,18 @@
+from .models import Project
+
 CORE_ACTIVE_PROJECT_LIMIT = 3
 
 
 def get_active_project_limit(user):
-    # Later:
-    # if user.account.has_agentic_access:
-    #     return 50
-
     return CORE_ACTIVE_PROJECT_LIMIT
 
 
 def get_owned_active_project_count(user):
     return (
-        user.projects
-        .exclude(
-            status="archived",
+        Project.objects
+        .filter(
+            owner=user,
+            status=Project.Status.ACTIVE,
         )
         .count()
     )
