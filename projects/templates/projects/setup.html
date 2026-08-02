@@ -229,7 +229,7 @@
         </p>
     </header>
 
-    <div class="conversation">
+    <div class="conversation" id="setup-conversation">
         {% for project_message in project_messages %}
             <article
                 class="
@@ -370,61 +370,45 @@
 
 {% block extra_js %}
 <script>
-    const setupForm = document.getElementById(
-        "setup-message-form"
-    );
-
-    const setupButton = document.getElementById(
-        "setup-submit-button"
-    );
-
-    const setupTextarea = document.getElementById(
-        "setup-message"
-    );
-
-    if (
-        setupForm
-        && setupButton
-        && setupTextarea
-    ) {
-        setupForm.addEventListener(
-            "submit",
-            function (event) {
-                if (setupButton.disabled) {
-                    event.preventDefault();
-                    return;
-                }
-
-                if (!setupTextarea.value.trim()) {
-                    event.preventDefault();
-                    setupTextarea.focus();
-                    return;
-                }
-
-                setupButton.disabled = true;
-                setupButton.textContent =
-                    "Thinking...";
-
-                setupTextarea.readOnly = true;
-            }
+    const setupForm =
+        document.getElementById(
+            "setup-message-form"
         );
-    }
 
-    const generateForm = document.getElementById(
-        "generate-workspace-form"
-    );
+    const setupButton =
+        document.getElementById(
+            "setup-submit-button"
+        );
 
-    const generateButton = document.getElementById(
-        "generate-workspace-button"
-    );
+    const setupTextarea =
+        document.getElementById(
+            "setup-message"
+        );
 
-    const loadingOverlay = document.getElementById(
-        "workspace-loading-overlay"
-    );
+    const conversation =
+        document.getElementById(
+            "setup-conversation"
+        );
 
-    const loadingStatus = document.getElementById(
-        "workspace-loading-status"
-    );
+    const generateForm =
+        document.getElementById(
+            "generate-workspace-form"
+        );
+
+    const generateButton =
+        document.getElementById(
+            "generate-workspace-button"
+        );
+
+    const loadingOverlay =
+        document.getElementById(
+            "workspace-loading-overlay"
+        );
+
+    const loadingStatus =
+        document.getElementById(
+            "workspace-loading-status"
+        );
 
     const loadingMessages = [
         "Understanding your project idea...",
@@ -442,6 +426,177 @@
     let loadingMessageIndex = 0;
     let loadingMessageTimer = null;
 
+
+    function getNewestSetupMessage() {
+        if (!conversation) {
+            return null;
+        }
+
+        const messages =
+            conversation.querySelectorAll(
+                ".message"
+            );
+
+        if (!messages.length) {
+            return null;
+        }
+
+        return messages[
+            messages.length - 1
+        ];
+    }
+
+
+    function smoothScrollToPosition(
+        targetPosition,
+        duration
+    ) {
+        const startPosition =
+            window.scrollY;
+
+        const distance =
+            targetPosition
+            - startPosition;
+
+        const startTime =
+            performance.now();
+
+        function easeInOutCubic(progress) {
+            if (progress < 0.5) {
+                return (
+                    4
+                    * progress
+                    * progress
+                    * progress
+                );
+            }
+
+            return (
+                1
+                - Math.pow(
+                    -2 * progress + 2,
+                    3
+                ) / 2
+            );
+        }
+
+        function animate(currentTime) {
+            const elapsed =
+                currentTime
+                - startTime;
+
+            const progress =
+                Math.min(
+                    elapsed / duration,
+                    1
+                );
+
+            const easedProgress =
+                easeInOutCubic(
+                    progress
+                );
+
+            window.scrollTo(
+                0,
+                startPosition
+                + distance
+                * easedProgress
+            );
+
+            if (progress < 1) {
+                window.requestAnimationFrame(
+                    animate
+                );
+            }
+        }
+
+        window.requestAnimationFrame(
+            animate
+        );
+    }
+
+
+    function scrollToNewestSetupMessage() {
+        const newestMessage =
+            getNewestSetupMessage();
+
+        if (!newestMessage) {
+            return;
+        }
+
+        const targetPosition =
+            newestMessage
+            .getBoundingClientRect()
+            .top
+            + window.scrollY
+            - 90;
+
+        const distance =
+            Math.abs(
+                targetPosition
+                - window.scrollY
+            );
+
+        const duration =
+            Math.min(
+                1400,
+                Math.max(
+                    650,
+                    distance * 0.45
+                )
+            );
+
+        smoothScrollToPosition(
+            targetPosition,
+            duration
+        );
+    }
+
+
+    if (
+        setupForm
+        && setupButton
+        && setupTextarea
+    ) {
+        setupForm.addEventListener(
+            "submit",
+            function (event) {
+                if (setupButton.disabled) {
+                    event.preventDefault();
+                    return;
+                }
+
+                if (
+                    !setupTextarea
+                    .value
+                    .trim()
+                ) {
+                    event.preventDefault();
+                    setupTextarea.focus();
+                    return;
+                }
+
+                /*
+                 * Remember that the next page load
+                 * was caused by sending a setup
+                 * message.
+                 */
+                sessionStorage.setItem(
+                    "builderosSetupMessageSubmitted",
+                    "true"
+                );
+
+                setupButton.disabled = true;
+
+                setupButton.textContent =
+                    "Thinking...";
+
+                setupTextarea.readOnly = true;
+            }
+        );
+    }
+
+
     function rotateLoadingMessage() {
         if (!loadingStatus) {
             return;
@@ -457,19 +612,19 @@
                     loadingMessageIndex + 1
                 ) % loadingMessages.length;
 
-                loadingStatus.textContent = (
+                loadingStatus.textContent =
                     loadingMessages[
                         loadingMessageIndex
-                    ]
-                );
+                    ];
 
                 loadingStatus.classList.remove(
                     "is-changing"
                 );
             },
-            200,
+            200
         );
     }
+
 
     function showWorkspaceLoadingOverlay() {
         if (
@@ -481,20 +636,21 @@
 
         loadingMessageIndex = 0;
 
-        loadingStatus.textContent = (
-            loadingMessages[0]
-        );
+        loadingStatus.textContent =
+            loadingMessages[0];
 
         loadingOverlay.hidden = false;
 
         document.body.style.overflow =
             "hidden";
 
-        loadingMessageTimer = window.setInterval(
-            rotateLoadingMessage,
-            5000,
-        );
+        loadingMessageTimer =
+            window.setInterval(
+                rotateLoadingMessage,
+                5000
+            );
     }
+
 
     if (
         generateForm
@@ -504,22 +660,61 @@
         generateForm.addEventListener(
             "submit",
             function (event) {
-                if (generateButton.disabled) {
+                if (
+                    generateButton.disabled
+                ) {
                     event.preventDefault();
                     return;
                 }
 
-                generateButton.disabled = true;
+                generateButton.disabled =
+                    true;
 
-                generateButton.textContent = (
-                    generateButton.dataset.loadingText
-                    || "Generating Workspace..."
-                );
+                generateButton.textContent =
+                    (
+                        generateButton
+                        .dataset
+                        .loadingText
+                        || "Generating Workspace..."
+                    );
 
                 showWorkspaceLoadingOverlay();
             }
         );
     }
+
+
+    window.addEventListener(
+        "load",
+        function () {
+            const messageWasSubmitted =
+                sessionStorage.getItem(
+                    "builderosSetupMessageSubmitted"
+                );
+
+            if (
+                messageWasSubmitted
+                !== "true"
+            ) {
+                return;
+            }
+
+            sessionStorage.removeItem(
+                "builderosSetupMessageSubmitted"
+            );
+
+            /*
+             * Wait briefly for the new assistant
+             * message and page layout to finish
+             * rendering.
+             */
+            window.setTimeout(
+                scrollToNewestSetupMessage,
+                200
+            );
+        }
+    );
+
 
     window.addEventListener(
         "pageshow",
@@ -528,22 +723,45 @@
                 return;
             }
 
+            sessionStorage.removeItem(
+                "builderosSetupMessageSubmitted"
+            );
+
             if (loadingMessageTimer) {
                 window.clearInterval(
                     loadingMessageTimer
                 );
+
+                loadingMessageTimer = null;
             }
 
             if (loadingOverlay) {
-                loadingOverlay.hidden = true;
+                loadingOverlay.hidden =
+                    true;
             }
 
-            document.body.style.overflow = "";
+            document.body.style.overflow =
+                "";
 
             if (generateButton) {
-                generateButton.disabled = false;
+                generateButton.disabled =
+                    false;
+
                 generateButton.textContent =
                     "Generate Workspace";
+            }
+
+            if (setupButton) {
+                setupButton.disabled =
+                    false;
+
+                setupButton.textContent =
+                    "Send";
+            }
+
+            if (setupTextarea) {
+                setupTextarea.readOnly =
+                    false;
             }
         }
     );
