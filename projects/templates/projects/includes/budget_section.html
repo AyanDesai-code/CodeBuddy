@@ -63,7 +63,9 @@
         <div class="budget-chart-card">
             <h2>Budget by Category</h2>
 
-            <canvas id="budget-chart"></canvas>
+            <div class="budget-chart-wrapper">
+                <canvas id="budget-chart"></canvas>
+            </div>
         </div>
     {% endif %}
 
@@ -178,3 +180,35 @@
         </table>
     </div>
 </section>
+
+<style>
+    .budget-chart-card {
+        margin-top: 24px;
+        padding: 18px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+    }
+
+    .budget-chart-card h2 {
+        margin-top: 0;
+    }
+
+    .budget-chart-wrapper {
+        position: relative;
+        width: 100%;
+        height: 320px;
+    }
+
+    .budget-chart-wrapper canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    @media (max-width: 650px) {
+        .budget-chart-wrapper {
+            height: 260px;
+        }
+    }
+</style>
