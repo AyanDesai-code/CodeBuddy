@@ -21,6 +21,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from openai import project
 
+from projects.analytics import capture_event
+
 from .ai.services import (
 
     generate_additional_tasks,
@@ -561,26 +563,46 @@ def delete_project(request, project_pk):
         user=request.user,
     )
 
-    project_name = project.name or "Untitled Project"
+    project_id = project.pk
+    project_name = (
+        project.name
+        or "Untitled Project"
+    )
+
     was_archived = (
-        project.status == Project.Status.ARCHIVED
+        project.status
+        == Project.Status.ARCHIVED
+    )
+
+    capture_event(
+        distinct_id=(
+            f"user_{request.user.pk}"
+        ),
+        event="project_deleted",
+        properties={
+            "project_id": project_id,
+            "project_name": project_name,
+            "was_archived": was_archived,
+        },
     )
 
     project.delete()
 
     messages.success(
         request,
-        f'"{project_name}" was permanently deleted.',
+        (
+            f'"{project_name}" was '
+            "permanently deleted."
+        ),
     )
 
     if was_archived:
         return redirect(
-            f"{reverse('project_list')}?archived=1"
+            f"{reverse('project_list')}"
+            "?archived=1"
         )
 
     return redirect("project_list")
-
-
 @login_required
 @require_POST
 def archive_project(
@@ -611,6 +633,13 @@ def archive_project(
     messages.success(
         request,
         f'"{project_name}" was archived.',
+    )
+    capture_event(
+        distinct_id=f"user_{request.user.pk}",
+        event="project_archived",
+        properties={
+            "project_id": project.pk,
+        },
     )
 
     return redirect("project_list")
@@ -670,6 +699,13 @@ def restore_project(
         request,
         f'"{project_name}" was restored.',
     )
+    capture_event(
+        distinct_id=f"user_{request.user.pk}",
+        event="project_restored",
+        properties={
+            "project_id": project.pk,
+        },
+    )
 
     return redirect(
         f"{reverse('project_list')}"
@@ -692,6 +728,13 @@ def new_project(request):
         owner=request.user,
         name="Untitled Project",
         status=Project.Status.DRAFT,
+    )
+    capture_event(
+        distinct_id=f"user_{request.user.pk}",
+        event="project_created",
+        properties={
+            "project_id": project.pk,
+        },
     )
 
     return redirect(
@@ -1722,7 +1765,7 @@ def generate_workspace(
             ),
         )
 
-    except Exception:
+    except Exception as error:
         print("\n" + "=" * 80)
         print("WORKSPACE GENERATION FAILED")
         traceback.print_exc()
@@ -1737,12 +1780,27 @@ def generate_workspace(
         )
         project.status = Project.Status.DRAFT
         project.save(update_fields=["status"])
+        capture_event(
+            distinct_id=f"user_{request.user.pk}",
+            event="workspace_generation_failed",
+            properties={
+                "project_id": project.pk,
+                "project_name": project.name,
+            },
+        )
 
         return redirect(
             "project_setup",
             pk=project.pk,
         )
-
+    capture_event(
+        distinct_id=f"user_{request.user.pk}",
+        event="workspace_generated",
+        properties={
+            "project_id": project.pk,
+            "project_name": project.name,
+        },
+    )
     return redirect(
         "workspace",
         project_pk=project.pk,

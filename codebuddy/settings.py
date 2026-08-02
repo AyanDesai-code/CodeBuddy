@@ -128,6 +128,7 @@ TEMPLATES = [
                     "django.contrib.messages."
                     "context_processors.messages"
                 ),
+                "projects.context_processors.analytics",
             ],
         },
     },
@@ -346,3 +347,12 @@ else:
             ),
         },
     }
+POSTHOG_KEY = os.environ.get(
+    "POSTHOG_KEY",
+    "",
+)
+
+POSTHOG_HOST = os.environ.get(
+    "POSTHOG_HOST",
+    "https://us.i.posthog.com",
+)

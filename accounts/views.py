@@ -11,8 +11,7 @@ from .security import (
 from django.conf import settings
 from django.core.cache import cache
 from django.http import JsonResponse
-
-
+from projects.analytics import capture_event
 
 User = get_user_model()
 
@@ -79,10 +78,18 @@ def signup(request):
                 user.is_active = True
 
                 user.save()
+    
 
                 record_successful_signup(
                     request
                 )
+                capture_event(
+                    distinct_id=f"user_{user.pk}",
+                    event="account_created",
+                    properties={
+                        "signup_method": "email",
+                    },
+)
 
                 messages.success(
                     request,
