@@ -67,7 +67,9 @@ from collections import defaultdict
 from decimal import Decimal
 import traceback
 from django.core.exceptions import PermissionDenied
-
+from concurrent.futures import (
+    ThreadPoolExecutor,
+)
 User = get_user_model()
 def record_project_event(
     *,
@@ -938,15 +940,35 @@ def generate_workspace(
     try:
         generation_started_at = time.monotonic()
 
-        print("1. Calling workspace generator.")
+        ai_started_at = time.monotonic()
 
-        generated_workspace = (
-            generate_workspace_content(
-                project
+        with ThreadPoolExecutor(
+            max_workers=2
+        ) as executor:
+            workspace_future = executor.submit(
+                generate_workspace_content,
+                project,
             )
-        )
 
-        print("2. Workspace generator returned.")
+            budget_future = executor.submit(
+                generate_project_budget,
+                project,
+            )
+
+            generated_workspace = (
+                workspace_future.result()
+            )
+
+            generated_budget = (
+                budget_future.result()
+            )
+
+        print(
+            "2. Workspace and budget generators "
+            "returned in "
+            f"{time.monotonic() - ai_started_at:.2f} "
+            "seconds."
+)
 
         if generated_workspace is None:
             raise ValueError(
@@ -1136,16 +1158,7 @@ def generate_workspace(
                 "no learning resources."
             )
 
-        print("4. Calling budget generator.")
-
-        generated_budget = (
-            generate_project_budget(
-                project
-            )
-        )
-
-        print("5. Budget generator returned.")
-
+    
         if generated_budget is None:
             raise ValueError(
                 "Budget generation returned None."

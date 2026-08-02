@@ -1,4 +1,5 @@
 {% extends "projects/base.html" %}
+{% load workspace_formatting %}
 
 {% block title %}
     {{ folder.name }} | {{ project.name }}
@@ -50,6 +51,200 @@
     .content {
         margin-top: 30px;
     }
+
+    /* ---------------------------------------------------------
+       Clean Markdown workspace formatting
+       --------------------------------------------------------- */
+
+    .workspace-content {
+        max-width: 960px;
+        color: var(--text);
+        line-height: 1.72;
+        overflow-wrap: anywhere;
+    }
+
+    .workspace-content > :first-child {
+        margin-top: 0;
+    }
+
+    .workspace-content > :last-child {
+        margin-bottom: 0;
+    }
+
+    .workspace-content h1,
+    .workspace-content h2,
+    .workspace-content h3,
+    .workspace-content h4,
+    .workspace-content h5,
+    .workspace-content h6 {
+        color: var(--text);
+        line-height: 1.25;
+        letter-spacing: -0.015em;
+    }
+
+    .workspace-content h1 {
+        margin: 0 0 20px;
+        font-size: 1.85rem;
+    }
+
+    .workspace-content h2 {
+        margin: 34px 0 15px;
+        padding-bottom: 9px;
+        border-bottom: 1px solid var(--border);
+        font-size: 1.48rem;
+    }
+
+    .workspace-content h3 {
+        margin: 27px 0 12px;
+        font-size: 1.22rem;
+    }
+
+    .workspace-content h4 {
+        margin: 22px 0 10px;
+        font-size: 1.06rem;
+    }
+
+    .workspace-content p {
+        margin: 0 0 17px;
+    }
+
+    .workspace-content ul,
+    .workspace-content ol {
+        margin: 0 0 19px;
+        padding-left: 1.65rem;
+    }
+
+    .workspace-content ul {
+        list-style-type: disc;
+    }
+
+    .workspace-content ol {
+        list-style-type: decimal;
+    }
+
+    .workspace-content li {
+        margin: 7px 0;
+        padding-left: 3px;
+    }
+
+    .workspace-content li::marker {
+        color: var(--accent);
+        font-weight: 700;
+    }
+
+    .workspace-content li > p {
+        margin-bottom: 8px;
+    }
+
+    .workspace-content li > ul,
+    .workspace-content li > ol {
+        margin-top: 8px;
+        margin-bottom: 8px;
+    }
+
+    .workspace-content strong {
+        color: var(--text);
+        font-weight: 750;
+    }
+
+    .workspace-content em {
+        color: var(--text-muted);
+    }
+
+    .workspace-content a {
+        color: var(--accent);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+    }
+
+    .workspace-content a:hover {
+        text-decoration-thickness: 2px;
+    }
+
+    .workspace-content blockquote {
+        margin: 22px 0;
+        padding: 13px 17px;
+        border-left: 4px solid var(--accent);
+        border-radius: 0 8px 8px 0;
+        background: var(--surface-soft);
+        color: var(--text-muted);
+    }
+
+    .workspace-content blockquote > :last-child {
+        margin-bottom: 0;
+    }
+
+    .workspace-content code {
+        padding: 2px 6px;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        background: var(--surface-soft);
+        color: var(--text);
+        font-family:
+            "SFMono-Regular",
+            Consolas,
+            "Liberation Mono",
+            monospace;
+        font-size: 0.9em;
+    }
+
+    .workspace-content pre {
+        overflow-x: auto;
+        margin: 22px 0;
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface-soft);
+        line-height: 1.55;
+    }
+
+    .workspace-content pre code {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        white-space: pre;
+    }
+
+    .workspace-content table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        margin: 22px 0;
+        border-collapse: collapse;
+    }
+
+    .workspace-content th,
+    .workspace-content td {
+        min-width: 130px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+    }
+
+    .workspace-content th {
+        background: var(--surface-soft);
+        color: var(--text);
+        font-weight: 750;
+    }
+
+    .workspace-content tr:nth-child(even) td {
+        background: color-mix(
+            in srgb,
+            var(--surface-soft) 50%,
+            transparent
+        );
+    }
+
+    .workspace-content hr {
+        margin: 30px 0;
+        border: 0;
+        border-top: 1px solid var(--border);
+    }
+
+    /* ---------------------------------------------------------
+       Tasks
+       --------------------------------------------------------- */
 
     .task-toolbar {
         display: flex;
@@ -125,6 +320,17 @@
         overflow-wrap: anywhere;
     }
 
+    .task-description {
+        margin-top: 12px;
+        margin-bottom: 16px;
+    }
+
+    .task-description h1,
+    .task-description h2,
+    .task-description h3 {
+        margin-top: 18px;
+    }
+
     .task-controls {
         display: flex;
         gap: 10px;
@@ -170,6 +376,10 @@
         background: var(--warning-background);
         color: var(--text);
     }
+
+    /* ---------------------------------------------------------
+       Learning resources
+       --------------------------------------------------------- */
 
     .resource-list {
         display: grid;
@@ -225,23 +435,18 @@
         border-radius: 6px;
     }
 
-    .resource-detail strong {
+    .resource-detail > strong {
         display: block;
-        margin-bottom: 6px;
+        margin-bottom: 8px;
     }
 
     .documentation-content {
-        max-width: 900px;
-        line-height: 1.75;
-    }
-
-    .documentation-content p {
-        margin-bottom: 18px;
+        max-width: 960px;
     }
 
     button:disabled {
         opacity: 0.65;
-        cursor: not-allowed;
+        cursor: wait;
     }
 
     @media (max-width: 650px) {
@@ -282,6 +487,23 @@
         .task-controls form,
         .task-controls button {
             width: 100%;
+        }
+
+        .workspace-content h1 {
+            font-size: 1.55rem;
+        }
+
+        .workspace-content h2 {
+            font-size: 1.3rem;
+        }
+
+        .workspace-content h3 {
+            font-size: 1.12rem;
+        }
+
+        .workspace-content ul,
+        .workspace-content ol {
+            padding-left: 1.35rem;
         }
     }
 </style>
@@ -423,8 +645,13 @@
                         </h3>
 
                         {% if task.description %}
-                            <div>
-                                {{ task.description|linebreaks }}
+                            <div
+                                class="
+                                    task-description
+                                    workspace-content
+                                "
+                            >
+                                {{ task.description|render_markdown }}
                             </div>
                         {% endif %}
 
@@ -532,16 +759,25 @@
                     {% endif %}
 
                     {% if resource.description %}
-                        <div class="resource-description">
-                            {{ resource.description|linebreaks }}
+                        <div
+                            class="
+                                resource-description
+                                workspace-content
+                            "
+                        >
+                            {{ resource.description|render_markdown }}
                         </div>
                     {% endif %}
 
                     {% if resource.reason_needed %}
                         <div class="resource-detail">
-                            <strong>Why you need this</strong>
+                            <strong>
+                                Why you need this
+                            </strong>
 
-                            {{ resource.reason_needed|linebreaks }}
+                            <div class="workspace-content">
+                                {{ resource.reason_needed|render_markdown }}
+                            </div>
                         </div>
                     {% endif %}
 
@@ -564,12 +800,19 @@
         </div>
 
     {% elif folder.folder_type == "documentation" %}
-        <article class="documentation-content">
-            {{ folder.description|linebreaks }}
+        <article
+            class="
+                documentation-content
+                workspace-content
+            "
+        >
+            {{ folder.description|render_markdown }}
         </article>
 
     {% else %}
-        {{ folder.description|linebreaks }}
+        <article class="workspace-content">
+            {{ folder.description|render_markdown }}
+        </article>
     {% endif %}
 </div>
 {% endblock %}
@@ -589,11 +832,13 @@
             "submit",
             function () {
                 regenerateButton.disabled = true;
-                regenerateButton.textContent =
-                    "Regenerating...";
+
+                regenerateButton.textContent = (
+                    regenerateButton.dataset.loadingText
+                    || "Regenerating..."
+                );
             }
         );
     }
 </script>
 {% endblock %}
-```

@@ -26,9 +26,9 @@
     }
 
     .message {
+        padding: 15px;
         border: 1px solid var(--border);
         border-radius: 11px;
-        padding: 15px;
         background: var(--surface);
     }
 
@@ -47,25 +47,26 @@
 
     .setup-card,
     .generation-card {
+        padding: 19px;
         border: 1px solid var(--border);
         border-radius: 12px;
-        padding: 19px;
         background: var(--surface);
     }
 
     textarea {
         width: 100%;
         min-height: 160px;
+        padding: 12px;
         resize: vertical;
         border: 1px solid var(--border-strong);
         border-radius: 9px;
         background: var(--surface-soft);
         color: var(--text);
-        padding: 12px;
+        font: inherit;
     }
 
     textarea:read-only {
-        opacity: .7;
+        opacity: 0.7;
         cursor: not-allowed;
     }
 
@@ -74,8 +75,143 @@
     }
 
     button:disabled {
-        opacity: .65;
-        cursor: not-allowed;
+        opacity: 0.65;
+        cursor: wait;
+    }
+
+    /* ---------------------------------------------------------
+       Workspace-generation loading overlay
+       --------------------------------------------------------- */
+
+    .loading-overlay[hidden] {
+        display: none;
+    }
+
+    .loading-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        padding: 20px;
+
+        background: rgba(15, 23, 42, 0.86);
+        backdrop-filter: blur(7px);
+    }
+
+    .workspace-loading-card {
+        width: min(540px, 100%);
+        padding: 42px 34px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: var(--surface);
+        text-align: center;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+    }
+
+    .loading-spinner {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 24px;
+
+        border: 6px solid var(--surface-soft);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+
+        animation: workspace-spin 0.85s linear infinite;
+    }
+
+    .workspace-loading-card h2 {
+        margin: 0;
+    }
+
+    .loading-main {
+        margin: 18px 0 0;
+        font-size: 18px;
+        line-height: 1.55;
+    }
+
+    .loading-status {
+        min-height: 52px;
+        margin: 22px 0 0;
+        color: var(--text);
+        font-size: 17px;
+        font-weight: 700;
+        line-height: 1.5;
+
+        transition:
+            opacity 0.2s ease,
+            transform 0.2s ease;
+    }
+
+    .loading-status.is-changing {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    .loading-sub {
+        margin: 16px 0 0;
+        color: var(--text-muted);
+        line-height: 1.65;
+    }
+
+    .loading-progress {
+        height: 8px;
+        margin-top: 24px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--surface-soft);
+    }
+
+    .loading-progress-bar {
+        width: 28%;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--accent);
+
+        animation:
+            workspace-progress 2.2s ease-in-out infinite;
+    }
+
+    .loading-warning {
+        margin: 22px 0 0;
+        color: var(--text-muted);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    @keyframes workspace-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @keyframes workspace-progress {
+        0% {
+            transform: translateX(-120%);
+        }
+
+        50% {
+            transform: translateX(170%);
+        }
+
+        100% {
+            transform: translateX(380%);
+        }
+    }
+
+    @media (max-width: 600px) {
+        .workspace-loading-card {
+            padding: 34px 22px;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+        }
     }
 </style>
 {% endblock %}
@@ -105,7 +241,10 @@
                     {% endif %}
                 "
             >
-                <strong>{{ project_message.get_role_display }}</strong>
+                <strong>
+                    {{ project_message.get_role_display }}
+                </strong>
+
                 <div>
                     {{ project_message.content|linebreaks }}
                 </div>
@@ -123,18 +262,20 @@
 
             <p>
                 BuilderOS has enough information to create your
-                workspace, initial task list, and project plan.
+                workspace, initial task list, budget, and project plan.
             </p>
 
             <form
                 method="POST"
                 action="{% url 'generate_workspace' project.pk %}"
                 class="loading-form"
+                id="generate-workspace-form"
             >
                 {% csrf_token %}
 
                 <button
                     type="submit"
+                    id="generate-workspace-button"
                     data-loading-text="Generating Workspace..."
                 >
                     Generate Workspace
@@ -143,7 +284,10 @@
         </section>
     {% else %}
         <section class="setup-card">
-            <form method="POST" id="setup-message-form">
+            <form
+                method="POST"
+                id="setup-message-form"
+            >
                 {% csrf_token %}
 
                 <label for="setup-message">
@@ -169,6 +313,59 @@
         </section>
     {% endif %}
 </div>
+
+<div
+    id="workspace-loading-overlay"
+    class="loading-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="workspace-loading-title"
+    aria-describedby="workspace-loading-description"
+    hidden
+>
+    <div class="workspace-loading-card">
+        <div
+            class="loading-spinner"
+            aria-hidden="true"
+        ></div>
+
+        <h2 id="workspace-loading-title">
+            Generating your workspace...
+        </h2>
+
+        <p
+            id="workspace-loading-description"
+            class="loading-main"
+        >
+            Hold on — this could take up to
+            <strong>90 seconds.</strong>
+        </p>
+
+        <p
+            id="workspace-loading-status"
+            class="loading-status"
+            aria-live="polite"
+        >
+            Understanding your project idea...
+        </p>
+
+        <div
+            class="loading-progress"
+            aria-hidden="true"
+        >
+            <div class="loading-progress-bar"></div>
+        </div>
+
+        <p class="loading-sub">
+            BuilderOS is creating a connected project workspace
+            rather than a basic checklist.
+        </p>
+
+        <p class="loading-warning">
+            Keep this page open while generation finishes.
+        </p>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -176,14 +373,20 @@
     const setupForm = document.getElementById(
         "setup-message-form"
     );
+
     const setupButton = document.getElementById(
         "setup-submit-button"
     );
+
     const setupTextarea = document.getElementById(
         "setup-message"
     );
 
-    if (setupForm && setupButton && setupTextarea) {
+    if (
+        setupForm
+        && setupButton
+        && setupTextarea
+    ) {
         setupForm.addEventListener(
             "submit",
             function (event) {
@@ -199,10 +402,150 @@
                 }
 
                 setupButton.disabled = true;
-                setupButton.textContent = "Thinking...";
+                setupButton.textContent =
+                    "Thinking...";
+
                 setupTextarea.readOnly = true;
             }
         );
     }
+
+    const generateForm = document.getElementById(
+        "generate-workspace-form"
+    );
+
+    const generateButton = document.getElementById(
+        "generate-workspace-button"
+    );
+
+    const loadingOverlay = document.getElementById(
+        "workspace-loading-overlay"
+    );
+
+    const loadingStatus = document.getElementById(
+        "workspace-loading-status"
+    );
+
+    const loadingMessages = [
+        "Understanding your project idea...",
+        "Organizing the project requirements...",
+        "Creating the project roadmap...",
+        "Building your initial task list...",
+        "Connecting task dependencies...",
+        "Estimating your project budget...",
+        "Organizing materials and tools...",
+        "Gathering learning resources...",
+        "Preparing project documentation...",
+        "Finalizing your workspace...",
+    ];
+
+    let loadingMessageIndex = 0;
+    let loadingMessageTimer = null;
+
+    function rotateLoadingMessage() {
+        if (!loadingStatus) {
+            return;
+        }
+
+        loadingStatus.classList.add(
+            "is-changing"
+        );
+
+        window.setTimeout(
+            function () {
+                loadingMessageIndex = (
+                    loadingMessageIndex + 1
+                ) % loadingMessages.length;
+
+                loadingStatus.textContent = (
+                    loadingMessages[
+                        loadingMessageIndex
+                    ]
+                );
+
+                loadingStatus.classList.remove(
+                    "is-changing"
+                );
+            },
+            200,
+        );
+    }
+
+    function showWorkspaceLoadingOverlay() {
+        if (
+            !loadingOverlay
+            || !loadingStatus
+        ) {
+            return;
+        }
+
+        loadingMessageIndex = 0;
+
+        loadingStatus.textContent = (
+            loadingMessages[0]
+        );
+
+        loadingOverlay.hidden = false;
+
+        document.body.style.overflow =
+            "hidden";
+
+        loadingMessageTimer = window.setInterval(
+            rotateLoadingMessage,
+            5000,
+        );
+    }
+
+    if (
+        generateForm
+        && generateButton
+        && loadingOverlay
+    ) {
+        generateForm.addEventListener(
+            "submit",
+            function (event) {
+                if (generateButton.disabled) {
+                    event.preventDefault();
+                    return;
+                }
+
+                generateButton.disabled = true;
+
+                generateButton.textContent = (
+                    generateButton.dataset.loadingText
+                    || "Generating Workspace..."
+                );
+
+                showWorkspaceLoadingOverlay();
+            }
+        );
+    }
+
+    window.addEventListener(
+        "pageshow",
+        function (event) {
+            if (!event.persisted) {
+                return;
+            }
+
+            if (loadingMessageTimer) {
+                window.clearInterval(
+                    loadingMessageTimer
+                );
+            }
+
+            if (loadingOverlay) {
+                loadingOverlay.hidden = true;
+            }
+
+            document.body.style.overflow = "";
+
+            if (generateButton) {
+                generateButton.disabled = false;
+                generateButton.textContent =
+                    "Generate Workspace";
+            }
+        }
+    );
 </script>
 {% endblock %}

@@ -520,13 +520,21 @@ class GeneratedWorkspace(BaseModel):
     ] = Field(
         default_factory=list
     )
-def generate_workspace_content(project) -> GeneratedWorkspace:
-    conversation = build_workspace_generation_input(project)
+def generate_workspace_content(
+    project,
+) -> GeneratedWorkspace:
+    conversation = (
+        build_workspace_generation_input(
+            project
+        )
+    )
 
     started_at = time.monotonic()
 
     try:
-        print("Calling OpenAI...")
+        print(
+            "Calling OpenAI for workspace..."
+        )
 
         response = client.responses.parse(
             model="gpt-5-mini",
@@ -538,21 +546,30 @@ def generate_workspace_content(project) -> GeneratedWorkspace:
             text_format=GeneratedWorkspace,
         )
 
-        print("OpenAI finished.")
-
-        generated_workspace = response.output_parsed
+        generated_workspace = (
+            response.output_parsed
+        )
 
         if generated_workspace is None:
-            print("Raw output:")
-            print(response.output)
-
-            raise ValueError(
-                "Workspace generation returned no parsed output."
+            print(
+                "Workspace raw output:",
+                response.output,
             )
 
-        elapsed = time.monotonic() - started_at
+            raise ValueError(
+                "Workspace generation returned "
+                "no parsed output."
+            )
 
-        print("Parsed successfully.")
+        elapsed = (
+            time.monotonic()
+            - started_at
+        )
+
+        print(
+            "Workspace parsed successfully."
+        )
+
         print(
             "WORKSPACE GENERATION TIME: "
             f"{elapsed:.2f} seconds"
@@ -561,14 +578,17 @@ def generate_workspace_content(project) -> GeneratedWorkspace:
         return generated_workspace
 
     except Exception:
-        elapsed = time.monotonic() - started_at
-
-        print(
-            "WORKSPACE GENERATION FAILED AFTER: "
-            f"{elapsed:.2f} seconds"
+        elapsed = (
+            time.monotonic()
+            - started_at
         )
 
-   
+        print(
+            "WORKSPACE GENERATION FAILED "
+            f"AFTER: {elapsed:.2f} seconds"
+        )
+
+        raise
 BUDGET_PROMPT = """
 You are BuilderOS's project budget and parts-list generator.
 
