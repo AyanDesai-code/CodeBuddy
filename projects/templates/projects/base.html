@@ -316,6 +316,26 @@
                 flex: 0 0 auto;
             }
         }
+        .support-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 8px 12px;
+    border: 1px solid #ffdd00;
+    border-radius: 8px;
+    background: #ffdd00;
+    color: #111827;
+    text-decoration: none;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.support-button:hover {
+    background: #ffe95c;
+    border-color: #ffe95c;
+    color: #111827;
+}
     </style>
 
     {% block extra_css %}
@@ -545,6 +565,14 @@
             {% endif %}
         </div>
     </div>
+    <a
+    class="support-button"
+    href="https://buymeacoffee.com/YOUR_USERNAME"
+    target="_blank"
+    rel="noopener noreferrer"
+>
+    ☕ Support BuilderOS
+</a>
 </header>
 
 {% if project %}
