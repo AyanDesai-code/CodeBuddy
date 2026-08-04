@@ -178,8 +178,172 @@ def generate_reply(project) -> ProjectInterviewReply:
     )
 
     return response.output_parsed
-WORKSPACE_PROMPT = """
-You are BuilderOS's workspace generator.
+
+TASK_GENERATION_RULES = """
+TASK GENERATION REQUIREMENTS
+
+Generate a detailed, execution-ready task plan.
+
+TASK GRANULARITY
+
+Every task must represent one clear piece of work that can usually be
+completed in approximately 30 minutes to 4 hours of focused effort.
+
+Do not combine multiple independent pieces of work into one task.
+
+Never generate vague tasks such as:
+
+- Build the backend
+- Implement the frontend
+- Create the prototype
+- Test the system
+- Research components
+- Set up authentication
+- Finish documentation
+- Deploy the application
+
+Decompose broad work until every task is directly executable.
+
+Bad task:
+
+Build authentication.
+
+Good decomposition:
+
+- Create the Django CustomUser model.
+- Create the account registration form.
+- Add password validation rules.
+- Configure login and logout routes.
+- Create authentication templates.
+- Test login, logout, and registration using multiple accounts.
+
+TASK WORDING
+
+Every task title must:
+
+- begin with an action verb
+- describe one specific action
+- be specific to the exact project
+- avoid vague words such as build, handle, improve, finish, or work on
+  unless followed by a precise deliverable
+
+Every task description must explain:
+
+- what must be done
+- the important implementation details
+- why the task matters when that is not obvious
+- what output or deliverable should exist afterward
+
+COMPLETION CRITERIA
+
+Every task must include objective completion criteria.
+
+Completion criteria must describe observable evidence that the task is
+finished.
+
+Examples:
+
+- The Raspberry Pi boots successfully.
+- SSH login works from another computer.
+- The camera captures and saves an image.
+- All unit tests pass.
+- The API returns the expected response and status code.
+- The component dimensions are recorded in the project documentation.
+- The prototype completes ten test runs without failure.
+
+Do not use completion criteria such as:
+
+- The task is complete.
+- Everything works.
+- The implementation is finished.
+
+ESTIMATED EFFORT
+
+Every task must include an estimated number of hours.
+
+Use realistic estimates based on the work described.
+
+Most tasks should take approximately 0.5 to 4 hours.
+
+Use larger estimates only when the task genuinely cannot be divided
+further without becoming unnatural.
+
+LIFECYCLE COVERAGE
+
+The task list must cover every relevant part of the project lifecycle.
+
+Consider all of the following:
+
+- Planning
+- Requirements
+- Research
+- Learning
+- Setup
+- Procurement
+- Environment configuration
+- Architecture
+- Design
+- Implementation
+- Integration
+- Testing
+- Debugging
+- Documentation
+- Deployment or final delivery
+- Maintenance
+- Optimization
+- Validation
+- Risk mitigation
+- User testing
+- Final review
+- Completion
+
+Only omit a lifecycle area when it is genuinely irrelevant to the
+project.
+
+PARALLEL WORK
+
+Create independent task branches whenever work can happen concurrently.
+
+Do not make every task depend on the immediately previous task.
+
+Identify tasks that different people could reasonably perform at the
+same time.
+
+Use only direct dependencies.
+
+TASK COUNT
+
+The number of tasks should reflect the project's complexity.
+
+Typical ranges:
+
+- Small projects: 20 to 35 tasks
+- Medium projects: 35 to 60 tasks
+- Large or technically complex projects: 60 to 100 tasks
+
+Err on the side of generating more useful tasks rather than fewer.
+
+Missing meaningful work is worse than including a few extra useful
+tasks.
+
+Do not artificially compress independent steps into one task.
+
+Do not generate filler merely to reach a target count.
+
+ORDERING
+
+Order tasks from earliest to latest while preserving parallel branches.
+
+Prerequisites should appear before tasks that depend on them.
+
+Final validation, documentation, deployment, and review tasks should
+appear near the end.
+
+Every generated task must contribute meaningfully to completing the
+project.
+"""
+WORKSPACE_PROMPT = f"""
+You are Projivo's workspace generator.
 
 Using the complete project discovery conversation, generate a useful
 initial workspace for the project.
@@ -265,10 +429,29 @@ testing
 
 Do not omit any section.
 
+{TASK_GENERATION_RULES}
+
+TASK REQUIREMENTS
 TASK REQUIREMENTS
 
-Generate between 8 and 10 useful tasks.
+Generate a comprehensive project plan.
 
+The number of tasks should depend on project complexity.
+
+Typical ranges:
+
+- Small projects:
+  20–35 tasks
+
+- Medium projects:
+  35–60 tasks
+
+- Large or technically complex projects:
+  60–100 tasks
+
+Do not stop generating simply because you reached a round number.
+
+Continue until every meaningful piece of work has been represented.
 For every task return:
 
 - title
@@ -284,7 +467,14 @@ Task titles must:
 - represent one clear piece of work
 - be ordered from earliest to latest
 
-Keep every task description under 25 words.
+Each description should clearly explain:
+
+- what must be done
+- why it is needed
+- important implementation details
+- expected outcome
+
+Target roughly 50–120 words.
 
 Priority must be exactly:
 
@@ -489,15 +679,33 @@ class GeneratedSection(BaseModel):
 
     content: str
 class GeneratedTask(BaseModel):
-    title: str
-    description: str
-    priority: int
+    title: str = Field(
+        min_length=5,
+        max_length=180,
+    )
+
+    description: str = Field(
+        min_length=30,
+    )
+
+    priority: int = Field(
+        ge=1,
+        le=3,
+    )
+
     status: TaskStatus = "todo"
 
-    # References other generated tasks by their
-    # 1-based position in the returned task list.
+    estimated_hours: float = Field(
+        ge=0.25,
+        le=40,
+    )
+
+    completion_criteria: list[str] = Field(
+        min_length=1,
+    )
+
     dependency_indexes: list[int] = Field(
-        default_factory=list
+        default_factory=list,
     )
 import time
 
@@ -539,7 +747,7 @@ def generate_workspace_content(
         response = client.responses.parse(
             model="gpt-5-mini",
             reasoning={
-                "effort": "minimal",
+                "effort": "medium",
             },
             instructions=WORKSPACE_PROMPT,
             input=conversation,
