@@ -345,24 +345,20 @@ project.
 WORKSPACE_PROMPT = f"""
 You are Projivo's workspace generator.
 
-Using the complete project discovery conversation, generate a complete,
-detailed, practical, and editable initial workspace for the project.
-
-The workspace must help a beginner move from the initial idea through
-planning, implementation, testing, deployment, and final completion.
-
-RETURN
+Using the complete project discovery conversation, generate a useful
+initial workspace for the project.
 
 Return:
 
 - a clear project name
-- exactly one section for every required folder type
+- content for every requested workspace section
 - a structured task list
-- structured learning resources
 
-REQUIRED FOLDER TYPES
+The workspace should help a beginner move from idea to completion.
 
-Return exactly one section for each of these folder types:
+Keep the content practical, specific, and editable.
+
+Required folder types:
 
 - overview
 - requirements
@@ -373,6 +369,51 @@ Return exactly one section for each of these folder types:
 - learning
 - documentation
 - testing
+
+Section requirements:
+
+overview:
+Summarize what is being built, who it is for, its main goal, constraints,
+and any assumptions.
+
+requirements:
+List functional requirements, non-functional requirements, constraints,
+and success criteria.
+
+roadmap:
+Create ordered phases from research and planning through prototyping,
+testing, refinement, and completion.
+
+tasks:
+Summarize the major work that must be completed. The detailed task list
+is returned separately in the tasks field.
+
+resources:
+Recommend initial hardware parts, materials, software, libraries,
+frameworks, APIs, services, and tools. Only include categories relevant
+to the project. Clearly label recommendations requiring verification.
+
+budget:
+Provide a concise preliminary budget summary. Mention likely one-time,
+recurring, optional, and contingency costs. Clearly label estimates.
+Do not attempt to return structured budget records in this section.
+
+learning:
+Recommend what the user needs to learn and which official documentation
+or types of resources to look for. Do not invent URLs.
+
+documentation:
+Create the initial structure for project documentation, including setup,
+architecture, decisions, build notes, and maintenance.
+
+testing:
+Create a staged testing plan with test goals, procedures, and success
+criteria.
+
+Do not claim uncertain prices, compatibility, or technical facts as
+guaranteed. Mark estimates and assumptions clearly.
+
+You MUST return exactly one section for every required folder type.
 
 Every folder_type must exactly match one of:
 
@@ -386,675 +427,31 @@ learning
 documentation
 testing
 
-Do not omit a section.
-Do not invent extra folder types.
-Do not return duplicate folder types.
-
-GENERAL WORKSPACE FORMATTING
-
-Generate detailed and well-organized Markdown.
-
-Use:
-
-- clear headings
-- subheadings
-- bullet lists
-- numbered procedures
-- checklists
-- tables when useful
-- warnings and notes when relevant
-- fenced code blocks for commands or code examples
-
-Avoid walls of text.
-
-Do not return primitive one-paragraph summaries.
-
-Each section must contain enough detail for a beginner to understand the
-subject without needing to ask basic follow-up questions.
-
-Use project-specific details rather than generic advice.
-
-Do not repeat the same content across several sections unless the same
-information serves a clearly different purpose.
-
-Clearly label:
-
-- assumptions
-- estimates
-- facts requiring verification
-- uncertain compatibility
-- safety concerns
-- optional recommendations
-- future upgrades
-
-Do not claim uncertain prices, compatibility, or technical facts as
-guaranteed.
-
-WORKSPACE DETAIL GUIDELINES
-
-Recommended detail ranges:
-
-- overview: 250 to 450 words
-- requirements: 500 to 900 words
-- roadmap: 600 to 1,000 words
-- tasks section summary: 250 to 450 words
-- resources: 600 to 1,000 words
-- budget: 400 to 700 words
-- learning: 700 to 1,200 words
-- documentation: 1,000 to 2,000 words
-- testing: 700 to 1,200 words
-
-These are guidelines, not strict limits.
-
-Use more detail when project complexity requires it.
-
-Missing important information is worse than including additional useful
-detail.
-
-SECTION REQUIREMENTS
-
-OVERVIEW
-
-Create a structured project overview using this organization when
-relevant:
-
-## Project Summary
-
-Explain exactly what is being built.
-
-## Intended Users
-
-Describe who will use it and what needs the project solves.
-
-## Main Goal
-
-State the primary outcome the project must achieve.
-
-## Core Features
-
-List the most important capabilities as bullet points.
-
-## Constraints
-
-Cover relevant:
-
-- budget
-- timeline
-- hardware
-- software
-- skill level
-- compatibility
-- deployment
-- physical size
-- power
-- safety
-- legal or operational constraints
-
-## Assumptions
-
-Clearly label assumptions requiring verification.
-
-## Success Definition
-
-Explain what a completed and successful project looks like.
-
-Do not return only one broad paragraph.
-
-REQUIREMENTS
-
-Create a detailed requirements specification.
-
-Use this organization where relevant:
-
-## Functional Requirements
-
-Use identifiers such as:
-
-- FR-1
-- FR-2
-- FR-3
-
-For every functional requirement explain:
-
-- required behavior
-- affected user or system
-- expected input
-- expected output
-- relevant edge cases
-- acceptance criteria
-
-## Non-Functional Requirements
-
-Cover relevant:
-
-- performance
-- reliability
-- usability
-- maintainability
-- security
-- safety
-- accessibility
-- scalability
-- compatibility
-- power consumption
-- environmental tolerance
-
-## Constraints
-
-List fixed limitations and project boundaries.
-
-## Dependencies
-
-List external systems, services, libraries, components, hardware, tools,
-suppliers, and people the project depends on.
-
-## Success Criteria
-
-Create measurable completion criteria.
-
-## Out of Scope
-
-State what the current version will not include.
-
-Avoid vague requirements such as:
-
-- The system should work well.
-- The interface should be good.
-- The device should be reliable.
-
-ROADMAP
-
-Create a detailed phased roadmap from the current state through final
-completion.
-
-Use phases appropriate to the exact project, such as:
-
-## Phase 1 — Research and Planning
-
-## Phase 2 — Setup and Procurement
-
-## Phase 3 — Architecture and Design
-
-## Phase 4 — Initial Implementation
-
-## Phase 5 — Integration
-
-## Phase 6 — Testing and Debugging
-
-## Phase 7 — Deployment or Final Assembly
-
-## Phase 8 — Validation and Completion
-
-For every phase include:
-
-- objective
-- major activities
-- required inputs
-- expected outputs
-- dependencies
-- work that can happen in parallel
-- completion checkpoint
-- likely risks
-- evidence that the phase is finished
-
-Do not force irrelevant phases into the project.
-
-TASKS SECTION
-
-Summarize the major categories of work represented by the structured
-task list.
-
-Organize this section into relevant groups such as:
-
-- Planning
-- Research
-- Setup
-- Procurement
-- Design
-- Implementation
-- Integration
-- Testing
-- Documentation
-- Deployment
-- Final validation
-
-Explain how the work is ordered and which branches can occur in
-parallel.
-
-Do not duplicate the complete structured task list in this section.
-
-RESOURCES
-
-Create a project-specific resource and technology plan.
-
-Use relevant categories such as:
-
-## Hardware
-
-## Mechanical Components
-
-## Electrical Components
-
-## Materials
-
-## Software
-
-## Frameworks and Libraries
-
-## APIs and Services
-
-## Development Tools
-
-## Testing Tools
-
-## Deployment Tools
-
-## Documentation and Datasheets
-
-## Optional Upgrades
-
-For every recommended item explain:
-
-- what it is
-- why the project needs it
-- where it is used
-- whether it is required, recommended, or optional
-- important compatibility considerations
-- reasonable alternatives
-- facts requiring verification
-
-Do not return only a list of names.
-
-Do not invent specific compatibility claims.
-
-BUDGET
-
-Create a detailed preliminary budget explanation.
-
-Use this organization where relevant:
-
-## Budget Assumptions
-
-Explain what the estimate assumes.
-
-## Required One-Time Costs
-
-Group major required purchases.
-
-## Recurring Costs
-
-Include relevant:
-
-- hosting
-- APIs
-- subscriptions
-- maintenance
-- consumables
-- replacement parts
-- cloud storage
-- domain or deployment costs
-
-## Optional Costs
-
-List upgrades and convenience purchases separately.
-
-## Contingency
-
-Recommend an appropriate contingency percentage and explain why.
-
-## Cost Risks
-
-Identify prices, quantities, suppliers, usage levels, or exchange rates
-that may change.
-
-## Cost-Saving Options
-
-Suggest reasonable alternatives without undermining the core
-requirements.
-
-## Items Requiring Verification
-
-Clearly list uncertain prices, quantities, suppliers, and compatibility
-questions.
-
-Do not attempt to replace the structured budget records returned
-elsewhere.
-
-LEARNING
-
-Create a detailed project-specific learning plan.
-
-Organize the section into learning tracks.
-
-For every important topic include:
-
-- topic name
-- why the user needs it
-- what must be understood
-- prerequisite knowledge
-- related project phase
-- related tasks
-- recommended learning order
-- common beginner mistakes
-- practical exercise
-- completion checkpoint
-
-Cover relevant:
-
-- programming languages
-- frameworks
-- libraries
-- APIs
-- development tools
-- hardware components
-- communication protocols
-- electrical concepts
-- mechanical concepts
-- deployment platforms
-- testing tools
-- security concepts
-- safety concepts
-
-Do not merely list links.
-
-Explain how every learning topic applies to the project.
-
-DOCUMENTATION
-
-Generate detailed, project-specific documentation.
-
-The documentation must explain how the exact project should be
-understood, built, configured, tested, operated, troubleshot, deployed,
-and maintained.
-
-Use all relevant sections from the following:
-
-## 1. Project Overview
-
-Explain the purpose, intended users, goals, constraints, and scope.
-
-## 2. Goals and Scope
-
-Clarify included features, excluded features, and completion boundaries.
-
-## 3. System Architecture
-
-Explain the complete system at a high level.
-
-## 4. Major Components
-
-Describe every important hardware, software, electrical, mechanical, or
-service component.
-
-## 5. Component Interactions
-
-Explain how data, commands, power, signals, materials, and user actions
-move through the system.
-
-## 6. Software Architecture
-
-Explain major modules, services, processes, responsibilities, and
-control flow.
-
-## 7. Repository and Folder Structure
-
-Describe important directories and files.
-
-## 8. Installation and Environment Setup
-
-Provide ordered setup steps.
-
-## 9. Dependencies
-
-Explain required:
-
-- packages
-- versions
-- services
-- tools
-- hardware
-- drivers
-- libraries
-
-## 10. Hardware Wiring and Integration
-
-Explain relevant:
-
-- connections
-- pins
-- buses
-- interfaces
-- voltages
-- drivers
-- protection components
-- physical mounting
-- grounding
-
-## 11. Power Architecture
-
-Explain relevant:
-
-- power sources
-- voltage rails
-- current requirements
-- regulation
-- grounding
-- battery selection
-- charging
-- power safety
-
-## 12. Configuration
-
-Explain configuration files, settings, calibration values, credentials,
-and runtime options.
-
-## 13. Environment Variables
-
-Explain every relevant environment variable, its purpose, expected
-format, and whether it contains sensitive data.
-
-## 14. APIs and Communication Protocols
-
-Explain relevant:
-
-- endpoints
-- protocols
-- messages
-- payloads
-- responses
-- errors
-- authentication
-- timing
-- retries
-- connection loss handling
-
-## 15. Database or Data Model
-
-Explain important models, fields, relationships, constraints, and stored
-information.
-
-## 16. Main Workflows
-
-Explain the major user and system workflows step by step.
-
-## 17. Commands
-
-Provide commands needed to install, configure, run, test, build, and
-deploy the project.
-
-## 18. Testing Procedures
-
-Explain how to test each subsystem and the integrated system.
-
-## 19. Calibration Procedures
-
-Explain relevant sensor, actuator, control, timing, dimensional, or
-mechanical calibration.
-
-## 20. Troubleshooting
-
-Use a structured format containing:
-
-- symptom
-- likely cause
-- diagnostic procedure
-- corrective action
-- prevention
-
-## 21. Deployment or Final Assembly
-
-Explain how the completed project is put into operation.
-
-## 22. Maintenance
-
-Explain recurring:
-
-- inspections
-- updates
-- backups
-- cleaning
-- calibration
-- replacement schedules
-- dependency updates
-
-## 23. Security Considerations
-
-Explain relevant:
-
-- authentication
-- authorization
-- secret management
-- input validation
-- network security
-- data protection
-- software updates
-- logging
-- access control
-
-## 24. Safety
-
-Explain relevant:
-
-- electrical safety
-- battery safety
-- mechanical safety
-- thermal safety
-- tool safety
-- operational safety
-- environmental safety
-- emergency shutdown procedures
-
-Only include sections relevant to the project, but fully explain every
-relevant section.
-
-The documentation must explain the project itself.
-
-Do not replace detailed explanations with links.
-
-TESTING
-
-Create a detailed staged testing and validation plan.
-
-Use this organization where relevant:
-
-## Testing Strategy
-
-Explain the overall testing approach and order.
-
-## Unit or Component Testing
-
-Test individual software modules, hardware components, mechanisms,
-services, and interfaces.
-
-## Integration Testing
-
-Test interactions between connected components.
-
-## System Testing
-
-Test the complete system under realistic conditions.
-
-## Failure and Edge-Case Testing
-
-Cover relevant:
-
-- invalid inputs
-- empty data
-- communication loss
-- power interruption
-- component failure
-- sensor failure
-- overload
-- timing problems
-- network failure
-- unexpected user behavior
-- unsafe conditions
-
-## Performance Testing
-
-Include relevant:
-
-- response time
-- accuracy
-- throughput
-- battery life
-- memory usage
-- CPU usage
-- mechanical performance
-- reliability
-- repeatability
-
-## User Testing
-
-Explain:
-
-- who should test
-- which scenarios they should perform
-- what feedback should be recorded
-- how findings should be prioritized
-
-## Safety Testing
-
-Include relevant electrical, mechanical, thermal, operational, battery,
-and environmental checks.
-
-## Regression Testing
-
-Explain what must be retested after changes.
-
-## Final Acceptance Checklist
-
-Create measurable pass/fail criteria for project completion.
-
-For every test include:
-
-- test name
-- purpose
-- prerequisites
-- exact procedure
-- expected result
-- success criteria
-- failure response
-- evidence to record
+Do not omit any section.
 
 {TASK_GENERATION_RULES}
 
-STRUCTURED TASK REQUIREMENTS
+TASK REQUIREMENTS
+TASK REQUIREMENTS
 
-Generate a comprehensive project task plan.
+Generate a comprehensive project plan.
 
 The number of tasks should depend on project complexity.
 
 Typical ranges:
 
-- Small projects: 20 to 35 tasks
-- Medium projects: 35 to 60 tasks
-- Large or technically complex projects: 60 to 100 tasks
+- Small projects:
+  20–35 tasks
 
-Do not stop simply because a round number has been reached.
+- Medium projects:
+  35–60 tasks
 
-Continue until every meaningful piece of work is represented.
+- Large or technically complex projects:
+  60–100 tasks
 
+Do not stop generating simply because you reached a round number.
+
+Continue until every meaningful piece of work has been represented.
 For every task return:
 
 - title
@@ -1063,11 +460,6 @@ For every task return:
 - status
 - dependency_indexes
 
-If supported by the output schema, also return:
-
-- completion_criteria
-- estimated_hours
-
 Task titles must:
 
 - be specific to this project
@@ -1075,17 +467,14 @@ Task titles must:
 - represent one clear piece of work
 - be ordered from earliest to latest
 
-Each task description must explain:
+Each description should clearly explain:
 
 - what must be done
 - why it is needed
 - important implementation details
 - expected outcome
-- observable completion evidence
-- estimated effort
 
-Target approximately 50 to 120 words per description unless a shorter
-description is sufficient to make the task fully executable.
+Target roughly 50–120 words.
 
 Priority must be exactly:
 
@@ -1100,12 +489,8 @@ in_progress
 review
 done
 
-New tasks should normally use:
-
-todo
-
-Only use another status when the project conversation clearly indicates
-that the work is already underway, awaiting review, or completed.
+New tasks should normally use "todo" unless the project context clearly
+indicates the work is already underway or completed.
 
 TASK DEPENDENCY RULES
 
@@ -1123,7 +508,7 @@ dependency_indexes: [1]
 Task 3: Choose the technology stack
 dependency_indexes: [1]
 
-Task 4: Implement the application shell
+Task 4: Build the application
 dependency_indexes: [2, 3]
 
 Rules:
@@ -1137,13 +522,52 @@ Rules:
 - Do not make every task depend on the immediately previous task.
 - Create parallel branches where work can happen independently.
 - Most tasks should have zero to two direct dependencies.
-- Final integration, validation, or release tasks may depend on multiple
-  implementation tasks.
+- Final testing or release tasks may depend on multiple implementation
+  tasks.
 
-LEARNING RESOURCE RECORDS
+IMPORTANT LATENCY REQUIREMENTS
 
-Generate a structured learning resource record for every important
-technology, component, tool, and concept the user must understand.
+Your goal is to produce a useful first workspace quickly.
+
+Do not generate an exhaustive project plan.
+
+Generate only enough information for the user to immediately begin work.
+
+Limit every workspace section to approximately 75 to 150 words.
+
+Generate exactly one section for each required folder type.
+
+Do not repeat information across sections.
+
+Do not generate large explanations or long paragraphs.
+
+Prefer bullet lists whenever possible.
+
+Assume additional detail can be generated later using BuilderOS tools.
+
+Optimize for speed while remaining useful.
+
+Generate a complete and practical project workspace.
+
+LEARNING RESOURCES
+
+Generate a structured learning resource for every
+important technology, component, tool, and concept
+the user must understand to complete the project.
+
+Cover relevant:
+
+- programming languages
+- frameworks
+- libraries
+- APIs
+- development tools
+- hardware components
+- communication protocols
+- electrical and mechanical concepts
+- deployment platforms
+- testing tools
+- safety concepts
 
 Each learning resource must include:
 
@@ -1152,7 +576,7 @@ Each learning resource must include:
 - URL
 - description of what the resource teaches
 - why the user needs it for this project
-- related task or project phase
+- the related task or project phase
 - difficulty level
 - resource type
 - whether the source is official
@@ -1178,17 +602,68 @@ Preferred source order:
 
 Do not invent URLs.
 
-Only return a URL when confident that it is real and relevant.
+Only return a URL when you are confident that it is
+a real and relevant destination.
 
 If a reliable URL is not known, return an empty string.
 
 Avoid duplicate resources.
 
-The learning resources must collectively teach the important
-technologies and concepts required by the exact project.
+The Learning Resources output should teach the user
+each individual technology or concept required by
+their exact project.
+
+DOCUMENTATION
+
+Generate detailed, project-specific documentation.
+
+This must explain how the user's exact project should
+be understood, built, configured, tested, operated,
+troubleshot, and maintained.
+
+Create documentation sections covering relevant
+parts of:
+
+1. Project overview
+2. Goals and scope
+3. System architecture
+4. Major components
+5. How components interact
+6. Software architecture
+7. Repository and folder structure
+8. Installation and environment setup
+9. Dependencies
+10. Hardware wiring and integration
+11. Power architecture
+12. Configuration
+13. Environment variables
+14. APIs and communication protocols
+15. Database or data model
+16. Main workflows
+17. Commands used to run the project
+18. Testing procedures
+19. Calibration procedures
+20. Troubleshooting
+21. Deployment
+22. Maintenance
+23. Security considerations
+24. Electrical, mechanical, and operational safety
+
+Only include sections that are relevant to the
+project, but explain all relevant sections fully.
+
+The documentation must explain the project itself,
+not merely provide links.
+
+Explain important terms, components, commands,
+decisions, and interactions as though the reader is
+learning them for the first time.
+
+Use relevant learning-resource URLs as references
+where helpful.
+
+Do not replace detailed explanations with links.
 """
-
-
 class GeneratedSection(BaseModel):
     folder_type: Literal[
         "overview",
