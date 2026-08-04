@@ -266,6 +266,10 @@ button:disabled {
 
         background: #0d1117;
         image-rendering: pixelated;
+
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
     }
 
     .snake-legend {
@@ -489,7 +493,7 @@ button:disabled {
                     </strong>
 
                     <span>
-                        Use arrow keys or WASD
+                        Use arrow keys or WASD, (swipe on mobile)
                     </span>
                 </div>
 
@@ -663,7 +667,10 @@ button:disabled {
 
     let snakeFood = null;
     let snakeScore = 0;
+    let snakeTouchStartX = 0;
+    let snakeTouchStartY = 0;
 
+    const snakeMinimumSwipeDistance = 30;
 
     function getNewestSetupMessage() {
         if (!conversation) {
@@ -1402,6 +1409,36 @@ button:disabled {
             }
         );
     }
+        function changeSnakeDirection(
+        nextDirection
+    ) {
+        if (
+            !snakeRunning
+            || !nextDirection
+        ) {
+            return;
+        }
+
+        /*
+         * Compare against the pending direction,
+         * not only the direction from the previous
+         * game tick. This prevents rapid inputs from
+         * causing an illegal reversal.
+         */
+        const reversing =
+            nextDirection.x
+                === -pendingSnakeDirection.x
+            && nextDirection.y
+                === -pendingSnakeDirection.y;
+
+        if (reversing) {
+            return;
+        }
+
+        pendingSnakeDirection = {
+            ...nextDirection,
+        };
+    }
 
 
     document.addEventListener(
@@ -1419,30 +1456,37 @@ button:disabled {
                     x: 0,
                     y: -1,
                 },
+
                 w: {
                     x: 0,
                     y: -1,
                 },
+
                 arrowdown: {
                     x: 0,
                     y: 1,
                 },
+
                 s: {
                     x: 0,
                     y: 1,
                 },
+
                 arrowleft: {
                     x: -1,
                     y: 0,
                 },
+
                 a: {
                     x: -1,
                     y: 0,
                 },
+
                 arrowright: {
                     x: 1,
                     y: 0,
                 },
+
                 d: {
                     x: 1,
                     y: 0,
@@ -1458,23 +1502,151 @@ button:disabled {
 
             event.preventDefault();
 
-            const reversing =
-                nextDirection.x
-                    === -snakeDirection.x
-                && nextDirection.y
-                    === -snakeDirection.y;
-
-            if (reversing) {
-                return;
-            }
-
-            pendingSnakeDirection = {
-                ...nextDirection,
-            };
+            changeSnakeDirection(
+                nextDirection
+            );
         }
     );
 
 
+    if (snakeCanvas) {
+        snakeCanvas.addEventListener(
+            "touchstart",
+            function (event) {
+                if (
+                    !snakeRunning
+                    || !event.touches.length
+                ) {
+                    return;
+                }
+
+                const touch =
+                    event.touches[0];
+
+                snakeTouchStartX =
+                    touch.clientX;
+
+                snakeTouchStartY =
+                    touch.clientY;
+            },
+            {
+                passive: true,
+            }
+        );
+
+
+        snakeCanvas.addEventListener(
+            "touchmove",
+            function (event) {
+                if (!snakeRunning) {
+                    return;
+                }
+
+                /*
+                 * Prevent the page or loading card
+                 * from scrolling while the user
+                 * swipes across the game.
+                 */
+                event.preventDefault();
+            },
+            {
+                passive: false,
+            }
+        );
+
+
+        snakeCanvas.addEventListener(
+            "touchend",
+            function (event) {
+                if (
+                    !snakeRunning
+                    || !event.changedTouches.length
+                ) {
+                    return;
+                }
+
+                const touch =
+                    event.changedTouches[0];
+
+                const deltaX =
+                    touch.clientX
+                    - snakeTouchStartX;
+
+                const deltaY =
+                    touch.clientY
+                    - snakeTouchStartY;
+
+                const horizontalDistance =
+                    Math.abs(
+                        deltaX
+                    );
+
+                const verticalDistance =
+                    Math.abs(
+                        deltaY
+                    );
+
+                const swipeDistance =
+                    Math.max(
+                        horizontalDistance,
+                        verticalDistance
+                    );
+
+                if (
+                    swipeDistance
+                    < snakeMinimumSwipeDistance
+                ) {
+                    return;
+                }
+
+                if (
+                    horizontalDistance
+                    > verticalDistance
+                ) {
+                    changeSnakeDirection(
+                        deltaX > 0
+                            ? {
+                                x: 1,
+                                y: 0,
+                            }
+                            : {
+                                x: -1,
+                                y: 0,
+                            }
+                    );
+
+                    return;
+                }
+
+                changeSnakeDirection(
+                    deltaY > 0
+                        ? {
+                            x: 0,
+                            y: 1,
+                        }
+                        : {
+                            x: 0,
+                            y: -1,
+                        }
+                );
+            },
+            {
+                passive: true,
+            }
+        );
+
+
+        snakeCanvas.addEventListener(
+            "touchcancel",
+            function () {
+                snakeTouchStartX = 0;
+                snakeTouchStartY = 0;
+            },
+            {
+                passive: true,
+            }
+        );
+    }
     if (snakeRestartButton) {
         snakeRestartButton.addEventListener(
             "click",
