@@ -1,221 +1,3 @@
-{% extends "projects/base.html" %}
-
-{% block title %}
-    Project Setup | Projivo
-{% endblock %}
-
-{% block extra_css %}
-<style>
-    .setup-layout {
-        max-width: 880px;
-        display: grid;
-        gap: 20px;
-    }
-
-    .setup-intro {
-        margin-bottom: 4px;
-    }
-
-    .setup-intro p {
-        color: var(--text-muted);
-    }
-
-    .conversation {
-        display: grid;
-        gap: 12px;
-    }
-
-    .message {
-        padding: 15px;
-        border: 1px solid var(--border);
-        border-radius: 11px;
-        background: var(--surface);
-    }
-
-    .message-user {
-        background: var(--surface-soft);
-    }
-
-    .message-assistant {
-        background: var(--info-background);
-        border-color: var(--info-border);
-    }
-
-    .message p:last-child {
-        margin-bottom: 0;
-    }
-
-    .setup-card,
-    .generation-card {
-        padding: 19px;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        background: var(--surface);
-    }
-
-    textarea {
-        width: 100%;
-        min-height: 160px;
-        padding: 12px;
-        resize: vertical;
-        border: 1px solid var(--border-strong);
-        border-radius: 9px;
-        background: var(--surface-soft);
-        color: var(--text);
-        font: inherit;
-    }
-
-    textarea:read-only {
-        opacity: 0.7;
-        cursor: not-allowed;
-    }
-
-    .setup-actions {
-        margin-top: 14px;
-    }
-
-    button:disabled {
-        opacity: 0.65;
-        cursor: wait;
-    }
-
-    /* ---------------------------------------------------------
-       Workspace-generation loading overlay
-       --------------------------------------------------------- */
-
-    .loading-overlay[hidden] {
-        display: none;
-    }
-
-    .loading-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 99999;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        padding: 20px;
-
-        background: rgba(15, 23, 42, 0.86);
-        backdrop-filter: blur(7px);
-    }
-
-    .workspace-loading-card {
-        width: min(540px, 100%);
-        padding: 42px 34px;
-        border: 1px solid var(--border);
-        border-radius: 18px;
-        background: var(--surface);
-        text-align: center;
-        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
-    }
-
-    .loading-spinner {
-        width: 72px;
-        height: 72px;
-        margin: 0 auto 24px;
-
-        border: 6px solid var(--surface-soft);
-        border-top-color: var(--accent);
-        border-radius: 50%;
-
-        animation: workspace-spin 0.85s linear infinite;
-    }
-
-    .workspace-loading-card h2 {
-        margin: 0;
-    }
-
-    .loading-main {
-        margin: 18px 0 0;
-        font-size: 18px;
-        line-height: 1.55;
-    }
-
-    .loading-status {
-        min-height: 52px;
-        margin: 22px 0 0;
-        color: var(--text);
-        font-size: 17px;
-        font-weight: 700;
-        line-height: 1.5;
-
-        transition:
-            opacity 0.2s ease,
-            transform 0.2s ease;
-    }
-
-    .loading-status.is-changing {
-        opacity: 0;
-        transform: translateY(5px);
-    }
-
-    .loading-sub {
-        margin: 16px 0 0;
-        color: var(--text-muted);
-        line-height: 1.65;
-    }
-
-    .loading-progress {
-        height: 8px;
-        margin-top: 24px;
-        overflow: hidden;
-        border-radius: 999px;
-        background: var(--surface-soft);
-    }
-
-    .loading-progress-bar {
-        width: 28%;
-        height: 100%;
-        border-radius: inherit;
-        background: var(--accent);
-
-        animation:
-            workspace-progress 2.2s ease-in-out infinite;
-    }
-
-    .loading-warning {
-        margin: 22px 0 0;
-        color: var(--text-muted);
-        font-size: 13px;
-        line-height: 1.5;
-    }
-
-    @keyframes workspace-spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-
-    @keyframes workspace-progress {
-        0% {
-            transform: translateX(-120%);
-        }
-
-        50% {
-            transform: translateX(170%);
-        }
-
-        100% {
-            transform: translateX(380%);
-        }
-    }
-
-    @media (max-width: 600px) {
-        .workspace-loading-card {
-            padding: 34px 22px;
-        }
-
-        .loading-spinner {
-            width: 60px;
-            height: 60px;
-        }
-    }
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="setup-layout">
     <header class="setup-intro">
@@ -229,7 +11,10 @@
         </p>
     </header>
 
-    <div class="conversation" id="setup-conversation">
+    <div
+        class="conversation"
+        id="setup-conversation"
+    >
         {% for project_message in project_messages %}
             <article
                 class="
@@ -258,7 +43,9 @@
 
     {% if project.status == "generating" %}
         <section class="generation-card">
-            <h2>Project discovery complete</h2>
+            <h2>
+                Project discovery complete
+            </h2>
 
             <p>
                 Projivo has enough information to create your
@@ -291,7 +78,9 @@
                 {% csrf_token %}
 
                 <label for="setup-message">
-                    <strong>Describe your idea</strong>
+                    <strong>
+                        Describe your idea
+                    </strong>
                 </label>
 
                 <textarea
@@ -356,6 +145,53 @@
             <div class="loading-progress-bar"></div>
         </div>
 
+        <div class="snake-panel">
+            <div class="snake-header">
+                <div>
+                    <strong>
+                        Collect project pieces
+                    </strong>
+
+                    <span>
+                        Use arrow keys or WASD
+                    </span>
+                </div>
+
+                <div class="snake-score">
+                    Score:
+                    <span id="snake-score">
+                        0
+                    </span>
+                </div>
+            </div>
+
+            <canvas
+                id="snake-game"
+                width="420"
+                height="260"
+                aria-label="Project-themed Snake game"
+            ></canvas>
+
+            <div class="snake-legend">
+                <span>💡 Idea</span>
+                <span>⚙️ Component</span>
+                <span>🧪 Test</span>
+                <span>📄 Docs</span>
+                <span>💰 Budget</span>
+                <span>🔧 Tool</span>
+                <span>📚 Resource</span>
+            </div>
+
+            <button
+                type="button"
+                id="snake-restart-button"
+                class="snake-restart-button"
+                hidden
+            >
+                Play Again
+            </button>
+        </div>
+
         <p class="loading-sub">
             Projivo is creating a connected project workspace
             rather than a basic checklist.
@@ -367,7 +203,6 @@
     </div>
 </div>
 {% endblock %}
-
 {% block extra_js %}
 <script>
     const setupForm =
@@ -410,11 +245,26 @@
             "workspace-loading-status"
         );
 
+    const snakeCanvas =
+        document.getElementById(
+            "snake-game"
+        );
+
+    const snakeScoreElement =
+        document.getElementById(
+            "snake-score"
+        );
+
+    const snakeRestartButton =
+        document.getElementById(
+            "snake-restart-button"
+        );
+
     const loadingMessages = [
         "Understanding your project idea...",
         "Organizing the project requirements...",
         "Creating the project roadmap...",
-        "Building your initial task list...",
+        "Building your detailed task list...",
         "Connecting task dependencies...",
         "Estimating your project budget...",
         "Organizing materials and tools...",
@@ -423,8 +273,60 @@
         "Finalizing your workspace...",
     ];
 
+    const snakeGridSize = 20;
+
+    const projectPieces = [
+        {
+            emoji: "💡",
+            label: "Idea",
+        },
+        {
+            emoji: "⚙️",
+            label: "Component",
+        },
+        {
+            emoji: "🧪",
+            label: "Test",
+        },
+        {
+            emoji: "📄",
+            label: "Documentation",
+        },
+        {
+            emoji: "💰",
+            label: "Budget",
+        },
+        {
+            emoji: "🔧",
+            label: "Tool",
+        },
+        {
+            emoji: "📚",
+            label: "Resource",
+        },
+    ];
+
     let loadingMessageIndex = 0;
     let loadingMessageTimer = null;
+
+    let snakeContext = null;
+    let snakeTimer = null;
+    let snakeRunning = false;
+
+    let snake = [];
+
+    let snakeDirection = {
+        x: 1,
+        y: 0,
+    };
+
+    let pendingSnakeDirection = {
+        x: 1,
+        y: 0,
+    };
+
+    let snakeFood = null;
+    let snakeScore = 0;
 
 
     function getNewestSetupMessage() {
@@ -553,50 +455,6 @@
     }
 
 
-    if (
-        setupForm
-        && setupButton
-        && setupTextarea
-    ) {
-        setupForm.addEventListener(
-            "submit",
-            function (event) {
-                if (setupButton.disabled) {
-                    event.preventDefault();
-                    return;
-                }
-
-                if (
-                    !setupTextarea
-                    .value
-                    .trim()
-                ) {
-                    event.preventDefault();
-                    setupTextarea.focus();
-                    return;
-                }
-
-                /*
-                 * Remember that the next page load
-                 * was caused by sending a setup
-                 * message.
-                 */
-                sessionStorage.setItem(
-                    "builderosSetupMessageSubmitted",
-                    "true"
-                );
-
-                setupButton.disabled = true;
-
-                setupButton.textContent =
-                    "Thinking...";
-
-                setupTextarea.readOnly = true;
-            }
-        );
-    }
-
-
     function rotateLoadingMessage() {
         if (!loadingStatus) {
             return;
@@ -626,6 +484,483 @@
     }
 
 
+    function getRandomSnakeCell() {
+        if (!snakeCanvas) {
+            return {
+                x: 0,
+                y: 0,
+            };
+        }
+
+        const columns =
+            Math.floor(
+                snakeCanvas.width
+                / snakeGridSize
+            );
+
+        const rows =
+            Math.floor(
+                snakeCanvas.height
+                / snakeGridSize
+            );
+
+        return {
+            x: Math.floor(
+                Math.random() * columns
+            ),
+
+            y: Math.floor(
+                Math.random() * rows
+            ),
+        };
+    }
+
+
+    function placeSnakeFood() {
+        if (!snakeCanvas) {
+            return;
+        }
+
+        let newFood = null;
+        let attempts = 0;
+
+        do {
+            const cell =
+                getRandomSnakeCell();
+
+            const piece =
+                projectPieces[
+                    Math.floor(
+                        Math.random()
+                        * projectPieces.length
+                    )
+                ];
+
+            newFood = {
+                ...cell,
+                ...piece,
+            };
+
+            attempts += 1;
+        } while (
+            snake.some(
+                function (segment) {
+                    return (
+                        segment.x
+                            === newFood.x
+                        && segment.y
+                            === newFood.y
+                    );
+                }
+            )
+            && attempts < 100
+        );
+
+        snakeFood = newFood;
+    }
+
+
+    function drawSnakeGrid() {
+        if (
+            !snakeContext
+            || !snakeCanvas
+        ) {
+            return;
+        }
+
+        snakeContext.strokeStyle =
+            "rgba(139, 148, 158, 0.08)";
+
+        snakeContext.lineWidth = 1;
+
+        for (
+            let x = 0;
+            x <= snakeCanvas.width;
+            x += snakeGridSize
+        ) {
+            snakeContext.beginPath();
+
+            snakeContext.moveTo(
+                x,
+                0
+            );
+
+            snakeContext.lineTo(
+                x,
+                snakeCanvas.height
+            );
+
+            snakeContext.stroke();
+        }
+
+        for (
+            let y = 0;
+            y <= snakeCanvas.height;
+            y += snakeGridSize
+        ) {
+            snakeContext.beginPath();
+
+            snakeContext.moveTo(
+                0,
+                y
+            );
+
+            snakeContext.lineTo(
+                snakeCanvas.width,
+                y
+            );
+
+            snakeContext.stroke();
+        }
+    }
+
+
+    function drawRoundedSquare(
+        x,
+        y,
+        size,
+        radius
+    ) {
+        if (!snakeContext) {
+            return;
+        }
+
+        snakeContext.beginPath();
+
+        snakeContext.fillRect(
+            x,
+            y,
+            size,
+            size
+        );
+
+        snakeContext.fill();
+    }
+
+
+    function drawSnakeGame() {
+        if (
+            !snakeContext
+            || !snakeCanvas
+        ) {
+            return;
+        }
+
+        snakeContext.clearRect(
+            0,
+            0,
+            snakeCanvas.width,
+            snakeCanvas.height
+        );
+
+        snakeContext.fillStyle =
+            "#0d1117";
+
+        snakeContext.fillRect(
+            0,
+            0,
+            snakeCanvas.width,
+            snakeCanvas.height
+        );
+
+        drawSnakeGrid();
+
+        snake.forEach(
+            function (
+                segment,
+                index
+            ) {
+                snakeContext.fillStyle =
+                    index === 0
+                        ? "#79c0ff"
+                        : "#58a6ff";
+
+                drawRoundedSquare(
+                    (
+                        segment.x
+                        * snakeGridSize
+                    ) + 2,
+                    (
+                        segment.y
+                        * snakeGridSize
+                    ) + 2,
+                    snakeGridSize - 4,
+                    5
+                );
+            }
+        );
+
+        if (snakeFood) {
+            snakeContext.font =
+                "16px sans-serif";
+
+            snakeContext.textAlign =
+                "center";
+
+            snakeContext.textBaseline =
+                "middle";
+
+            snakeContext.fillText(
+                snakeFood.emoji,
+                (
+                    snakeFood.x
+                    * snakeGridSize
+                )
+                + snakeGridSize / 2,
+                (
+                    snakeFood.y
+                    * snakeGridSize
+                )
+                + snakeGridSize / 2
+            );
+        }
+    }
+
+
+    function resetSnakeGame() {
+        if (
+            !snakeCanvas
+            || !snakeScoreElement
+        ) {
+            return;
+        }
+
+        snake = [
+            {
+                x: 7,
+                y: 6,
+            },
+            {
+                x: 6,
+                y: 6,
+            },
+            {
+                x: 5,
+                y: 6,
+            },
+        ];
+
+        snakeDirection = {
+            x: 1,
+            y: 0,
+        };
+
+        pendingSnakeDirection = {
+            x: 1,
+            y: 0,
+        };
+
+        snakeScore = 0;
+
+        snakeScoreElement.textContent =
+            "0";
+
+        if (snakeRestartButton) {
+            snakeRestartButton.hidden =
+                true;
+        }
+
+        placeSnakeFood();
+        drawSnakeGame();
+    }
+
+
+    function stopSnakeGame() {
+        snakeRunning = false;
+
+        if (snakeTimer) {
+            window.clearInterval(
+                snakeTimer
+            );
+
+            snakeTimer = null;
+        }
+    }
+
+
+    function endSnakeGame() {
+        stopSnakeGame();
+
+        if (snakeRestartButton) {
+            snakeRestartButton.hidden =
+                false;
+        }
+
+        if (
+            !snakeContext
+            || !snakeCanvas
+        ) {
+            return;
+        }
+
+        snakeContext.fillStyle =
+            "rgba(13, 17, 23, 0.84)";
+
+        snakeContext.fillRect(
+            0,
+            0,
+            snakeCanvas.width,
+            snakeCanvas.height
+        );
+
+        snakeContext.fillStyle =
+            "#f0f6fc";
+
+        snakeContext.font =
+            "700 24px sans-serif";
+
+        snakeContext.textAlign =
+            "center";
+
+        snakeContext.textBaseline =
+            "middle";
+
+        snakeContext.fillText(
+            "Project stalled!",
+            snakeCanvas.width / 2,
+            snakeCanvas.height / 2 - 14
+        );
+
+        snakeContext.fillStyle =
+            "#8b949e";
+
+        snakeContext.font =
+            "14px sans-serif";
+
+        snakeContext.fillText(
+            "Play again while Projivo keeps building.",
+            snakeCanvas.width / 2,
+            snakeCanvas.height / 2 + 18
+        );
+    }
+
+
+    function updateSnakeGame() {
+        if (
+            !snakeCanvas
+            || !snakeRunning
+            || !snake.length
+        ) {
+            return;
+        }
+
+        snakeDirection = {
+            ...pendingSnakeDirection,
+        };
+
+        const head = snake[0];
+
+        const newHead = {
+            x:
+                head.x
+                + snakeDirection.x,
+
+            y:
+                head.y
+                + snakeDirection.y,
+        };
+
+        const columns =
+            Math.floor(
+                snakeCanvas.width
+                / snakeGridSize
+            );
+
+        const rows =
+            Math.floor(
+                snakeCanvas.height
+                / snakeGridSize
+            );
+
+        const hitWall =
+            newHead.x < 0
+            || newHead.y < 0
+            || newHead.x >= columns
+            || newHead.y >= rows;
+
+        const collectedPiece =
+            snakeFood
+            && newHead.x
+                === snakeFood.x
+            && newHead.y
+                === snakeFood.y;
+
+        const bodyToCheck =
+            collectedPiece
+                ? snake
+                : snake.slice(
+                    0,
+                    -1
+                );
+
+        const hitSelf =
+            bodyToCheck.some(
+                function (segment) {
+                    return (
+                        segment.x
+                            === newHead.x
+                        && segment.y
+                            === newHead.y
+                    );
+                }
+            );
+
+        if (
+            hitWall
+            || hitSelf
+        ) {
+            endSnakeGame();
+            return;
+        }
+
+        snake.unshift(
+            newHead
+        );
+
+        if (collectedPiece) {
+            snakeScore += 1;
+
+            if (snakeScoreElement) {
+                snakeScoreElement.textContent =
+                    String(snakeScore);
+            }
+
+            placeSnakeFood();
+        } else {
+            snake.pop();
+        }
+
+        drawSnakeGame();
+    }
+
+
+    function startSnakeGame() {
+        if (!snakeCanvas) {
+            return;
+        }
+
+        snakeContext =
+            snakeCanvas.getContext(
+                "2d"
+            );
+
+        if (!snakeContext) {
+            return;
+        }
+
+        stopSnakeGame();
+        resetSnakeGame();
+
+        snakeRunning = true;
+
+        snakeTimer =
+            window.setInterval(
+                updateSnakeGame,
+                125
+            );
+    }
+
+
     function showWorkspaceLoadingOverlay() {
         if (
             !loadingOverlay
@@ -644,11 +979,60 @@
         document.body.style.overflow =
             "hidden";
 
+        if (loadingMessageTimer) {
+            window.clearInterval(
+                loadingMessageTimer
+            );
+        }
+
         loadingMessageTimer =
             window.setInterval(
                 rotateLoadingMessage,
                 5000
             );
+
+        startSnakeGame();
+    }
+
+
+    if (
+        setupForm
+        && setupButton
+        && setupTextarea
+    ) {
+        setupForm.addEventListener(
+            "submit",
+            function (event) {
+                if (setupButton.disabled) {
+                    event.preventDefault();
+                    return;
+                }
+
+                if (
+                    !setupTextarea
+                    .value
+                    .trim()
+                ) {
+                    event.preventDefault();
+                    setupTextarea.focus();
+                    return;
+                }
+
+                sessionStorage.setItem(
+                    "builderosSetupMessageSubmitted",
+                    "true"
+                );
+
+                setupButton.disabled =
+                    true;
+
+                setupButton.textContent =
+                    "Thinking...";
+
+                setupTextarea.readOnly =
+                    true;
+            }
+        );
     }
 
 
@@ -684,6 +1068,85 @@
     }
 
 
+    document.addEventListener(
+        "keydown",
+        function (event) {
+            if (!snakeRunning) {
+                return;
+            }
+
+            const key =
+                event.key.toLowerCase();
+
+            const directions = {
+                arrowup: {
+                    x: 0,
+                    y: -1,
+                },
+                w: {
+                    x: 0,
+                    y: -1,
+                },
+                arrowdown: {
+                    x: 0,
+                    y: 1,
+                },
+                s: {
+                    x: 0,
+                    y: 1,
+                },
+                arrowleft: {
+                    x: -1,
+                    y: 0,
+                },
+                a: {
+                    x: -1,
+                    y: 0,
+                },
+                arrowright: {
+                    x: 1,
+                    y: 0,
+                },
+                d: {
+                    x: 1,
+                    y: 0,
+                },
+            };
+
+            const nextDirection =
+                directions[key];
+
+            if (!nextDirection) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const reversing =
+                nextDirection.x
+                    === -snakeDirection.x
+                && nextDirection.y
+                    === -snakeDirection.y;
+
+            if (reversing) {
+                return;
+            }
+
+            pendingSnakeDirection = {
+                ...nextDirection,
+            };
+        }
+    );
+
+
+    if (snakeRestartButton) {
+        snakeRestartButton.addEventListener(
+            "click",
+            startSnakeGame
+        );
+    }
+
+
     window.addEventListener(
         "load",
         function () {
@@ -703,11 +1166,6 @@
                 "builderosSetupMessageSubmitted"
             );
 
-            /*
-             * Wait briefly for the new assistant
-             * message and page layout to finish
-             * rendering.
-             */
             window.setTimeout(
                 scrollToNewestSetupMessage,
                 200
@@ -734,6 +1192,8 @@
 
                 loadingMessageTimer = null;
             }
+
+            stopSnakeGame();
 
             if (loadingOverlay) {
                 loadingOverlay.hidden =
