@@ -521,6 +521,20 @@ class ProjectEvent(models.Model):
             "schedule_generated",
             "Schedule Generated",
         )
+        MEMBER_ADDED = (
+            "member_added",
+            "Member Added",
+        )
+
+        MEMBER_REMOVED = (
+            "member_removed",
+            "Member Removed",
+        )
+
+        MEMBER_ROLE_CHANGED = (
+            "member_role_changed",
+            "Member Role Changed",
+        )
 
     project = models.ForeignKey(
         Project,
