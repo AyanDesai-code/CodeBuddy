@@ -2736,6 +2736,10 @@ def apply_task_synchronization(
     updated_count = 0
     removed_count = 0
 
+    added_titles = []
+    updated_titles = []
+    removed_titles = []
+
     valid_statuses = {
         value
         for value, _ in Task.Status.choices
@@ -2814,6 +2818,7 @@ def apply_task_synchronization(
             ]
         )
 
+        updated_titles.append(task.title)
         updated_count += 1
 
     # Remove only valid unfinished tasks.
@@ -2831,7 +2836,16 @@ def apply_task_synchronization(
         )
     )
 
-    removed_count = tasks_to_remove.count()
+    removed_titles = list(
+    tasks_to_remove.values_list(
+        "title",
+        flat=True,
+    )
+)
+
+    removed_count = len(
+        removed_titles
+    )
 
     if removed_count:
         tasks_to_remove.delete()
@@ -2932,6 +2946,9 @@ def apply_task_synchronization(
                 order=next_order,
             )
         )
+        added_titles.append(
+            title
+        )
 
         existing_titles.add(
             normalized_title
@@ -2956,6 +2973,16 @@ def apply_task_synchronization(
         "added": added_count,
         "updated": updated_count,
         "removed": removed_count,
+
+        "added_titles": added_titles,
+        "updated_titles": updated_titles,
+        "removed_titles": removed_titles,
+
+        "total": (
+            added_count
+            + updated_count
+            + removed_count
+        ),
     }
 def apply_workspace_change(
     *,
@@ -2991,17 +3018,19 @@ def apply_workspace_change(
     print(
         "\n===== Fast Workspace Update Plan ====="
     )
+
     print(
         plan.model_dump_json(
             indent=4
         )
     )
+
     print(
         "======================================\n"
     )
 
-    facts_before = (
-        project_state.facts.copy()
+    facts_before = dict(
+        project_state.facts or {}
     )
 
     sections_before = {
@@ -3022,43 +3051,133 @@ def apply_workspace_change(
             "status": task.status,
         }
         for task
-        in project.tasks.order_by("order")
+        in project.tasks.order_by(
+            "order",
+            "pk",
+        )
     ]
 
-    updated_facts = (
-        project_state.facts.copy()
+    updated_facts = dict(
+        facts_before
     )
 
-    for fact_update in plan.canonical_updates:
-        updated_facts[
+    for fact_update in (
+        plan.canonical_updates or []
+    ):
+        key = (
             fact_update.key
-        ] = fact_update.new_value
+            or ""
+        ).strip()
 
-    regenerated_sections = {
-        section.folder_type.strip().lower():
-            section.content.strip()
-        for section in plan.sections
-        if section.content.strip()
+        if not key:
+            continue
+
+        updated_facts[key] = (
+            fact_update.new_value
+        )
+
+    fact_changes = []
+
+    fact_keys = sorted(
+        set(facts_before.keys())
+        | set(updated_facts.keys())
+    )
+
+    for key in fact_keys:
+        before_value = facts_before.get(
+            key
+        )
+
+        after_value = updated_facts.get(
+            key
+        )
+
+        if before_value == after_value:
+            continue
+
+        if key not in facts_before:
+            change_type = "added"
+
+        elif key not in updated_facts:
+            change_type = "removed"
+
+        else:
+            change_type = "updated"
+
+        fact_changes.append(
+            {
+                "key": key,
+                "label": (
+                    key
+                    .replace("_", " ")
+                    .strip()
+                    .title()
+                ),
+                "before": before_value,
+                "after": after_value,
+                "change_type": change_type,
+            }
+        )
+
+    facts_changed = [
+        fact_change["key"]
+        for fact_change in fact_changes
+    ]
+
+    regenerated_sections = {}
+
+    for section in (
+        plan.sections or []
+    ):
+        folder_type = (
+            section.folder_type
+            or ""
+        ).strip().lower()
+
+        section_content = (
+            section.content
+            or ""
+        ).strip()
+
+        if not folder_type:
+            continue
+
+        if not section_content:
+            continue
+
+        regenerated_sections[
+            folder_type
+        ] = section_content
+
+    affected_sections = {
+        str(section_type).strip().lower()
+        for section_type
+        in (
+            plan.affected_sections
+            or []
+        )
+        if str(section_type).strip()
     }
 
     tasks_affected = (
         "tasks"
-        in plan.affected_sections
+        in affected_sections
     )
-
-    facts_changed = [
-        fact_update.key
-        for fact_update
-        in plan.canonical_updates
-    ]
 
     task_changes = {
         "added": 0,
         "updated": 0,
         "removed": 0,
+
+        "added_titles": [],
+        "updated_titles": [],
+        "removed_titles": [],
+
+        "total": 0,
     }
 
     updated_section_names = []
+
     section_summary = (
         "No text sections required changes"
     )
@@ -3125,19 +3244,48 @@ def apply_workspace_change(
                 updated_section_names
             )
 
-        # WorkspaceUpdatePlan already has the same
-        # task fields apply_task_synchronization()
-        # expects:
-        #
-        # tasks_to_add
-        # tasks_to_update
-        # task_ids_to_remove
         if tasks_affected:
             task_changes = (
                 apply_task_synchronization(
                     project=project,
                     synchronization=plan,
                 )
+            )
+
+            task_changes.setdefault(
+                "added",
+                0,
+            )
+
+            task_changes.setdefault(
+                "updated",
+                0,
+            )
+
+            task_changes.setdefault(
+                "removed",
+                0,
+            )
+
+            task_changes.setdefault(
+                "added_titles",
+                [],
+            )
+
+            task_changes.setdefault(
+                "updated_titles",
+                [],
+            )
+
+            task_changes.setdefault(
+                "removed_titles",
+                [],
+            )
+
+            task_changes["total"] = (
+                task_changes["added"]
+                + task_changes["updated"]
+                + task_changes["removed"]
             )
 
         task_note = ""
@@ -3153,10 +3301,19 @@ def apply_workspace_change(
                 f"{task_changes['removed']}"
             )
 
-            if plan.task_summary.strip():
+            task_summary = (
+                getattr(
+                    plan,
+                    "task_summary",
+                    "",
+                )
+                or ""
+            ).strip()
+
+            if task_summary:
                 task_note += (
                     "\n\n"
-                    + plan.task_summary.strip()
+                    + task_summary
                 )
 
         sections_after = {
@@ -3182,15 +3339,133 @@ def apply_workspace_change(
             }
             for task
             in project.tasks.order_by(
-                "order"
+                "order",
+                "pk",
             )
         ]
+
+        change_summary_items = []
+
+        for fact_change in fact_changes:
+            label = fact_change[
+                "label"
+            ]
+
+            before_value = fact_change[
+                "before"
+            ]
+
+            after_value = fact_change[
+                "after"
+            ]
+
+            if (
+                before_value is None
+                or before_value == ""
+            ):
+                change_summary_items.append(
+                    (
+                        f"Set {label} to "
+                        f"{after_value}."
+                    )
+                )
+
+            elif (
+                after_value is None
+                or after_value == ""
+            ):
+                change_summary_items.append(
+                    (
+                        f"Removed the saved "
+                        f"{label} value."
+                    )
+                )
+
+            else:
+                change_summary_items.append(
+                    (
+                        f"Changed {label} from "
+                        f"{before_value} to "
+                        f"{after_value}."
+                    )
+                )
+
+        if updated_section_names:
+            change_summary_items.append(
+                (
+                    "Updated these workspace "
+                    "sections: "
+                    + ", ".join(
+                        updated_section_names
+                    )
+                    + "."
+                )
+            )
+
+        if task_changes["added"]:
+            change_summary_items.append(
+                (
+                    f"Added "
+                    f"{task_changes['added']} "
+                    "new project "
+                    f"{'task' if task_changes['added'] == 1 else 'tasks'}."
+                )
+            )
+
+        if task_changes["updated"]:
+            change_summary_items.append(
+                (
+                    f"Updated "
+                    f"{task_changes['updated']} "
+                    "existing "
+                    f"{'task' if task_changes['updated'] == 1 else 'tasks'}."
+                )
+            )
+
+        if task_changes["removed"]:
+            change_summary_items.append(
+                (
+                    f"Removed "
+                    f"{task_changes['removed']} "
+                    f"{'task' if task_changes['removed'] == 1 else 'tasks'} "
+                    "that were no longer needed."
+                )
+            )
+
+        if task_changes["total"] == 0:
+            change_summary_items.append(
+                (
+                    "No task changes were "
+                    "necessary because the "
+                    "existing task list was "
+                    "already compatible with "
+                    "this update."
+                )
+            )
+
+        if not change_summary_items:
+            change_summary_items.append(
+                (
+                    "Projivo reviewed the request, "
+                    "but no saved project content "
+                    "needed to change."
+                )
+            )
+
+        plan_summary = (
+            getattr(
+                plan,
+                "summary",
+                "",
+            )
+            or ""
+        ).strip()
 
         change = (
             ProjectChange.objects.create(
                 project=project,
                 user_message=content,
-                summary=plan.summary,
+                summary=plan_summary,
                 facts_before=facts_before,
                 facts_after=updated_facts,
                 sections_before=(
@@ -3205,17 +3480,32 @@ def apply_workspace_change(
         )
 
         assistant_content = (
-            plan.assistant_message.strip()
-        )
+            getattr(
+                plan,
+                "assistant_message",
+                "",
+            )
+            or ""
+        ).strip()
 
-        if plan.impact_explanation.strip():
+        if not assistant_content:
+            assistant_content = (
+                "Your project update was applied."
+            )
+
+        impact_explanation = (
+            getattr(
+                plan,
+                "impact_explanation",
+                "",
+            )
+            or ""
+        ).strip()
+
+        if impact_explanation:
             assistant_content += (
                 "\n\nWhy this matters:\n"
-                + (
-                    plan
-                    .impact_explanation
-                    .strip()
-                )
+                + impact_explanation
             )
 
         assistant_content += (
@@ -3227,7 +3517,8 @@ def apply_workspace_change(
         WorkspaceMessage.objects.create(
             project=project,
             role=(
-                WorkspaceMessage.Role
+                WorkspaceMessage
+                .Role
                 .ASSISTANT
             ),
             content=assistant_content,
@@ -3236,13 +3527,16 @@ def apply_workspace_change(
         record_project_event(
             project=project,
             event_type=(
-                ProjectEvent.EventType
+                ProjectEvent
+                .EventType
                 .WORKSPACE_UPDATED
             ),
             title="Workspace updated",
             description=(
                 f"Updated sections: "
                 f"{section_summary}. "
+                f"Facts changed: "
+                f"{len(fact_changes)}. "
                 f"Tasks added: "
                 f"{task_changes['added']}; "
                 f"updated: "
@@ -3257,6 +3551,9 @@ def apply_workspace_change(
                 ),
                 "facts_changed": (
                     facts_changed
+                ),
+                "fact_changes": (
+                    fact_changes
                 ),
                 "task_changes": (
                     task_changes
@@ -3275,16 +3572,11 @@ def apply_workspace_change(
 
     affected_schedule_sections = (
         schedule_relevant_sections
-        & set(plan.affected_sections)
+        & affected_sections
     )
 
-    tasks_changed = any(
-        task_changes[key] > 0
-        for key in [
-            "added",
-            "updated",
-            "removed",
-        ]
+    tasks_changed = (
+        task_changes["total"] > 0
     )
 
     if (
@@ -3295,13 +3587,15 @@ def apply_workspace_change(
 
         if affected_schedule_sections:
             refresh_reasons.append(
-                "Updated sections: "
-                + ", ".join(
-                    sorted(
-                        affected_schedule_sections
+                (
+                    "Updated sections: "
+                    + ", ".join(
+                        sorted(
+                            affected_schedule_sections
+                        )
                     )
+                    + "."
                 )
-                + "."
             )
 
         if tasks_changed:
@@ -3324,23 +3618,33 @@ def apply_workspace_change(
     print(
         "\n===== Fast Update Complete ====="
     )
+
     print(
         "Updated facts:",
         updated_facts,
     )
+
+    print(
+        "Fact changes:",
+        fact_changes,
+    )
+
     print(
         "Updated sections:",
         updated_section_names,
     )
+
     print(
         "Task changes:",
         task_changes,
     )
+
     print(
         "TOTAL WORKSPACE ASSISTANT "
-        f"UPDATE TIME: {total_seconds:.2f} "
-        "seconds"
+        f"UPDATE TIME: "
+        f"{total_seconds:.2f} seconds"
     )
+
     print(
         "================================\n"
     )
@@ -3348,15 +3652,33 @@ def apply_workspace_change(
     return {
         "analysis": plan,
         "change": change,
+
         "updated_facts": (
             updated_facts
         ),
+
         "sections": (
             updated_section_names
         ),
-        "task_changes": task_changes,
+
+        "task_changes": (
+            task_changes
+        ),
+
         "facts_changed": (
             facts_changed
+        ),
+
+        "fact_changes": (
+            fact_changes
+        ),
+
+        "change_summary_items": (
+            change_summary_items
+        ),
+
+        "assistant_summary": (
+            plan_summary
         ),
     }
 def normalize_task_priority(
@@ -3466,31 +3788,58 @@ def workspace_assistant(
             request.session[
                 "workspace_update_summary"
             ] = {
-                "sections": result["sections"],
+                "sections": (
+                    result["sections"]
+                ),
+
                 "task_changes": (
                     result["task_changes"]
                 ),
+
                 "facts_changed": (
                     result["facts_changed"]
                 ),
+
+                "fact_changes": (
+                    result["fact_changes"]
+                ),
+
+                "change_summary_items": (
+                    result[
+                        "change_summary_items"
+                    ]
+                ),
+
+                "assistant_summary": (
+                    result[
+                        "assistant_summary"
+                    ]
+                ),
+
                 "previous_health_score": (
                     previous_health_score
                 ),
+
                 "health_score": (
                     latest_health_score
                 ),
+
                 "health_score_change": (
                     health_score_change
                 ),
+
                 "previous_open_conflicts": (
                     previous_open_conflicts
                 ),
+
                 "open_conflicts": (
                     latest_open_conflicts
                 ),
+
                 "conflict_count_change": (
                     conflict_count_change
                 ),
+
                 "review_completed": False,
             }
 
@@ -4724,17 +5073,44 @@ def apply_project_conflict_fix(
         request.session[
             "workspace_update_summary"
         ] = {
-            "sections": result["sections"],
+            "sections": (
+                result["sections"]
+            ),
+
             "task_changes": (
                 result["task_changes"]
             ),
+
             "facts_changed": (
                 result["facts_changed"]
             ),
+
+            "fact_changes": (
+                result["fact_changes"]
+            ),
+
+            "change_summary_items": (
+                result[
+                    "change_summary_items"
+                ]
+            ),
+
+            "assistant_summary": (
+                result["assistant_summary"]
+            ),
+
+            "previous_health_score": (
+                latest_health_score
+            ),
+
             "health_score": (
                 latest_health_score
             ),
-        }
+
+            "health_score_change": None,
+
+            "review_completed": False,
+}
 
         return redirect(
             "workspace_assistant",
