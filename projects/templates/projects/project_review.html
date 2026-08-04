@@ -1348,13 +1348,10 @@
     }
 
 
-    event.preventDefault();
-
-    showReviewLoadingState();
-
-    setTimeout(function () {
-        reviewForm.submit();
-    }, 3000);
+    function showReviewLoadingState() {
+        if (!reviewLoadingOverlay) {
+            return;
+        }
 
         reviewLoadingIndex = 0;
 
@@ -1386,7 +1383,7 @@
             );
 
         startFlappyGame();
-    
+    }
 
 
     function resetReviewLoadingState() {
@@ -1431,6 +1428,8 @@
                     return;
                 }
 
+                event.preventDefault();
+
                 reviewButton.disabled =
                     true;
 
@@ -1443,6 +1442,17 @@
                     );
 
                 showReviewLoadingState();
+
+                /*
+                 * Allow the overlay and game to paint
+                 * before submitting the real POST.
+                 */
+                window.setTimeout(
+                    function () {
+                        reviewForm.submit();
+                    },
+                    100
+                );
             }
         );
     }
