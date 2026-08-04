@@ -1,3 +1,230 @@
+{% block extra_css %}
+<style>
+    .loading-overlay[hidden] {
+        display: none;
+    }
+
+    .loading-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        padding: 20px;
+        overflow-y: auto;
+
+        background: rgba(15, 23, 42, 0.86);
+        backdrop-filter: blur(7px);
+    }
+
+    .workspace-loading-card {
+        width: min(560px, 100%);
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+
+        padding: 30px 28px;
+
+        border: 1px solid var(--border);
+        border-radius: 18px;
+
+        background: var(--surface);
+        text-align: center;
+
+        box-shadow:
+            0 24px 70px
+            rgba(0, 0, 0, 0.4);
+    }
+
+    .loading-spinner {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto 20px;
+
+        border: 5px solid var(--surface-soft);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+
+        animation: workspace-spin 0.85s linear infinite;
+    }
+
+    .workspace-loading-card h2 {
+        margin: 0;
+    }
+
+    .loading-main {
+        margin: 14px 0 0;
+        color: var(--text-muted);
+        line-height: 1.55;
+    }
+
+    .loading-status {
+        min-height: 28px;
+        margin: 18px 0 0;
+
+        color: var(--text);
+        font-weight: 700;
+
+        transition:
+            opacity 0.2s ease,
+            transform 0.2s ease;
+    }
+
+    .loading-status.is-changing {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    .loading-progress {
+        height: 8px;
+        margin-top: 18px;
+        overflow: hidden;
+
+        border-radius: 999px;
+        background: var(--surface-soft);
+    }
+
+    .loading-progress-bar {
+        width: 28%;
+        height: 100%;
+
+        border-radius: inherit;
+        background: var(--accent);
+
+        animation:
+            workspace-progress
+            2.2s
+            ease-in-out
+            infinite;
+    }
+
+    .snake-panel {
+        margin-top: 24px;
+        padding: 16px;
+
+        border: 1px solid var(--border);
+        border-radius: 14px;
+
+        background: var(--surface-soft);
+        text-align: left;
+    }
+
+    .snake-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+
+        margin-bottom: 12px;
+    }
+
+    .snake-header strong,
+    .snake-header span {
+        display: block;
+    }
+
+    .snake-header span {
+        margin-top: 3px;
+
+        color: var(--text-muted);
+        font-size: 13px;
+    }
+
+    .snake-score {
+        flex: 0 0 auto;
+
+        padding: 6px 10px;
+
+        border: 1px solid var(--border);
+        border-radius: 999px;
+
+        color: var(--text-muted);
+        font-size: 13px;
+    }
+
+    #snake-game {
+        display: block;
+
+        width: 100%;
+        max-width: 420px;
+        height: auto;
+        margin: 0 auto;
+
+        border: 1px solid var(--border-strong);
+        border-radius: 10px;
+
+        background: #0d1117;
+        image-rendering: pixelated;
+    }
+
+    .snake-legend {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+
+        margin-top: 12px;
+
+        color: var(--text-muted);
+        font-size: 12px;
+    }
+
+    .snake-restart-button {
+        display: block;
+        margin: 14px auto 0;
+    }
+
+    .loading-sub {
+        margin: 16px 0 0;
+
+        color: var(--text-muted);
+        line-height: 1.55;
+    }
+
+    .loading-warning {
+        margin: 14px 0 0;
+
+        color: var(--text-muted);
+        font-size: 13px;
+    }
+
+    @keyframes workspace-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @keyframes workspace-progress {
+        0% {
+            transform: translateX(-120%);
+        }
+
+        50% {
+            transform: translateX(170%);
+        }
+
+        100% {
+            transform: translateX(380%);
+        }
+    }
+
+    @media (max-width: 600px) {
+        .workspace-loading-card {
+            padding: 24px 16px;
+        }
+
+        .snake-header {
+            flex-direction: column;
+        }
+
+        #snake-game {
+            max-height: 220px;
+        }
+    }
+</style>
+{% endblock %}
 {% block content %}
 <div class="setup-layout">
     <header class="setup-intro">
