@@ -1348,10 +1348,13 @@
     }
 
 
-    function showReviewLoadingState() {
-        if (!reviewLoadingOverlay) {
-            return;
-        }
+    event.preventDefault();
+
+    showReviewLoadingState();
+
+    setTimeout(function () {
+        reviewForm.submit();
+    }, 3000);
 
         reviewLoadingIndex = 0;
 
@@ -1383,7 +1386,7 @@
             );
 
         startFlappyGame();
-    }
+    
 
 
     function resetReviewLoadingState() {
