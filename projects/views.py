@@ -3554,6 +3554,38 @@ def workspace_assistant(
         },
     )
 @login_required
+def project_change_history(
+    request,
+    project_pk,
+):
+    project = get_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    changes = (
+        project.changes
+        .all()
+        .order_by("-created_at")
+    )
+
+    permission_context = (
+        project_permission_context(
+            project=project,
+            user=request.user,
+        )
+    )
+
+    return render(
+        request,
+        "projects/project_change_history.html",
+        {
+            "project": project,
+            "changes": changes,
+            **permission_context,
+        },
+    )
+@login_required
 def project_change_detail(
     request,
     project_pk,
