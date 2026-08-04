@@ -5,7 +5,110 @@
 {% endblock %}
 
 {% block extra_css %}
+
 <style>
+    .setup-layout {
+    width: 100%;
+    max-width: 880px;
+    display: grid;
+    gap: 20px;
+}
+
+.setup-intro {
+    margin-bottom: 4px;
+}
+
+.setup-intro p {
+    margin-bottom: 0;
+    color: var(--text-muted);
+}
+
+.conversation {
+    display: grid;
+    gap: 12px;
+}
+
+.message {
+    padding: 15px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface);
+}
+
+.message-user {
+    background: var(--surface-soft);
+}
+
+.message-assistant {
+    background: var(--info-background);
+    border-color: var(--info-border);
+}
+
+.message p:last-child {
+    margin-bottom: 0;
+}
+
+.setup-card,
+.generation-card {
+    padding: 19px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+
+.setup-card form {
+    display: grid;
+    gap: 10px;
+}
+
+.setup-card label {
+    display: block;
+}
+
+textarea {
+    display: block;
+    width: 100%;
+    min-height: 160px;
+    padding: 12px;
+
+    resize: vertical;
+
+    border: 1px solid var(--border-strong);
+    border-radius: 9px;
+
+    background: var(--surface-soft);
+    color: var(--text);
+
+    font: inherit;
+    line-height: 1.5;
+}
+
+textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow:
+        0 0 0 3px
+        rgba(88, 166, 255, 0.14);
+}
+
+textarea::placeholder {
+    color: var(--text-muted);
+}
+
+textarea:read-only {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.setup-actions {
+    margin-top: 4px;
+}
+
+button:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
     .loading-overlay[hidden] {
         display: none;
     }
