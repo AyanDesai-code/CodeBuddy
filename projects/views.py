@@ -3554,39 +3554,15 @@ def workspace_assistant(
         },
     )
 @login_required
-def project_change_history(
+def project_change_detail(
     request,
     project_pk,
+    change_pk,
 ):
-    project = get_project_for_user(
-        project_pk=project_pk,
-        user=request.user,
-    )
-
-    changes = project.changes.order_by(
-        "-created_at"
-    )
-
-    permission_context = project_permission_context(
-        project=project,
-        user=request.user,
-    )
-
-    return render(
-        request,
-        "projects/project_change_history.html",
-        {
-            "project": project,
-            "changes": changes,
-            **permission_context,
-        },
-    )
-@login_required
-def project_change_detail(request, project_pk, change_pk):
     project = get_editable_project_for_user(
         project_pk=project_pk,
         user=request.user,
-)
+    )
 
     change = get_object_or_404(
         ProjectChange,
@@ -3598,7 +3574,8 @@ def project_change_detail(request, project_pk, change_pk):
     facts_after = change.facts_after or {}
 
     fact_keys = sorted(
-        set(facts_before.keys()) | set(facts_after.keys())
+        set(facts_before.keys())
+        | set(facts_after.keys())
     )
 
     fact_changes = []
@@ -3630,14 +3607,22 @@ def project_change_detail(request, project_pk, change_pk):
     sections_after = change.sections_after or {}
 
     section_keys = sorted(
-        set(sections_before.keys()) | set(sections_after.keys())
+        set(sections_before.keys())
+        | set(sections_after.keys())
     )
 
     section_changes = []
 
     for section_type in section_keys:
-        before_content = sections_before.get(section_type, "")
-        after_content = sections_after.get(section_type, "")
+        before_content = sections_before.get(
+            section_type,
+            "",
+        )
+
+        after_content = sections_after.get(
+            section_type,
+            "",
+        )
 
         if before_content == after_content:
             continue
@@ -3661,6 +3646,7 @@ def project_change_detail(request, project_pk, change_pk):
                 ),
             }
         )
+
     tasks_before = change.tasks_before or []
     tasks_after = change.tasks_after or []
 
@@ -3682,8 +3668,13 @@ def project_change_detail(request, project_pk, change_pk):
     task_changes = []
 
     for task_key in task_keys:
-        before_task = before_tasks_by_title.get(task_key)
-        after_task = after_tasks_by_title.get(task_key)
+        before_task = before_tasks_by_title.get(
+            task_key
+        )
+
+        after_task = after_tasks_by_title.get(
+            task_key
+        )
 
         if before_task == after_task:
             continue
@@ -3707,10 +3698,13 @@ def project_change_detail(request, project_pk, change_pk):
                 "change_type": change_type,
             }
         )
-        permission_context = project_permission_context(
+
+    permission_context = (
+        project_permission_context(
             project=project,
             user=request.user,
         )
+    )
 
     return render(
         request,
@@ -3724,7 +3718,6 @@ def project_change_detail(request, project_pk, change_pk):
             **permission_context,
         },
     )
-
 @login_required
 @require_POST
 def undo_project_change(
