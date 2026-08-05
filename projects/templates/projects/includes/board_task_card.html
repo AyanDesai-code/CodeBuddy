@@ -11,106 +11,87 @@
             {{ task.description }}
         </p>
     {% endif %}
-        <div class="task-assignment">
-    {% if task.assignee %}
-        <div class="task-assignee">
-            <span>
-                Assigned to
-            </span>
 
-            <strong>
-                {{ task.assignee.user.username }}
-            </strong>
-
-            {% if task.assignee.project_role %}
-                <span class="task-role-badge">
-                    {{ task.assignee.project_role.name }}
+    <div class="task-assignment">
+        {% if task.assignee %}
+            <div class="task-assignee">
+                <span>
+                    Assigned to
                 </span>
-            {% endif %}
-        </div>
-    {% else %}
-        <div class="task-assignee task-unassigned">
-            Unassigned
-        </div>
-    {% endif %}
 
-    {% if can_edit %}
-        <form
-            method="POST"
-            action="{% url 'assign_task' project.pk task.pk %}"
-            class="task-assignment-form"
-        >
-            {% csrf_token %}
+                <strong>
+                    {{ task.assignee.user.username }}
+                </strong>
 
-            <input
-                type="hidden"
-                name="next"
-                value="{{ request.path }}"
+                {% if task.assignee.project_role %}
+                    <span class="task-role-badge">
+                        {{ task.assignee.project_role.name }}
+                    </span>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="task-assignee task-unassigned">
+                Unassigned
+            </div>
+        {% endif %}
+
+        {% if can_edit %}
+            <form
+                method="POST"
+                action="{% url 'assign_task' project.pk task.pk %}"
+                class="task-assignment-form"
             >
+                {% csrf_token %}
 
-            <select
-                name="assignee"
-                aria-label="Assign {{ task.title }}"
-                onchange="this.form.submit()"
-            >
-                <option value="">
-                    Unassigned
-                </option>
+                <input
+                    type="hidden"
+                    name="next"
+                    value="{{ request.path }}"
+                >
 
-                {% for membership_option in assignable_memberships %}
-                    <option
-                        value="{{ membership_option.pk }}"
-                        {% if task.assignee_id == membership_option.pk %}
-                            selected
-                        {% endif %}
-                    >
-                        {{ membership_option.user.username }}
-
-                        {% if membership_option.project_role %}
-                            — {{ membership_option.project_role.name }}
-                        {% else %}
-                            — {{ membership_option.get_role_display }}
-                        {% endif %}
+                <select
+                    name="assignee"
+                    aria-label="Assign {{ task.title }}"
+                    onchange="this.form.submit()"
+                >
+                    <option value="">
+                        Unassigned
                     </option>
-                {% endfor %}
-            </select>
-        </form>
-    {% endif %}
-</div>
-    <span class="priority">
-        {{ task.get_priority_display }}
-    </span>
 
-    {% if task.is_blocked %}
-        <p class="status-badge">Blocked</p>
-    {% endif %}
+                    {% for membership_option in assignable_memberships %}
+                        <option
+                            value="{{ membership_option.pk }}"
+                            {% if task.assignee_id == membership_option.pk %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ membership_option.user.username }}
 
-    {% if can_edit %}
-        <form
-            method="POST"
-            action="{% url 'update_task_status' project.pk task.pk %}"
-            class="status-form"
-        >
-            {% csrf_token %}
+                            {% if membership_option.project_role %}
+                                — {{ membership_option.project_role.name }}
+                            {% else %}
+                                — {{ membership_option.get_role_display }}
+                            {% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        {% endif %}
+    </div>
 
-            <select name="status">
-                {% for value, label in status_choices %}
-                    <option
-                        value="{{ value }}"
-                        {% if task.status == value %}
-                            selected
-                        {% endif %}
-                    >
-                        {{ label }}
-                    </option>
-                {% endfor %}
-            </select>
+    <div class="task-meta">
+        <span class="priority">
+            {{ task.get_priority_display }}
+        </span>
 
-            <button type="submit">Save</button>
-        </form>
-    {% else %}
         <span class="status-badge">
             {{ task.get_status_display }}
         </span>
-    {% endif %}
+
+        {% if task.is_blocked %}
+            <span class="status-badge">
+                Blocked
+            </span>
+        {% endif %}
+    </div>
 </article>

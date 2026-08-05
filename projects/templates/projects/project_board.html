@@ -10,76 +10,34 @@
         margin-bottom: 20px;
     }
 
-    .board-header h1 {
-        margin-bottom: 7px;
-    }
-
     .board-header p {
-        margin: 0;
         color: var(--text-muted);
     }
 
     .readonly-note {
-        margin-top: 12px;
-        margin-bottom: 18px;
-        padding: 11px 13px;
-
         border: 1px solid var(--warning-border);
-        border-radius: 9px;
-
         background: var(--warning-background);
         color: #e3b341;
-    }
-
-    .board-status {
-        margin-bottom: 15px;
-        padding: 10px 12px;
-
-        border-radius: 8px;
-    }
-
-    .board-status-success {
-        border: 1px solid var(--success-border);
-        background: var(--success-background);
-    }
-
-    .board-status-error {
-        border: 1px solid var(--danger-border);
-        background: var(--danger-background);
+        border-radius: 9px;
+        padding: 11px 13px;
+        margin-bottom: 18px;
     }
 
     .board {
         display: grid;
         grid-template-columns:
-            repeat(4, minmax(260px, 1fr));
-
+            repeat(4, minmax(240px, 1fr));
         gap: 14px;
-        align-items: start;
-
         overflow-x: auto;
-        padding-bottom: 8px;
+        align-items: start;
     }
 
     .column {
-        min-width: 0;
         min-height: 280px;
-        padding: 12px;
-
+        background: var(--surface);
         border: 1px solid var(--border);
         border-radius: 12px;
-
-        background: var(--surface);
-
-        transition:
-            outline-color 150ms ease,
-            background 150ms ease;
-    }
-
-    .column.drag-over {
-        outline: 2px dashed var(--accent);
-        outline-offset: -4px;
-
-        background: var(--surface-soft);
+        padding: 12px;
     }
 
     .column-header {
@@ -87,242 +45,177 @@
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-
         margin-bottom: 12px;
     }
 
     .column-header h2 {
-        margin: 0;
         font-size: 17px;
+        margin: 0;
     }
 
     .task-count {
-        flex-shrink: 0;
-
-        padding: 2px 8px;
-
-        border: 1px solid var(--border);
         border-radius: 999px;
-
         background: var(--surface-soft);
-        color: var(--text-muted);
+        border: 1px solid var(--border);
+        padding: 2px 8px;
         font-size: 12px;
     }
 
     .task-list {
-        display: grid;
-        align-content: start;
-        gap: 10px;
-
         min-height: 220px;
-    }
-
-    .empty-column {
-        margin: 0;
-        padding: 14px 8px;
-
-        color: var(--text-muted);
-        font-size: 13px;
-        text-align: center;
+        display: grid;
+        gap: 10px;
+        align-content: start;
     }
 
     .task-card {
-        min-width: 0;
-        padding: 13px;
-
         border: 1px solid var(--border);
-        border-radius: 10px;
-
+        border-radius: 9px;
+        padding: 12px;
         background: var(--surface-soft);
-
-        transition:
-            opacity 150ms ease,
-            border-color 150ms ease,
-            transform 150ms ease;
-    }
-
-    .task-card:hover {
-        border-color: var(--border-strong);
     }
 
     .task-card[draggable="true"] {
         cursor: grab;
     }
 
-    .task-card[draggable="true"]:active {
-        cursor: grabbing;
-    }
-
     .task-card.dragging {
-        opacity: 0.45;
-        transform: scale(0.98);
+        opacity: .45;
     }
 
     .task-card h3 {
-        margin: 0 0 8px;
-
+        margin: 0 0 7px;
         font-size: 15px;
-        line-height: 1.4;
     }
 
     .task-description {
-        margin: 0;
-
         color: var(--text-muted);
         font-size: 13px;
-        line-height: 1.55;
-
-        overflow-wrap: anywhere;
     }
 
-    .task-meta {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 6px;
-
-        margin-top: 11px;
-    }
-
-    .priority,
-    .status-badge {
-        display: inline-flex;
-        align-items: center;
-
-        padding: 2px 7px;
-
+    .priority {
+        display: inline-block;
         border: 1px solid var(--border);
         border-radius: 999px;
-
-        color: var(--text-muted);
-        font-size: 12px;
-    }
-
-    .priority-high {
-        border-color: var(--danger-border);
-        background: var(--danger-background);
-    }
-
-    .priority-medium {
-        border-color: var(--warning-border);
-        background: var(--warning-background);
-    }
-
-    .priority-low {
-        border-color: var(--border);
-        background: var(--surface);
-    }
-
-    .task-assignment {
-        display: grid;
-        gap: 8px;
-
-        margin-top: 12px;
-        padding-top: 12px;
-
-        border-top: 1px solid var(--border);
-    }
-
-    .task-assignee {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 7px;
-
-        color: var(--text-muted);
-        font-size: 12px;
-    }
-
-    .task-assignee strong {
-        color: var(--text);
-    }
-
-    .task-unassigned {
-        color: #e3b341;
-    }
-
-    .task-role-badge {
-        display: inline-flex;
-        align-items: center;
-
         padding: 2px 7px;
-
-        border: 1px solid var(--info-border);
-        border-radius: 999px;
-
-        background: var(--info-background);
-        color: var(--text);
-        font-size: 11px;
-    }
-
-    .task-assignment-form {
-        margin: 0;
-    }
-
-    .task-assignment-form label {
-        display: block;
-        margin-bottom: 5px;
-
         color: var(--text-muted);
-        font-size: 11px;
-    }
-
-    .task-assignment-form select {
-        width: 100%;
-        min-width: 0;
-        padding: 8px;
-
-        border: 1px solid var(--border-strong);
-        border-radius: 7px;
-
-        background: var(--surface);
-        color: var(--text);
+        font-size: 12px;
     }
 
     .status-form {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 7px;
-
         margin-top: 10px;
+        display: flex;
+        gap: 7px;
     }
 
     .status-form select {
+        flex: 1;
         min-width: 0;
-        padding: 7px;
-
-        border: 1px solid var(--border-strong);
-        border-radius: 7px;
-
         background: var(--surface);
         color: var(--text);
+        border: 1px solid var(--border-strong);
+        border-radius: 7px;
+        padding: 7px;
     }
 
-    .status-form button {
-        white-space: nowrap;
+    .status-badge {
+        display: inline-block;
+        margin-top: 10px;
+        color: var(--text-muted);
+        font-size: 12px;
     }
 
-    @media (max-width: 1150px) {
+    .column.drag-over {
+        outline: 2px dashed var(--accent);
+        outline-offset: -4px;
+    }
+
+    .board-status {
+        margin-bottom: 15px;
+        padding: 10px 12px;
+        border-radius: 8px;
+    }
+
+    .board-status-success {
+        background: var(--success-background);
+        border: 1px solid var(--success-border);
+    }
+
+    .board-status-error {
+        background: var(--danger-background);
+        border: 1px solid var(--danger-border);
+    }
+
+    @media (max-width: 1050px) {
         .board {
             grid-template-columns:
-                repeat(2, minmax(260px, 1fr));
+                repeat(2, minmax(240px, 1fr));
         }
     }
 
-    @media (max-width: 680px) {
+    @media (max-width: 620px) {
         .board {
             grid-template-columns: 1fr;
-            overflow-x: visible;
-        }
-
-        .column {
-            min-height: 180px;
-        }
-
-        .task-list {
-            min-height: 100px;
         }
     }
+    .task-assignment {
+    display: grid;
+    gap: 8px;
+
+    margin-top: 11px;
+    padding-top: 11px;
+
+    border-top: 1px solid var(--border);
+}
+
+.task-assignee {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.task-assignee strong {
+    color: var(--text);
+}
+
+.task-role-badge {
+    display: inline-flex;
+    align-items: center;
+
+    padding: 2px 7px;
+
+    border: 1px solid var(--info-border);
+    border-radius: 999px;
+
+    background: var(--info-background);
+    color: var(--accent-hover);
+    font-size: 11px;
+}
+
+.task-unassigned {
+    color: var(--warning);
+}
+
+.task-assignment-form {
+    margin: 0;
+}
+
+.task-assignment-form select {
+    width: 100%;
+    min-width: 0;
+
+    padding: 7px;
+
+    border: 1px solid var(--border-strong);
+    border-radius: 7px;
+
+    background: var(--surface);
+    color: var(--text);
+}
 </style>
 {% endblock %}
 
@@ -335,114 +228,77 @@
     <h1>{{ project.name }} Board</h1>
 
     {% if can_edit %}
-        <p>
-            Drag tasks between columns or use the status controls.
-        </p>
+        <p>Drag tasks between columns or use the status menu.</p>
     {% else %}
         <div class="readonly-note">
-            You have read-only access. Task movement, assignment,
-            and status controls are disabled.
+            You have read-only access. Task movement and status
+            controls are disabled.
         </div>
     {% endif %}
 </div>
 
-<div
-    id="board-status"
-    class="board-status"
-    role="status"
-    aria-live="polite"
-    hidden
-></div>
+<div id="board-status" class="board-status" hidden></div>
 
 <div class="board">
-    <section
-        class="column"
-        data-status="todo"
-    >
+    {% for status_value, status_label, task_list in board_columns %}
+    {% endfor %}
+
+    <section class="column" data-status="todo">
         <div class="column-header">
             <h2>To Do</h2>
-
-            <span class="task-count">
-                {{ todo_tasks|length }}
-            </span>
+            <span class="task-count">{{ todo_tasks|length }}</span>
         </div>
 
         <div class="task-list">
             {% for task in todo_tasks %}
                 {% include "projects/includes/board_task_card.html" %}
             {% empty %}
-                <p class="empty-column">
-                    No tasks.
-                </p>
+                <p class="empty-column">No tasks.</p>
             {% endfor %}
         </div>
     </section>
 
-    <section
-        class="column"
-        data-status="in_progress"
-    >
+    <section class="column" data-status="in_progress">
         <div class="column-header">
             <h2>In Progress</h2>
-
-            <span class="task-count">
-                {{ in_progress_tasks|length }}
-            </span>
+            <span class="task-count">{{ in_progress_tasks|length }}</span>
         </div>
 
         <div class="task-list">
             {% for task in in_progress_tasks %}
                 {% include "projects/includes/board_task_card.html" %}
             {% empty %}
-                <p class="empty-column">
-                    No tasks.
-                </p>
+                <p class="empty-column">No tasks.</p>
             {% endfor %}
         </div>
     </section>
 
-    <section
-        class="column"
-        data-status="review"
-    >
+    <section class="column" data-status="review">
         <div class="column-header">
             <h2>Review</h2>
-
-            <span class="task-count">
-                {{ review_tasks|length }}
-            </span>
+            <span class="task-count">{{ review_tasks|length }}</span>
         </div>
 
         <div class="task-list">
             {% for task in review_tasks %}
                 {% include "projects/includes/board_task_card.html" %}
             {% empty %}
-                <p class="empty-column">
-                    No tasks.
-                </p>
+                <p class="empty-column">No tasks.</p>
             {% endfor %}
         </div>
     </section>
 
-    <section
-        class="column"
-        data-status="done"
-    >
+    <section class="column" data-status="done">
         <div class="column-header">
             <h2>Done</h2>
-
-            <span class="task-count">
-                {{ done_tasks|length }}
-            </span>
+            <span class="task-count">{{ done_tasks|length }}</span>
         </div>
 
         <div class="task-list">
             {% for task in done_tasks %}
                 {% include "projects/includes/board_task_card.html" %}
             {% empty %}
-                <p class="empty-column">
-                    No tasks.
-                </p>
+                <p class="empty-column">No tasks.</p>
             {% endfor %}
         </div>
     </section>
@@ -452,49 +308,25 @@
 {% block extra_js %}
 {% if can_edit %}
 <script>
-    const cards =
-        document.querySelectorAll(
-            '.task-card[draggable="true"]'
-        );
-
-    const columns =
-        document.querySelectorAll(
-            ".column"
-        );
-
+    const cards = document.querySelectorAll(
+        '.task-card[draggable="true"]'
+    );
+    const columns = document.querySelectorAll(".column");
     const boardStatus =
-        document.getElementById(
-            "board-status"
-        );
-
+        document.getElementById("board-status");
     let draggedCard = null;
     let oldParent = null;
     let oldNext = null;
 
-
     function csrfToken() {
-        const match =
-            document.cookie.match(
-                /(?:^|; )csrftoken=([^;]*)/
-            );
-
-        return match
-            ? decodeURIComponent(match[1])
-            : "";
+        const match = document.cookie.match(
+            /(?:^|; )csrftoken=([^;]*)/
+        );
+        return match ? decodeURIComponent(match[1]) : "";
     }
 
-
-    function showStatus(
-        message,
-        error = false
-    ) {
-        if (!boardStatus) {
-            return;
-        }
-
-        boardStatus.textContent =
-            message;
-
+    function showStatus(message, error = false) {
+        boardStatus.textContent = message;
         boardStatus.className =
             "board-status "
             + (
@@ -502,263 +334,110 @@
                     ? "board-status-error"
                     : "board-status-success"
             );
-
-        boardStatus.hidden =
-            false;
-
-        window.setTimeout(
-            function () {
-                boardStatus.hidden =
-                    true;
-            },
-            3500
-        );
+        boardStatus.hidden = false;
     }
-
 
     function cardIds(list) {
         return Array.from(
-            list.querySelectorAll(
-                ".task-card"
-            )
-        ).map(
-            function (card) {
-                return Number(
-                    card.dataset.taskId
-                );
-            }
-        );
+            list.querySelectorAll(".task-card")
+        ).map(card => Number(card.dataset.taskId));
     }
 
+    cards.forEach(card => {
+        card.addEventListener("dragstart", event => {
+            draggedCard = card;
+            oldParent = card.parentElement;
+            oldNext = card.nextElementSibling;
+            event.dataTransfer.effectAllowed = "move";
+            setTimeout(
+                () => card.classList.add("dragging"),
+                0
+            );
+        });
 
-    function updateColumnCounts() {
-        columns.forEach(
-            function (column) {
-                const countElement =
-                    column.querySelector(
-                        ".task-count"
-                    );
+        card.addEventListener("dragend", () => {
+            card.classList.remove("dragging");
+            draggedCard = null;
+        });
+    });
 
-                const taskCount =
-                    column.querySelectorAll(
-                        ".task-card"
-                    ).length;
+    columns.forEach(column => {
+        const list = column.querySelector(".task-list");
 
-                if (countElement) {
-                    countElement.textContent =
-                        taskCount;
-                }
+        column.addEventListener("dragover", event => {
+            event.preventDefault();
+            if (!draggedCard) {
+                return;
             }
-        );
-    }
 
+            column.classList.add("drag-over");
+            list.appendChild(draggedCard);
+        });
 
-    cards.forEach(
-        function (card) {
-            card.addEventListener(
-                "dragstart",
-                function (event) {
-                    draggedCard = card;
-                    oldParent =
-                        card.parentElement;
-                    oldNext =
-                        card.nextElementSibling;
+        column.addEventListener("dragleave", () => {
+            column.classList.remove("drag-over");
+        });
 
-                    event.dataTransfer
-                        .effectAllowed =
-                        "move";
+        column.addEventListener("drop", async event => {
+            event.preventDefault();
+            column.classList.remove("drag-over");
 
-                    window.setTimeout(
-                        function () {
-                            card.classList.add(
-                                "dragging"
-                            );
+            if (!draggedCard) {
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    draggedCard.dataset.moveUrl,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                            "X-CSRFToken": csrfToken(),
                         },
-                        0
-                    );
-                }
-            );
-
-            card.addEventListener(
-                "dragend",
-                function () {
-                    card.classList.remove(
-                        "dragging"
-                    );
-
-                    columns.forEach(
-                        function (column) {
-                            column.classList.remove(
-                                "drag-over"
-                            );
-                        }
-                    );
-
-                    draggedCard = null;
-                }
-            );
-        }
-    );
-
-
-    columns.forEach(
-        function (column) {
-            const list =
-                column.querySelector(
-                    ".task-list"
+                        body: JSON.stringify({
+                            status:
+                                column.dataset.status,
+                            ordered_task_ids:
+                                cardIds(list),
+                        }),
+                    }
                 );
 
-            column.addEventListener(
-                "dragover",
-                function (event) {
-                    event.preventDefault();
+                const result = await response.json();
 
-                    if (!draggedCard) {
-                        return;
-                    }
-
-                    column.classList.add(
-                        "drag-over"
-                    );
-
-                    list.appendChild(
-                        draggedCard
-                    );
-
-                    updateColumnCounts();
-                }
-            );
-
-            column.addEventListener(
-                "dragleave",
-                function (event) {
-                    if (
-                        column.contains(
-                            event.relatedTarget
-                        )
-                    ) {
-                        return;
-                    }
-
-                    column.classList.remove(
-                        "drag-over"
+                if (!response.ok || !result.success) {
+                    throw new Error(
+                        result.error
+                        || "The task could not be moved."
                     );
                 }
-            );
 
-            column.addEventListener(
-                "drop",
-                async function (event) {
-                    event.preventDefault();
-
-                    column.classList.remove(
-                        "drag-over"
+                const select =
+                    draggedCard.querySelector(
+                        'select[name="status"]'
                     );
 
-                    if (!draggedCard) {
-                        return;
-                    }
-
-                    try {
-                        const response =
-                            await fetch(
-                                draggedCard
-                                    .dataset
-                                    .moveUrl,
-                                {
-                                    method: "POST",
-
-                                    headers: {
-                                        "Content-Type":
-                                            "application/json",
-
-                                        "X-CSRFToken":
-                                            csrfToken(),
-                                    },
-
-                                    body:
-                                        JSON.stringify(
-                                            {
-                                                status:
-                                                    column
-                                                        .dataset
-                                                        .status,
-
-                                                ordered_task_ids:
-                                                    cardIds(
-                                                        list
-                                                    ),
-                                            }
-                                        ),
-                                }
-                            );
-
-                        const result =
-                            await response.json();
-
-                        if (
-                            !response.ok
-                            || !result.success
-                        ) {
-                            throw new Error(
-                                result.error
-                                || (
-                                    "The task "
-                                    + "could not "
-                                    + "be moved."
-                                )
-                            );
-                        }
-
-                        const statusSelect =
-                            draggedCard
-                                .querySelector(
-                                    (
-                                        'select['
-                                        + 'name="status"'
-                                        + ']'
-                                    )
-                                );
-
-                        if (statusSelect) {
-                            statusSelect.value =
-                                result.status;
-                        }
-
-                        updateColumnCounts();
-
-                        showStatus(
-                            "Task moved."
-                        );
-
-                    } catch (error) {
-                        if (
-                            oldParent
-                            && draggedCard
-                        ) {
-                            if (oldNext) {
-                                oldParent.insertBefore(
-                                    draggedCard,
-                                    oldNext
-                                );
-                            } else {
-                                oldParent.appendChild(
-                                    draggedCard
-                                );
-                            }
-                        }
-
-                        updateColumnCounts();
-
-                        showStatus(
-                            error.message,
-                            true
-                        );
-                    }
+                if (select) {
+                    select.value = result.status;
                 }
-            );
-        }
-    );
+
+                showStatus("Task moved.");
+            } catch (error) {
+                if (oldNext) {
+                    oldParent.insertBefore(
+                        draggedCard,
+                        oldNext
+                    );
+                } else {
+                    oldParent.appendChild(draggedCard);
+                }
+
+                showStatus(error.message, true);
+            }
+        });
+    });
 </script>
 {% endif %}
 {% endblock %}
