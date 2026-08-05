@@ -216,6 +216,58 @@
     background: var(--surface);
     color: var(--text);
 }
+.invite-form {
+    display: grid;
+    grid-template-columns:
+        minmax(180px, 1fr)
+        minmax(140px, 180px)
+        minmax(180px, 220px);
+    gap: 12px;
+    align-items: end;
+}
+
+.form-field {
+    display: grid;
+    gap: 6px;
+}
+
+.form-field label {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.invite-role-notes {
+    grid-column: 1 / -1;
+}
+
+.invite-form input,
+.invite-form select,
+.invite-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+
+    background: var(--surface-soft);
+    color: var(--text);
+}
+
+.invite-form button {
+    width: fit-content;
+}
+
+@media (max-width: 760px) {
+    .invite-form {
+        grid-template-columns: 1fr;
+    }
+
+    .invite-role-notes {
+        grid-column: auto;
+    }
+}
 </style>
 {% endblock %}
 

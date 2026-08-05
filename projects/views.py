@@ -6528,16 +6528,31 @@ def project_members(
 
     memberships = (
         project.memberships
-        .select_related("user")
+        .select_related(
+            "user",
+            "project_role",
+        )
+        .prefetch_related(
+            "assigned_tasks",
+        )
         .order_by(
             "role",
             "user__username",
         )
     )
 
-    permission_context = project_permission_context(
-        project=project,
-        user=request.user,
+    project_roles = (
+        project.project_roles
+        .order_by(
+            "name",
+        )
+    )
+
+    permission_context = (
+        project_permission_context(
+            project=project,
+            user=request.user,
+        )
     )
 
     return render(
@@ -6546,6 +6561,7 @@ def project_members(
         {
             "project": project,
             "memberships": memberships,
+            "project_roles": project_roles,
             **permission_context,
         },
     )
@@ -6565,10 +6581,20 @@ def invite_project_member(
         "",
     ).strip()
 
-    role = request.POST.get(
+    permission_role = request.POST.get(
         "role",
         ProjectMembership.Role.VIEWER,
-    )
+    ).strip()
+
+    project_role_pk = request.POST.get(
+        "project_role",
+        "",
+    ).strip()
+
+    role_notes = request.POST.get(
+        "role_notes",
+        "",
+    ).strip()
 
     if not username:
         messages.error(
@@ -6581,13 +6607,41 @@ def invite_project_member(
             project_pk=project.pk,
         )
 
-    allowed_roles = {
+    allowed_permissions = {
         ProjectMembership.Role.EDITOR,
         ProjectMembership.Role.VIEWER,
     }
 
-    if role not in allowed_roles:
-        role = ProjectMembership.Role.VIEWER
+    if permission_role not in allowed_permissions:
+        permission_role = (
+            ProjectMembership.Role.VIEWER
+        )
+
+    selected_project_role = None
+
+    if project_role_pk:
+        selected_project_role = (
+            ProjectRole.objects
+            .filter(
+                pk=project_role_pk,
+                project=project,
+            )
+            .first()
+        )
+
+        if selected_project_role is None:
+            messages.error(
+                request,
+                (
+                    "The selected team role "
+                    "does not belong to this project."
+                ),
+            )
+
+            return redirect(
+                "project_members",
+                project_pk=project.pk,
+            )
 
     invited_user = (
         User.objects
@@ -6608,10 +6662,10 @@ def invite_project_member(
             project_pk=project.pk,
         )
 
-    if invited_user == request.user:
+    if invited_user == project.owner:
         messages.info(
             request,
-            "You already own this project.",
+            "That user already owns this project.",
         )
 
         return redirect(
@@ -6620,51 +6674,72 @@ def invite_project_member(
         )
 
     membership, created = (
-        ProjectMembership.objects.update_or_create(
+        ProjectMembership.objects
+        .update_or_create(
             project=project,
             user=invited_user,
             defaults={
-                "role": role,
+                "role": permission_role,
+                "project_role": (
+                    selected_project_role
+                ),
+                "role_notes": role_notes,
             },
         )
     )
 
+    team_role_name = (
+        membership.project_role.name
+        if membership.project_role
+        else "No team role"
+    )
+
     if created:
-        messages.success(
-            request,
-            (
-                f"{invited_user.username} "
-                "was added to the project."
-            ),
+        message_text = (
+            f"{invited_user.username} was added "
+            f"as {team_role_name}."
         )
 
-        record_project_event(
-            project=project,
-            event_type=(
-                ProjectEvent.EventType
-                .MEMBER_ADDED
-            ),
-            title="Project member added",
-            description=(
-                f"{invited_user.username} "
-                f"was added as {membership.get_role_display()}."
-            ),
-            metadata={
-                "membership_id": membership.pk,
-                "user_id": invited_user.pk,
-                "username": invited_user.username,
-                "role": membership.role,
-            },
-        )
+        event_title = "Project member added"
 
     else:
-        messages.success(
-            request,
-            (
-                f"{invited_user.username}'s "
-                "role was updated."
-            ),
+        message_text = (
+            f"{invited_user.username}'s membership "
+            "was updated."
         )
+
+        event_title = "Project member updated"
+
+    messages.success(
+        request,
+        message_text,
+    )
+
+    record_project_event(
+        project=project,
+        event_type=(
+            ProjectEvent.EventType.MEMBER_ADDED
+            if created
+            else ProjectEvent.EventType.MEMBER_ROLE_CHANGED
+        ),
+        title=event_title,
+        description=(
+            f"{invited_user.username}: "
+            f"{membership.get_role_display()} access, "
+            f"{team_role_name}."
+        ),
+        metadata={
+            "membership_id": membership.pk,
+            "user_id": invited_user.pk,
+            "username": invited_user.username,
+            "permission": membership.role,
+            "project_role_id": (
+                membership.project_role_id
+            ),
+            "project_role_name": team_role_name,
+            "role_notes": membership.role_notes,
+        },
+    )
 
     return redirect(
         "project_members",
