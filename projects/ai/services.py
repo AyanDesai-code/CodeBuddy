@@ -1936,6 +1936,27 @@ RESPONSE RULES
 - Do not ask discovery questions.
 - Do not describe internal reasoning.
 - Return only the structured WorkspaceUpdatePlan response.
+
+TEAM AND ASSIGNMENT AWARENESS
+
+The supplied project team and task records are authoritative.
+
+Each task may contain:
+
+- assignee membership ID
+- assignee username
+- assignee project role
+- assignee permission level
+
+When the user asks about a person's tasks:
+
+- match the username case-insensitively
+- use the task assignee fields
+- do not claim that assignment data is unavailable when it is supplied
+- distinguish assigned tasks from tasks that merely mention the person's name
+- do not modify the workspace unless the user explicitly asks for a change
+- answer informational questions directly
+
 """
 class RegeneratedWorkspaceSections(BaseModel):
     sections: list[UpdatedWorkspaceSection]
