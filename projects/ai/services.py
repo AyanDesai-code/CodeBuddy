@@ -3,6 +3,7 @@ from openai import OpenAI
 from typing import Literal
 from datetime import date
 import time
+import json
 
 client = OpenAI()
 
@@ -1580,19 +1581,69 @@ def build_compact_tasks_text(
     include_descriptions: bool = False,
     description_limit: int = 300,
 ) -> str:
-    tasks = project.tasks.order_by(
-        "order"
+    tasks = (
+        project.tasks
+        .select_related(
+            "assignee",
+            "assignee__user",
+            "assignee__project_role",
+        )
+        .order_by(
+            "order",
+            "pk",
+        )
     )
 
     task_blocks = []
 
     for task in tasks:
+        assignee_username = "Unassigned"
+        assignee_membership_id = None
+        assignee_project_role = ""
+        assignee_permission = ""
+
+        if task.assignee:
+            assignee_membership_id = (
+                task.assignee.pk
+            )
+
+            assignee_username = (
+                task.assignee.user.username
+            )
+
+            assignee_permission = (
+                task.assignee.role
+            )
+
+            if task.assignee.project_role:
+                assignee_project_role = (
+                    task.assignee
+                    .project_role
+                    .name
+                )
+
         lines = [
             f"TASK ID: {task.pk}",
             f"TITLE: {task.title}",
             f"PRIORITY: {task.priority}",
             f"STATUS: {task.status}",
             f"COMPLETED: {task.completed}",
+            (
+                "ASSIGNEE MEMBERSHIP ID: "
+                f"{assignee_membership_id}"
+            ),
+            (
+                "ASSIGNEE USERNAME: "
+                f"{assignee_username}"
+            ),
+            (
+                "ASSIGNEE PROJECT ROLE: "
+                f"{assignee_project_role or 'None'}"
+            ),
+            (
+                "ASSIGNEE PERMISSION LEVEL: "
+                f"{assignee_permission or 'None'}"
+            ),
         ]
 
         if include_descriptions:
@@ -2094,6 +2145,11 @@ def generate_workspace_update_plan(
         project,
         limit=6,
     )
+    team_context = (
+        build_project_team_context(
+            project
+        )
+    )
 
     generation_input = f"""
 PROJECT DISCOVERY SUMMARY:
@@ -2104,6 +2160,44 @@ PROJECT DISCOVERY SUMMARY:
 CURRENT CANONICAL FACTS:
 
 {current_facts}
+
+
+CURRENT WORKSPACE:
+
+{workspace_text}
+
+
+CURRENT DATABASE-BACKED TASKS:
+
+{tasks_text}
+
+
+RECENT WORKSPACE-ASSISTANT CONVERSATION:
+
+{assistant_text}
+
+
+LATEST USER REQUEST:
+
+{latest_user_message.content}
+
+PROJECT DISCOVERY SUMMARY:
+
+{discovery_text}
+
+
+CURRENT CANONICAL FACTS:
+
+{current_facts}
+
+
+PROJECT TEAM:
+
+{json.dumps(
+    team_context,
+    indent=2,
+    default=str,
+)}
 
 
 CURRENT WORKSPACE:
