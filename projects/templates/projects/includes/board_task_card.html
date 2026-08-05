@@ -11,7 +11,72 @@
             {{ task.description }}
         </p>
     {% endif %}
+        <div class="task-assignment">
+    {% if task.assignee %}
+        <div class="task-assignee">
+            <span>
+                Assigned to
+            </span>
 
+            <strong>
+                {{ task.assignee.user.username }}
+            </strong>
+
+            {% if task.assignee.project_role %}
+                <span class="task-role-badge">
+                    {{ task.assignee.project_role.name }}
+                </span>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="task-assignee task-unassigned">
+            Unassigned
+        </div>
+    {% endif %}
+
+    {% if can_edit %}
+        <form
+            method="POST"
+            action="{% url 'assign_task' project.pk task.pk %}"
+            class="task-assignment-form"
+        >
+            {% csrf_token %}
+
+            <input
+                type="hidden"
+                name="next"
+                value="{{ request.path }}"
+            >
+
+            <select
+                name="assignee"
+                aria-label="Assign {{ task.title }}"
+                onchange="this.form.submit()"
+            >
+                <option value="">
+                    Unassigned
+                </option>
+
+                {% for membership_option in assignable_memberships %}
+                    <option
+                        value="{{ membership_option.pk }}"
+                        {% if task.assignee_id == membership_option.pk %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ membership_option.user.username }}
+
+                        {% if membership_option.project_role %}
+                            — {{ membership_option.project_role.name }}
+                        {% else %}
+                            — {{ membership_option.get_role_display }}
+                        {% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+    {% endif %}
+</div>
     <span class="priority">
         {{ task.get_priority_display }}
     </span>

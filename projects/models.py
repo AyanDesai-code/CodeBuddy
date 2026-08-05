@@ -4,7 +4,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from pydantic import BaseModel, Field
-
+from decimal import Decimal
+from django import forms
 class Project(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
@@ -142,7 +143,17 @@ class Task(models.Model):
         choices=Status.choices,
         default=Status.TODO,
     )
-
+    assignee = models.ForeignKey(
+        "ProjectMembership",
+        on_delete=models.SET_NULL,
+        related_name="assigned_tasks",
+        null=True,
+        blank=True,
+)
+    assigned_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
     start_date = models.DateField(
         null=True,
         blank=True,
@@ -575,7 +586,44 @@ class ProjectEvent(models.Model):
 from django.conf import settings
 from django.db import models
 
+class ProjectRole(models.Model):
+    project = models.ForeignKey(
+        "Project",
+        on_delete=models.CASCADE,
+        related_name="project_roles",
+    )
 
+    name = models.CharField(
+        max_length=80,
+    )
+
+    description = models.TextField(
+        blank=True,
+    )
+
+    responsibilities = models.TextField(
+        blank=True,
+    )
+
+    skills = models.TextField(
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = [
+            "name",
+        ]
+
+    def __str__(self):
+        return self.name
 class ProjectMembership(models.Model):
     class Role(models.TextChoices):
         OWNER = "owner", "Owner"
@@ -594,10 +642,24 @@ class ProjectMembership(models.Model):
         related_name="project_memberships",
     )
 
+    # Permission level
     role = models.CharField(
         max_length=20,
         choices=Role.choices,
         default=Role.VIEWER,
+    )
+
+    # Project responsibility/title
+    project_role = models.ForeignKey(
+        "ProjectRole",
+        on_delete=models.SET_NULL,
+        related_name="memberships",
+        null=True,
+        blank=True,
+    )
+
+    role_notes = models.TextField(
+        blank=True,
     )
 
     created_at = models.DateTimeField(
@@ -607,18 +669,27 @@ class ProjectMembership(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["project", "user"],
+                fields=[
+                    "project",
+                    "user",
+                ],
                 name="unique_project_member",
             ),
         ]
 
     def __str__(self):
+        title = (
+            self.project_role.name
+            if self.project_role
+            else self.get_role_display()
+        )
+
         return (
             f"{self.user} — "
             f"{self.project} — "
-            f"{self.get_role_display()}"
+            f"{title}"
         )
-from decimal import Decimal
+    from decimal import Decimal
 
 from django.db import models
 

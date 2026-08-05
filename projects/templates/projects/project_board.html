@@ -158,6 +158,64 @@
             grid-template-columns: 1fr;
         }
     }
+    .task-assignment {
+    display: grid;
+    gap: 8px;
+
+    margin-top: 11px;
+    padding-top: 11px;
+
+    border-top: 1px solid var(--border);
+}
+
+.task-assignee {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.task-assignee strong {
+    color: var(--text);
+}
+
+.task-role-badge {
+    display: inline-flex;
+    align-items: center;
+
+    padding: 2px 7px;
+
+    border: 1px solid var(--info-border);
+    border-radius: 999px;
+
+    background: var(--info-background);
+    color: var(--accent-hover);
+    font-size: 11px;
+}
+
+.task-unassigned {
+    color: var(--warning);
+}
+
+.task-assignment-form {
+    margin: 0;
+}
+
+.task-assignment-form select {
+    width: 100%;
+    min-width: 0;
+
+    padding: 7px;
+
+    border: 1px solid var(--border-strong);
+    border-radius: 7px;
+
+    background: var(--surface);
+    color: var(--text);
+}
 </style>
 {% endblock %}
 

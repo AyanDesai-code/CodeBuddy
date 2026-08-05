@@ -2537,3 +2537,133 @@ def build_workspace_generation_input(project):
     ]
 
 
+def build_project_team_context(
+    project,
+):
+    memberships = (
+        project.memberships
+        .select_related(
+            "user",
+            "project_role",
+        )
+        .prefetch_related(
+            "assigned_tasks",
+        )
+        .order_by(
+            "created_at",
+        )
+    )
+
+    team = []
+
+    for membership in memberships:
+        assigned_tasks = list(
+            membership.assigned_tasks
+            .exclude(
+                status="done",
+            )
+            .values(
+                "id",
+                "title",
+                "status",
+                "priority",
+                "estimated_hours",
+                "due_date",
+            )
+        )
+
+        team.append(
+            {
+                "membership_id": (
+                    membership.pk
+                ),
+                "username": (
+                    membership.user.username
+                ),
+                "permission_level": (
+                    membership.role
+                ),
+                "team_role": (
+                    membership.project_role.name
+                    if membership.project_role
+                    else ""
+                ),
+                "role_description": (
+                    membership.project_role.description
+                    if membership.project_role
+                    else ""
+                ),
+                "responsibilities": (
+                    membership.project_role.responsibilities
+                    if membership.project_role
+                    else ""
+                ),
+                "skills": (
+                    membership.project_role.skills
+                    if membership.project_role
+                    else ""
+                ),
+                "member_notes": (
+                    membership.role_notes
+                ),
+                "active_tasks": (
+                    assigned_tasks
+                ),
+            }
+        )
+
+    return team
+TEAM_COLLABORATION_RULES = """
+TEAM AND COLLABORATION RULES
+
+The project may contain multiple collaborators.
+
+Each collaborator has:
+
+- a stable membership ID
+- a username
+- a permission level
+- a project-specific team role
+- responsibilities
+- skills
+- member-specific notes
+- currently assigned work
+
+Permission level and team role are different.
+
+Permission level controls access.
+
+Team role describes responsibility.
+
+When generating or updating tasks:
+
+- use only supplied membership IDs
+- never invent team members
+- consider roles, skills, and responsibilities
+- consider current workload
+- avoid overloading one member
+- leave tasks unassigned when no member clearly fits
+- identify missing skills
+- preserve existing assignments unless a change is justified
+- assign cross-discipline tasks to the primary owner
+- mention supporting collaborators in the description
+"""
+class TeamMemberAnalysis(BaseModel):
+    membership_id: int
+    username: str
+    active_task_count: int
+    estimated_active_hours: float
+    overload_risk: str
+    blocked_task_count: int
+    recommendations: list[str]
+
+
+class CollaborationAnalysis(BaseModel):
+    workload_balance_score: int
+    missing_roles: list[str]
+    missing_skills: list[str]
+    bottlenecks: list[str]
+    overloaded_members: list[int]
+    underutilized_members: list[int]
+    reassignment_recommendations: list[str]
+    sprint_plan_summary: str

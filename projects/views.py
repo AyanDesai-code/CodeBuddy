@@ -51,6 +51,7 @@ from .models import (
     ProjectResource,
     WorkspaceFolder,
     ProjectResource,
+    ProjectRole,
 )
 
 from .permissions import (
@@ -72,6 +73,7 @@ from django.core.exceptions import PermissionDenied
 from concurrent.futures import (
     ThreadPoolExecutor,
 )
+from django import forms
 User = get_user_model()
 def record_project_event(
     *,
@@ -5174,32 +5176,79 @@ def project_board(
         user=request.user,
     )
 
-    todo_tasks = project.tasks.filter(
-        status=Task.Status.TODO,
-    ).order_by(
-        "order",
-        "-priority",
+    todo_tasks = (
+        project.tasks
+        .filter(
+            status=Task.Status.TODO,
+        )
+        .select_related(
+            "assignee",
+            "assignee__user",
+            "assignee__project_role",
+        )
+        .order_by(
+            "order",
+            "-priority",
+        )
     )
 
-    in_progress_tasks = project.tasks.filter(
-        status=Task.Status.IN_PROGRESS,
-    ).order_by(
-        "order",
-        "-priority",
+    in_progress_tasks = (
+        project.tasks
+        .filter(
+            status=Task.Status.IN_PROGRESS,
+        )
+        .select_related(
+            "assignee",
+            "assignee__user",
+            "assignee__project_role",
+        )
+        .order_by(
+            "order",
+            "-priority",
+        )
     )
 
-    review_tasks = project.tasks.filter(
-        status=Task.Status.REVIEW,
-    ).order_by(
-        "order",
-        "-priority",
+    review_tasks = (
+        project.tasks
+        .filter(
+            status=Task.Status.REVIEW,
+        )
+        .select_related(
+            "assignee",
+            "assignee__user",
+            "assignee__project_role",
+        )
+        .order_by(
+            "order",
+            "-priority",
+        )
     )
 
-    done_tasks = project.tasks.filter(
-        status=Task.Status.DONE,
-    ).order_by(
-        "order",
-        "-priority",
+    done_tasks = (
+        project.tasks
+        .filter(
+            status=Task.Status.DONE,
+        )
+        .select_related(
+            "assignee",
+            "assignee__user",
+            "assignee__project_role",
+        )
+        .order_by(
+            "order",
+            "-priority",
+        )
+    )
+
+    assignable_memberships = (
+        project.memberships
+        .select_related(
+            "user",
+            "project_role",
+        )
+        .order_by(
+            "user__username",
+        )
     )
 
     permission_context = project_permission_context(
@@ -5218,7 +5267,9 @@ def project_board(
             ),
             "review_tasks": review_tasks,
             "done_tasks": done_tasks,
-            "status_choices": Task.Status.choices,
+            "assignable_memberships": (
+                assignable_memberships
+            ),
             **permission_context,
         },
     )
@@ -7060,4 +7111,794 @@ def home(request):
     return render(
         request,
         "projects/home.html",
+    )
+class TaskAssignmentForm(forms.ModelForm):
+    class Meta:
+        model = Task
+
+        fields = [
+            "assignee",
+        ]
+
+    def __init__(
+        self,
+        *args,
+        project,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            **kwargs,
+        )
+
+        allowed_user_ids = [
+            project.user_id,
+        ]
+
+        allowed_user_ids.extend(
+            project.memberships.values_list(
+                "user_id",
+                flat=True,
+            )
+        )
+
+        self.fields[
+            "assignee"
+        ].queryset = (
+            self.fields[
+                "assignee"
+            ]
+            .queryset.filter(
+                pk__in=allowed_user_ids,
+            )
+            .order_by(
+                "username",
+            )
+        )
+
+        self.fields[
+            "assignee"
+        ].required = False
+
+        self.fields[
+            "assignee"
+        ].empty_label = (
+            "Unassigned"
+        )
+
+
+@login_required
+@require_POST
+def assign_task(
+    request,
+    project_pk,
+    task_pk,
+):
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    task = get_object_or_404(
+        Task,
+        pk=task_pk,
+        project=project,
+    )
+
+    previous_assignee = (
+        task.assignee
+    )
+
+    form = TaskAssignmentForm(
+        request.POST,
+        instance=task,
+        project=project,
+    )
+
+    if not form.is_valid():
+        messages.error(
+            request,
+            (
+                "The selected assignee is "
+                "not valid."
+            ),
+        )
+
+        return redirect(
+            "project_board",
+            project_pk=project.pk,
+        )
+
+    updated_task = form.save(
+        commit=False
+    )
+
+    if updated_task.assignee:
+        if (
+            updated_task.assignee.project_id
+            != project.pk
+        ):
+            messages.error(
+                request,
+                (
+                    "That member does not "
+                    "belong to this project."
+                ),
+            )
+
+            return redirect(
+                "project_board",
+                project_pk=project.pk,
+            )
+
+        updated_task.assigned_at = (
+            timezone.now()
+        )
+
+    else:
+        updated_task.assigned_at = None
+
+    updated_task.save(
+        update_fields=[
+            "assignee",
+            "assigned_at",
+            "updated_at",
+        ]
+    )
+
+    previous_username = (
+        previous_assignee.user.username
+        if previous_assignee
+        else "Unassigned"
+    )
+
+    new_username = (
+        updated_task.assignee.user.username
+        if updated_task.assignee
+        else "Unassigned"
+    )
+
+    record_project_event(
+        project=project,
+        event_type=(
+            ProjectEvent.EventType
+            .MEMBER_ROLE_CHANGED
+        ),
+        title="Task assignment changed",
+        description=(
+            f'"{task.title}" was reassigned '
+            f"from {previous_username} "
+            f"to {new_username}."
+        ),
+        metadata={
+            "task_id": task.pk,
+            "previous_membership_id": (
+                previous_assignee.pk
+                if previous_assignee
+                else None
+            ),
+            "membership_id": (
+                updated_task.assignee.pk
+                if updated_task.assignee
+                else None
+            ),
+        },
+    )
+
+    messages.success(
+        request,
+        (
+            f'"{task.title}" is now assigned '
+            f"to {new_username}."
+        ),
+    )
+
+    next_url = request.POST.get(
+        "next",
+        "",
+    )
+
+    if (
+        next_url
+        and next_url.startswith("/")
+    ):
+        return redirect(
+            next_url
+        )
+
+    return redirect(
+        "project_board",
+        project_pk=project.pk,
+    )
+@login_required
+def my_tasks(
+    request,
+):
+    tasks = (
+        Task.objects
+        .filter(
+            assignee__user=request.user,
+        )
+        .select_related(
+            "project",
+            "assignee",
+            "assignee__user",
+            "assignee__project_role",
+            "milestone",
+        )
+        .prefetch_related(
+            "dependencies",
+        )
+        .order_by(
+            "completed",
+            "status",
+            "-priority",
+            "due_date",
+            "order",
+        )
+    )
+
+    return render(
+        request,
+        "projects/my_tasks.html",
+        {
+            "tasks": tasks,
+        },
+    )
+from django import forms
+
+from .models import (
+    ProjectMembership,
+    ProjectRole,
+    Task,
+)
+
+
+class ProjectRoleForm(forms.ModelForm):
+    class Meta:
+        model = ProjectRole
+
+        fields = [
+            "name",
+            "description",
+            "responsibilities",
+            "skills",
+        ]
+
+        widgets = {
+            "name": forms.TextInput(
+                attrs={
+                    "placeholder": (
+                        "Example: Backend Developer"
+                    ),
+                }
+            ),
+            "description": forms.Textarea(
+                attrs={
+                    "rows": 3,
+                    "placeholder": (
+                        "Describe this role's purpose."
+                    ),
+                }
+            ),
+            "responsibilities": forms.Textarea(
+                attrs={
+                    "rows": 5,
+                    "placeholder": (
+                        "List this role's responsibilities."
+                    ),
+                }
+            ),
+            "skills": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                    "placeholder": (
+                        "Example: Django, PostgreSQL, REST APIs"
+                    ),
+                }
+            ),
+        }
+
+    def __init__(
+        self,
+        *args,
+        project,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            **kwargs,
+        )
+
+        self.project = project
+
+    def clean_name(self):
+        name = (
+            self.cleaned_data[
+                "name"
+            ]
+            .strip()
+        )
+
+        duplicate_roles = (
+            ProjectRole.objects
+            .filter(
+                project=self.project,
+                name__iexact=name,
+            )
+        )
+
+        if self.instance.pk:
+            duplicate_roles = (
+                duplicate_roles.exclude(
+                    pk=self.instance.pk,
+                )
+            )
+
+        if duplicate_roles.exists():
+            raise forms.ValidationError(
+                (
+                    "A project role with this "
+                    "name already exists."
+                )
+            )
+
+        return name
+
+    def save(
+        self,
+        commit=True,
+    ):
+        role = super().save(
+            commit=False
+        )
+
+        role.project = self.project
+
+        if commit:
+            role.save()
+
+        return role
+
+
+class MemberRoleForm(forms.ModelForm):
+    class Meta:
+        model = ProjectMembership
+
+        fields = [
+            "role",
+            "project_role",
+            "role_notes",
+        ]
+
+        widgets = {
+            "role_notes": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                    "placeholder": (
+                        "Specific responsibilities "
+                        "for this member."
+                    ),
+                }
+            ),
+        }
+
+    def __init__(
+        self,
+        *args,
+        project,
+        membership,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            instance=membership,
+            **kwargs,
+        )
+
+        self.project = project
+        self.membership = membership
+
+        self.fields[
+            "project_role"
+        ].queryset = (
+            project.project_roles
+            .order_by(
+                "name",
+            )
+        )
+
+        if (
+            membership.role
+            == ProjectMembership.Role.OWNER
+        ):
+            self.fields[
+                "role"
+            ].disabled = True
+
+
+class TaskAssignmentForm(forms.ModelForm):
+    class Meta:
+        model = Task
+
+        fields = [
+            "assignee",
+        ]
+
+    def __init__(
+        self,
+        *args,
+        project,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            **kwargs,
+        )
+
+        self.fields[
+            "assignee"
+        ].queryset = (
+            project.memberships
+            .select_related(
+                "user",
+                "project_role",
+            )
+            .order_by(
+                "user__username",
+            )
+        )
+
+        self.fields[
+            "assignee"
+        ].required = False
+
+        self.fields[
+            "assignee"
+        ].empty_label = (
+            "Unassigned"
+        )
+@login_required
+def create_project_role(
+    request,
+    project_pk,
+):
+    project = get_owned_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    if request.method == "POST":
+        form = ProjectRoleForm(
+            request.POST,
+            project=project,
+        )
+
+        if form.is_valid():
+            project_role = form.save()
+
+            record_project_event(
+                project=project,
+                event_type=(
+                    ProjectEvent.EventType
+                    .MEMBER_ROLE_CHANGED
+                ),
+                title="Project role created",
+                description=(
+                    project_role.name
+                ),
+                metadata={
+                    "project_role_id": (
+                        project_role.pk
+                    ),
+                    "project_role_name": (
+                        project_role.name
+                    ),
+                },
+            )
+
+            messages.success(
+                request,
+                (
+                    f'Role "{project_role.name}" '
+                    "was created."
+                ),
+            )
+
+            return redirect(
+                "project_members",
+                project_pk=project.pk,
+            )
+
+    else:
+        form = ProjectRoleForm(
+            project=project,
+        )
+
+    return render(
+        request,
+        "projects/project_role_form.html",
+        {
+            "project": project,
+            "form": form,
+            "page_title": (
+                "Create Project Role"
+            ),
+        },
+    )
+@login_required
+def edit_project_role(
+    request,
+    project_pk,
+    role_pk,
+):
+    project = get_owned_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    project_role = get_object_or_404(
+        ProjectRole,
+        pk=role_pk,
+        project=project,
+    )
+
+    if request.method == "POST":
+        form = ProjectRoleForm(
+            request.POST,
+            instance=project_role,
+            project=project,
+        )
+
+        if form.is_valid():
+            project_role = form.save()
+
+            record_project_event(
+                project=project,
+                event_type=(
+                    ProjectEvent.EventType
+                    .MEMBER_ROLE_CHANGED
+                ),
+                title="Project role updated",
+                description=(
+                    project_role.name
+                ),
+                metadata={
+                    "project_role_id": (
+                        project_role.pk
+                    ),
+                },
+            )
+
+            messages.success(
+                request,
+                (
+                    f'Role "{project_role.name}" '
+                    "was updated."
+                ),
+            )
+
+            return redirect(
+                "project_members",
+                project_pk=project.pk,
+            )
+
+    else:
+        form = ProjectRoleForm(
+            instance=project_role,
+            project=project,
+        )
+
+    return render(
+        request,
+        "projects/project_role_form.html",
+        {
+            "project": project,
+            "project_role": project_role,
+            "form": form,
+            "page_title": (
+                "Edit Project Role"
+            ),
+        },
+    )
+@login_required
+@require_POST
+def delete_project_role(
+    request,
+    project_pk,
+    role_pk,
+):
+    project = get_owned_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    project_role = get_object_or_404(
+        ProjectRole,
+        pk=role_pk,
+        project=project,
+    )
+
+    role_name = project_role.name
+
+    project_role.delete()
+
+    record_project_event(
+        project=project,
+        event_type=(
+            ProjectEvent.EventType
+            .MEMBER_ROLE_CHANGED
+        ),
+        title="Project role deleted",
+        description=role_name,
+    )
+
+    messages.success(
+        request,
+        (
+            f'Role "{role_name}" '
+            "was deleted."
+        ),
+    )
+
+    return redirect(
+        "project_members",
+        project_pk=project.pk,
+    )
+@login_required
+@require_POST
+def update_project_member(
+    request,
+    project_pk,
+    membership_pk,
+):
+    project = get_owned_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    membership = get_object_or_404(
+        ProjectMembership,
+        pk=membership_pk,
+        project=project,
+    )
+
+    previous_permission = (
+        membership.role
+    )
+
+    previous_project_role = (
+        membership.project_role
+    )
+
+    form = MemberRoleForm(
+        request.POST,
+        project=project,
+        membership=membership,
+    )
+
+    if not form.is_valid():
+        messages.error(
+            request,
+            (
+                "The member settings could "
+                "not be updated."
+            ),
+        )
+
+        return redirect(
+            "project_members",
+            project_pk=project.pk,
+        )
+
+    membership = form.save()
+
+    previous_role_name = (
+        previous_project_role.name
+        if previous_project_role
+        else "No team role"
+    )
+
+    new_role_name = (
+        membership.project_role.name
+        if membership.project_role
+        else "No team role"
+    )
+
+    record_project_event(
+        project=project,
+        event_type=(
+            ProjectEvent.EventType
+            .MEMBER_ROLE_CHANGED
+        ),
+        title="Member role changed",
+        description=(
+            f"{membership.user.username}: "
+            f"{previous_role_name} → "
+            f"{new_role_name}"
+        ),
+        metadata={
+            "membership_id": (
+                membership.pk
+            ),
+            "previous_permission": (
+                previous_permission
+            ),
+            "new_permission": (
+                membership.role
+            ),
+            "previous_project_role_id": (
+                previous_project_role.pk
+                if previous_project_role
+                else None
+            ),
+            "project_role_id": (
+                membership.project_role_id
+            ),
+        },
+    )
+
+    messages.success(
+        request,
+        (
+            f"{membership.user.username}'s "
+            "team role was updated."
+        ),
+    )
+
+    return redirect(
+        "project_members",
+        project_pk=project.pk,
+    )
+@login_required
+def project_members(
+    request,
+    project_pk,
+):
+    project = get_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    memberships = (
+        project.memberships
+        .select_related(
+            "user",
+            "project_role",
+        )
+        .prefetch_related(
+            "assigned_tasks",
+        )
+        .order_by(
+            "role",
+            "user__username",
+        )
+    )
+
+    project_roles = (
+        project.project_roles
+        .prefetch_related(
+            "memberships",
+        )
+        .order_by(
+            "name",
+        )
+    )
+
+    permission_context = (
+        project_permission_context(
+            project=project,
+            user=request.user,
+        )
+    )
+
+    return render(
+        request,
+        "projects/project_members.html",
+        {
+            "project": project,
+            "memberships": memberships,
+            "project_roles": project_roles,
+            **permission_context,
+        },
     )
