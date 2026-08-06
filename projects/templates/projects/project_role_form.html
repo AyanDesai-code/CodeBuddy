@@ -1,0 +1,159 @@
+{% extends "projects/base.html" %}
+
+{% block title %}
+    {{ page_title }} | {{ project.name }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .role-form-layout {
+        width: 100%;
+        max-width: 720px;
+
+        display: grid;
+        gap: 18px;
+    }
+
+    .role-form {
+        display: grid;
+        gap: 16px;
+    }
+
+    .role-field {
+        display: grid;
+        gap: 7px;
+    }
+
+    .role-field label {
+        font-weight: 600;
+    }
+
+    .role-field input,
+    .role-field textarea {
+        width: 100%;
+        box-sizing: border-box;
+
+        padding: 11px;
+
+        border: 1px solid var(--border-strong);
+        border-radius: 8px;
+
+        background: var(--surface-soft);
+        color: var(--text);
+    }
+
+    .role-field textarea {
+        resize: vertical;
+    }
+
+    .field-errors {
+        color: #f85149;
+        font-size: 13px;
+    }
+
+    .role-form-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="role-form-layout">
+    <div>
+        <a href="{% url 'project_members' project.pk %}">
+            ← Back to Members
+        </a>
+
+        <h1>{{ page_title }}</h1>
+
+        <p>
+            Create a named responsibility that can be assigned
+            to project members.
+        </p>
+    </div>
+
+    <section class="card">
+        <form
+            method="POST"
+            class="role-form"
+        >
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="field-errors">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <div class="role-field">
+                <label for="{{ form.name.id_for_label }}">
+                    Role name
+                </label>
+
+                {{ form.name }}
+
+                {% if form.name.errors %}
+                    <div class="field-errors">
+                        {{ form.name.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="role-field">
+                <label for="{{ form.description.id_for_label }}">
+                    Description
+                </label>
+
+                {{ form.description }}
+
+                {% if form.description.errors %}
+                    <div class="field-errors">
+                        {{ form.description.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="role-field">
+                <label for="{{ form.responsibilities.id_for_label }}">
+                    Responsibilities
+                </label>
+
+                {{ form.responsibilities }}
+
+                {% if form.responsibilities.errors %}
+                    <div class="field-errors">
+                        {{ form.responsibilities.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="role-field">
+                <label for="{{ form.skills.id_for_label }}">
+                    Skills
+                </label>
+
+                {{ form.skills }}
+
+                {% if form.skills.errors %}
+                    <div class="field-errors">
+                        {{ form.skills.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="role-form-actions">
+                <button type="submit">
+                    Save Role
+                </button>
+
+                <a href="{% url 'project_members' project.pk %}">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}

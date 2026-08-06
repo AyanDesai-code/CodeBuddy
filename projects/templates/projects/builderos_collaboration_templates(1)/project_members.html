@@ -84,26 +84,61 @@
             <h2>Add or update a member</h2>
 
             <form
-                method="POST"
-                action="{% url 'invite_project_member' project.pk %}"
-                class="invite-form"
-            >
-                {% csrf_token %}
+    method="POST"
+    action="{% url 'invite_project_member' project.pk %}"
+    class="invite-form"
+>
+    {% csrf_token %}
 
-                <input
-                    type="text"
-                    name="username"
-                    placeholder="Username"
-                    required
+    <input
+        type="text"
+        name="username"
+        placeholder="Username"
+        required
+    >
+
+    <select name="role">
+        <option value="editor">
+            Editor
+        </option>
+
+        <option value="viewer">
+            Viewer
+        </option>
+    </select>
+
+    {% if project_roles %}
+        <select
+            name="project_role"
+        >
+            <option value="">
+                No team role
+            </option>
+
+            {% for project_role in project_roles %}
+                <option
+                    value="{{ project_role.pk }}"
                 >
+                    {{ project_role.name }}
+                </option>
+            {% endfor %}
+        </select>
+    {% else %}
+        <div class="empty-role-notice">
+            No team roles exist yet.
 
-                <select name="role">
-                    <option value="editor">Editor</option>
-                    <option value="viewer">Viewer</option>
-                </select>
+            <a
+                href="{% url 'create_project_role' project.pk %}"
+            >
+                Create the first role
+            </a>
+        </div>
+    {% endif %}
 
-                <button type="submit">Save Member</button>
-            </form>
+    <button type="submit">
+        Save Member
+    </button>
+</form>
         </section>
     {% else %}
         <section class="card owner-note">

@@ -46,4 +46,7 @@ urlpatterns = [
     path(("<int:project_pk>/members/""<int:membership_pk>/update/"),views.update_project_member,name="update_project_member",),
     path(("<int:project_pk>/tasks/""<int:task_pk>/assign/"),views.assign_task,name="assign_task",),
     path("my-tasks/",views.my_tasks,name="my_tasks",),
+    path("<int:project_pk>/roles/new/",views.create_project_role,name="create_project_role",),
+    path("<int:project_pk>/roles/<int:role_pk>/edit/",views.edit_project_role,name="edit_project_role",),
+    path("<int:project_pk>/roles/<int:role_pk>/delete/",views.delete_project_role,name="delete_project_role",),
 ]
