@@ -1,3 +1,7 @@
+from unittest import result
+
+from django.core.mail import message
+from django.http import response
 from pydantic import BaseModel, Field
 from openai import OpenAI
 from typing import Literal
@@ -1827,6 +1831,114 @@ class WorkspaceUpdatePlan(BaseModel):
     task_summary: str
     assistant_message: str
     impact_explanation: str
+WORKSPACE_ASSISTANT_INTENT_PROMPT = """
+You classify messages sent to a project-management assistant.
+
+Return intent="question" when the user wants to:
+
+- retrieve existing information
+- ask what tasks exist
+- ask who owns a task
+- ask what a person's role is
+- ask about budget, requirements, roadmap, resources, testing, or status
+- ask for an explanation or summary
+- ask for recommendations without requesting that they be applied
+- identify blockers, risks, missing information, or workload
+
+Return intent="update" when the user explicitly asks to:
+
+- add, remove, or rewrite project content
+- change requirements, budget, scope, timeline, or resources
+- add, update, remove, assign, or reassign tasks
+- modify a member's responsibilities
+- regenerate or improve a workspace section
+- apply a recommendation
+- change the stored project
+
+Examples:
+
+"What tasks are assigned to Kunal?"
+question
+
+"What is Kunal's role?"
+question
+
+"Who should own the backend tasks?"
+question
+
+"Assign the backend tasks to Kunal."
+update
+
+"Explain the testing plan."
+question
+
+"Improve the testing plan."
+update
+
+"What would happen if we used an ESP32?"
+question
+
+"Replace the Raspberry Pi with an ESP32."
+update
+
+Return only the structured WorkspaceAssistantIntent response.
+"""
+WORKSPACE_QUESTION_PROMPT = """
+You are Projivo's read-only project assistant.
+
+Answer the user's question using only the supplied project data.
+
+The project data may contain:
+
+- project discovery information
+- canonical project facts
+- workspace sections
+- tasks
+- task assignments
+- task dependencies
+- team members
+- permission levels
+- named team roles
+- role responsibilities
+- role skills
+- member-specific notes
+- active workloads
+
+Important distinctions:
+
+- permission_level controls application access
+- team_role describes project responsibility
+- Editor and Viewer are not professional team roles
+
+Answer rules:
+
+- Answer the user's actual question directly.
+- Do not claim to modify the workspace.
+- Do not produce update statistics.
+- Do not say that no changes were necessary.
+- Do not mention affected workspace sections.
+- Do not invent tasks, members, roles, IDs, facts, or assignments.
+- Match usernames case-insensitively.
+- Treat task assignee fields as authoritative.
+- Treat PROJECT TEAM membership IDs as authoritative.
+- Clearly say when no matching information exists.
+- Keep answers organized and readable.
+- Use bullets when listing tasks or project information.
+- Include task status, priority, due date, and blocked state when available.
+- Distinguish factual answers from recommendations.
+- Do not apply recommendations unless the user explicitly requests an update.
+
+When asked who should own a task:
+
+- consider named team roles
+- consider responsibilities
+- consider skills
+- consider member notes
+- consider current workload
+- explain the recommendation briefly
+
+Return only the structured WorkspaceQuestionAnswer response.
+"""
 FAST_WORKSPACE_UPDATE_PROMPT = """
 You are BuilderOS, a fast dependency-aware AI project manager.
 
@@ -2776,3 +2888,157 @@ def build_project_team_context(
         )
 
     return team
+class WorkspaceAssistantIntent(BaseModel):
+    intent: Literal[
+        "question",
+        "update",
+    ]
+
+    reason: str = ""
+
+
+class WorkspaceQuestionAnswer(BaseModel):
+    answer: str
+
+
+def classify_workspace_assistant_intent(
+    message: str,
+) -> WorkspaceAssistantIntent:
+    response = client.responses.parse(
+        model="gpt-5-mini",
+        reasoning={
+            "effort": "minimal",
+        },
+        instructions=(
+            WORKSPACE_ASSISTANT_INTENT_PROMPT
+        ),
+        input=message,
+        text_format=WorkspaceAssistantIntent,
+    )
+
+    result = response.output_parsed
+
+    if result is None:
+        raise ValueError(
+            "Workspace assistant intent "
+            "classification returned no result."
+        )
+
+    return result
+def answer_workspace_question(
+    *,
+    project,
+    question: str,
+) -> WorkspaceQuestionAnswer:
+    project_state = getattr(
+        project,
+        "state",
+        None,
+    )
+
+    canonical_facts = (
+        project_state.facts
+        if project_state is not None
+        else {}
+    )
+
+    discovery_text = (
+        build_compact_discovery_text(
+            project
+        )
+    )
+
+    workspace_text = (
+        build_compact_workspace_text(
+            project,
+            content_limit=1800,
+        )
+    )
+
+    tasks_text = (
+        build_compact_tasks_text(
+            project
+        )
+    )
+
+    team_context = (
+        build_project_team_context(
+            project
+        )
+    )
+
+    question_input = f"""
+PROJECT NAME:
+
+{project.name}
+
+
+PROJECT DISCOVERY:
+
+{discovery_text}
+
+
+CANONICAL PROJECT FACTS:
+
+{json.dumps(
+    canonical_facts,
+    indent=2,
+    default=str,
+)}
+
+
+PROJECT TEAM:
+
+{json.dumps(
+    team_context,
+    indent=2,
+    default=str,
+)}
+
+
+CURRENT WORKSPACE:
+
+{workspace_text}
+
+
+CURRENT DATABASE-BACKED TASKS:
+
+{tasks_text}
+
+
+USER QUESTION:
+
+{question}
+"""
+
+    response = client.responses.parse(
+        model="gpt-5-mini",
+        reasoning={
+            "effort": "minimal",
+        },
+        instructions=(
+            WORKSPACE_QUESTION_PROMPT
+            + "\n\n"
+            + TEAM_COLLABORATION_RULES
+        ),
+        input=question_input,
+        text_format=WorkspaceQuestionAnswer,
+    )
+
+    result = response.output_parsed
+
+    if result is None:
+        raise ValueError(
+            "Workspace assistant returned "
+            "no answer."
+        )
+
+    result.answer = result.answer.strip()
+
+    if not result.answer:
+        raise ValueError(
+            "Workspace assistant returned "
+            "an empty answer."
+        )
+
+    return result

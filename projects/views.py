@@ -33,6 +33,9 @@ from .ai.services import (
     regenerate_workspace_section,
     review_project,
     generate_project_budget,
+    answer_workspace_question,
+    apply_workspace_change,
+    classify_workspace_assistant_intent,
 )
 from .models import (
     Project,
@@ -3706,16 +3709,10 @@ def workspace_assistant(
     request,
     project_pk,
 ):
-    if request.method == "POST":
-        project = get_editable_project_for_user(
-            project_pk=project_pk,
-            user=request.user,
-        )
-    else:
-        project = get_project_for_user(
-            project_pk=project_pk,
-            user=request.user,
-        )
+    project = get_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
 
     ProjectState.objects.get_or_create(
         project=project,
@@ -3723,6 +3720,17 @@ def workspace_assistant(
             "facts": {},
         },
     )
+
+    permission_context = (
+        project_permission_context(
+            project=project,
+            user=request.user,
+        )
+    )
+
+    can_edit = permission_context[
+        "can_edit"
+    ]
 
     if request.method == "POST":
         content = request.POST.get(
@@ -3733,7 +3741,7 @@ def workspace_assistant(
         if not content:
             messages.error(
                 request,
-                "Enter a project update first.",
+                "Enter a question or project update.",
             )
 
             return redirect(
@@ -3742,9 +3750,85 @@ def workspace_assistant(
             )
 
         try:
+            intent_result = (
+                classify_workspace_assistant_intent(
+                    content
+                )
+            )
+
+            # ---------------------------------
+            # READ-ONLY QUESTION
+            # ---------------------------------
+            if (
+                intent_result.intent
+                == "question"
+            ):
+                WorkspaceMessage.objects.create(
+                    project=project,
+                    role=(
+                        WorkspaceMessage.Role.USER
+                    ),
+                    content=content,
+                )
+
+                answer_result = (
+                    answer_workspace_question(
+                        project=project,
+                        question=content,
+                    )
+                )
+
+                WorkspaceMessage.objects.create(
+                    project=project,
+                    role=(
+                        WorkspaceMessage.Role
+                        .ASSISTANT
+                    ),
+                    content=(
+                        answer_result.answer.strip()
+                    ),
+                )
+
+                # Prevent an old update card from
+                # appearing above a new question.
+                request.session.pop(
+                    "workspace_update_summary",
+                    None,
+                )
+
+                messages.success(
+                    request,
+                    "Projivo answered your question.",
+                )
+
+                return redirect(
+                    "workspace_assistant",
+                    project_pk=project.pk,
+                )
+
+            # ---------------------------------
+            # WORKSPACE UPDATE
+            # ---------------------------------
+            if not can_edit:
+                messages.error(
+                    request,
+                    (
+                        "You can ask questions, but "
+                        "only owners and editors can "
+                        "change the project."
+                    ),
+                )
+
+                return redirect(
+                    "workspace_assistant",
+                    project_pk=project.pk,
+                )
+
             previous_review = (
                 project.health_reviews
-                .order_by("-created_at")
+                .order_by(
+                    "-created_at",
+                )
                 .first()
             )
 
@@ -3755,11 +3839,18 @@ def workspace_assistant(
             )
 
             previous_open_conflicts = (
-                project.conflicts.filter(
-                    status=ProjectConflict.Status.OPEN,
-                ).count()
+                project.conflicts
+                .filter(
+                    status=(
+                        ProjectConflict.Status.OPEN
+                    ),
+                )
+                .count()
             )
 
+            # apply_workspace_change() already
+            # stores the user and assistant
+            # WorkspaceMessage records.
             result = apply_workspace_change(
                 project=project,
                 content=content,
@@ -3773,9 +3864,8 @@ def workspace_assistant(
                 ),
             )
 
-            # Do not automatically run a full AI review.
-            # The user can run one manually from the
-            # Review page.
+            # A full health review is not run
+            # automatically after every update.
             latest_health_score = (
                 previous_health_score
             )
@@ -3791,31 +3881,49 @@ def workspace_assistant(
                 "workspace_update_summary"
             ] = {
                 "sections": (
-                    result["sections"]
+                    result.get(
+                        "sections",
+                        [],
+                    )
                 ),
 
                 "task_changes": (
-                    result["task_changes"]
+                    result.get(
+                        "task_changes",
+                        {
+                            "added": 0,
+                            "updated": 0,
+                            "removed": 0,
+                        },
+                    )
                 ),
 
                 "facts_changed": (
-                    result["facts_changed"]
+                    result.get(
+                        "facts_changed",
+                        [],
+                    )
                 ),
 
                 "fact_changes": (
-                    result["fact_changes"]
+                    result.get(
+                        "fact_changes",
+                        [],
+                    )
                 ),
 
                 "change_summary_items": (
-                    result[
-                        "change_summary_items"
-                    ]
+                    result.get(
+                        "change_summary_items",
+                        [],
+                    )
                 ),
 
                 "assistant_summary": (
-                    result[
-                        "assistant_summary"
-                    ]
+                    result.get(
+                        "assistant_summary",
+                        "",
+                    )
                 ),
 
                 "previous_health_score": (
@@ -3848,7 +3956,7 @@ def workspace_assistant(
         except Exception:
             print("\n" + "=" * 80)
             print(
-                "WORKSPACE ASSISTANT UPDATE FAILED"
+                "WORKSPACE ASSISTANT REQUEST FAILED"
             )
             traceback.print_exc()
             print("=" * 80 + "\n")
@@ -3856,20 +3964,21 @@ def workspace_assistant(
             WorkspaceMessage.objects.create(
                 project=project,
                 role=(
-                    WorkspaceMessage.Role.ASSISTANT
+                    WorkspaceMessage.Role
+                    .ASSISTANT
                 ),
                 content=(
-                    "I couldn't apply that project "
-                    "change. No workspace sections "
-                    "were updated. Please try again."
+                    "I couldn't process that request. "
+                    "No project changes were applied. "
+                    "Please try again."
                 ),
             )
 
             messages.error(
                 request,
                 (
-                    "BuilderOS could not apply "
-                    "that project update."
+                    "Projivo could not process "
+                    "that request."
                 ),
             )
 
@@ -3879,19 +3988,15 @@ def workspace_assistant(
         )
 
     workspace_messages = (
-        project.workspace_messages.all()
+        project.workspace_messages
+        .order_by(
+            "created_at",
+        )
     )
 
     update_summary = request.session.pop(
         "workspace_update_summary",
         None,
-    )
-
-    permission_context = (
-        project_permission_context(
-            project=project,
-            user=request.user,
-        )
     )
 
     return render(
@@ -9047,3 +9152,61 @@ def project_members(
             **permission_context,
         },
     )
+def handle_workspace_assistant_message(
+    *,
+    project,
+    content: str,
+):
+    intent_result = (
+        classify_workspace_assistant_intent(
+            content
+        )
+    )
+
+    if intent_result.intent == "question":
+        WorkspaceMessage.objects.create(
+            project=project,
+            role=WorkspaceMessage.Role.USER,
+            content=content,
+        )
+
+        answer_result = (
+            answer_workspace_question(
+                project=project,
+                question=content,
+            )
+        )
+
+        WorkspaceMessage.objects.create(
+            project=project,
+            role=WorkspaceMessage.Role.ASSISTANT,
+            content=answer_result.answer.strip(),
+        )
+
+        request.session.pop(
+            "workspace_update_summary",
+            None,
+        )
+
+        messages.success(
+            request,
+            "Projivo answered your question.",
+        )
+
+        return redirect(
+            "workspace_assistant",
+            project_pk=project.pk,
+        )
+
+    update_result = apply_workspace_change(
+        project=project,
+        content=content,
+    )
+
+    return {
+        "mode": "update",
+        "intent": intent_result,
+        "answer": None,
+        "assistant_message": None,
+        "update_result": update_result,
+    }

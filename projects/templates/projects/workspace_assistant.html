@@ -845,45 +845,53 @@
         {% endfor %}
     </div>
 
-    {% if can_edit %}
-        <section class="card">
-            <form
-                id="assistant-form"
-                class="assistant-form"
-                method="POST"
-            >
-                {% csrf_token %}
+    <section class="card">
+    <form id="assistant-form" method="POST">
+        {% csrf_token %}
 
-                <label for="assistant-message">
-                    <strong>
-                        Update your project
-                    </strong>
-                </label>
+        <label for="assistant-message">
+            <strong>
+                {% if can_edit %}
+                    Ask a question or update your project
+                {% else %}
+                    Ask about this project
+                {% endif %}
+            </strong>
+        </label>
 
-                <textarea
-                    id="assistant-message"
-                    name="message"
-                    required
-                    placeholder="Example: Switch this project from Raspberry Pi 4 to Raspberry Pi 5."
-                ></textarea>
+        <textarea
+            id="assistant-message"
+            name="message"
+            required
+            {% if can_edit %}
+                placeholder="Ask a question or describe a project change."
+            {% else %}
+                placeholder="Ask a question about this project."
+            {% endif %}
+        ></textarea>
 
-                <div class="assistant-form-actions">
-                    <button
-                        id="assistant-button"
-                        type="submit"
-                        data-loading-text="Applying Changes..."
-                    >
-                        Send
-                    </button>
-                </div>
-            </form>
-        </section>
-    {% else %}
+        <button id="assistant-button" type="submit">
+            {% if can_edit %}
+                Send
+            {% else %}
+                Ask Question
+            {% endif %}
+        </button>
+    </form>
+
+    {% if not can_edit %}
         <div class="readonly-note">
-            You can read the assistant history, but only the owner
-            and editors can submit project updates.
+            You have read-only access. You can ask questions
+            about the project, but you cannot make changes.
         </div>
     {% endif %}
+
+    <div id="update-status" hidden>
+        <p id="update-status-text">
+            Projivo is processing your request.
+        </p>
+    </div>
+</section>
 </div>
 
 {% if can_edit %}
