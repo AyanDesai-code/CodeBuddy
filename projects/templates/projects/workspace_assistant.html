@@ -1015,7 +1015,11 @@
     </div>
 
     <section class="card">
-    <form id="assistant-form" method="POST">
+    <section class="card assistant-input-card">
+    <form
+        id="assistant-form"
+        method="POST"
+    >
         {% csrf_token %}
 
         <label for="assistant-message">
@@ -1028,26 +1032,38 @@
             </strong>
         </label>
 
-        <textarea
-            id="assistant-message"
-            name="message"
-            required
-            {% if can_edit %}
-                placeholder="Ask a question or describe a project change."
-            {% else %}
-                placeholder="Ask a question about this project."
-            {% endif %}
-        ></textarea>
+        <div class="assistant-input-row">
+            <textarea
+                id="assistant-message"
+                name="message"
+                required
+                {% if can_edit %}
+                    placeholder="Ask a question or describe a project change."
+                {% else %}
+                    placeholder="Ask a question about this project."
+                {% endif %}
+            ></textarea>
 
-        <button id="assistant-button" type="submit">
-            {% if can_edit %}
-                Send
-            {% else %}
-                Ask Question
-            {% endif %}
-        </button>
+            <button
+                id="assistant-button"
+                type="submit"
+            >
+                {% if can_edit %}
+                    Send
+                {% else %}
+                    Ask
+                {% endif %}
+            </button>
+        </div>
     </form>
 
+    {% if not can_edit %}
+        <div class="readonly-note">
+            You can ask questions about this project,
+            but only owners and editors can make changes.
+        </div>
+    {% endif %}
+</section>
     {% if not can_edit %}
         <div class="readonly-note">
             You have read-only access. You can ask questions
