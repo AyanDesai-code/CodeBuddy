@@ -7838,8 +7838,1067 @@ def update_project_member(
         project=project,
     )
 
+    username = membership.user.username
+    membership.delete()
+
+    messages.success(
+        request,
+        f"{username} was removed from the project.",
+    )
+
+    return redirect(
+        "project_members",
+        project_pk=project.pk,
+    )
+def escape_mermaid_text(value):
+    return (
+        str(value)
+        .replace('"', "'")
+        .replace("\n", " ")
+        .replace("[", "(")
+        .replace("]", ")")
+        .strip()
+    )
+
+
+def build_task_flowchart(project):
+    tasks = list(
+        project.tasks
+        .prefetch_related("dependencies")
+        .order_by("order", "pk")
+    )
+
+    if not tasks:
+        return ""
+
+    lines = [
+        "flowchart TD",
+    ]
+
+    status_classes = {
+        Task.Status.TODO: "todo",
+        Task.Status.IN_PROGRESS: "inProgress",
+        Task.Status.REVIEW: "review",
+        Task.Status.DONE: "done",
+    }
+
+    task_ids = {
+        task.pk
+        for task in tasks
+    }
+
+    for task in tasks:
+        safe_title = escape_mermaid_text(
+            task.title
+        )
+
+        lines.append(
+            f'T{task.pk}["{safe_title}"]'
+        )
+
+        class_name = status_classes.get(
+            task.status,
+            "todo",
+        )
+
+        lines.append(
+            f"class T{task.pk} {class_name}"
+        )
+
+    connection_count = 0
+
+    for task in tasks:
+        for dependency in task.dependencies.all():
+            if dependency.pk not in task_ids:
+                continue
+
+            lines.append(
+                f"T{dependency.pk} --> T{task.pk}"
+            )
+
+            connection_count += 1
+
+    # If no dependencies exist yet, show tasks
+    # sequentially using their current order.
+    if connection_count == 0:
+        for previous_task, next_task in zip(
+            tasks,
+            tasks[1:],
+        ):
+            lines.append(
+                f"T{previous_task.pk} --> "
+                f"T{next_task.pk}"
+            )
+
+    lines.extend(
+        [
+            (
+                "classDef todo "
+                "fill:#f8fafc,"
+                "stroke:#64748b,"
+                "color:#0f172a"
+            ),
+            (
+                "classDef inProgress "
+                "fill:#dbeafe,"
+                "stroke:#2563eb,"
+                "color:#1e3a8a"
+            ),
+            (
+                "classDef review "
+                "fill:#fef3c7,"
+                "stroke:#d97706,"
+                "color:#78350f"
+            ),
+            (
+                "classDef done "
+                "fill:#dcfce7,"
+                "stroke:#16a34a,"
+                "color:#14532d"
+            ),
+        ]
+    )
+
+    return "\n".join(lines)
+def build_task_flowchart(project):
+    tasks = list(
+        project.tasks
+        .prefetch_related(
+            "dependencies",
+        )
+        .order_by(
+            "order",
+            "pk",
+        )
+    )
+
+    if not tasks:
+        return ""
+
+    lines = [
+        "flowchart LR",
+    ]
+
+    task_ids = {
+        task.pk
+        for task in tasks
+    }
+
+    for task in tasks:
+        safe_title = escape_mermaid_text(
+            task.title
+        )
+
+        status_label = (
+            task.get_status_display()
+        )
+
+        priority_label = (
+            task.get_priority_display()
+        )
+
+        node_label = (
+            f"{safe_title}<br/>"
+            f"{status_label} · "
+            f"{priority_label}"
+        )
+
+        lines.append(
+            f'T{task.pk}["{node_label}"]'
+        )
+
+        task_url = reverse(
+            "edit_task",
+            kwargs={
+                "project_pk": project.pk,
+                "task_pk": task.pk,
+            },
+        )
+
+        lines.append(
+            f'click T{task.pk} "{task_url}" '
+            f'"Open {safe_title}"'
+        )
+
+    connection_count = 0
+
+    for task in tasks:
+        for dependency in (
+            task.dependencies.all()
+        ):
+            if dependency.pk not in task_ids:
+                continue
+
+            lines.append(
+                f"T{dependency.pk} --> "
+                f"T{task.pk}"
+            )
+
+            connection_count += 1
+
+    if connection_count == 0:
+        lines.append(
+            'NO_DEPS["No dependencies '
+            'have been defined yet"]'
+        )
+
+        lines.append(
+            "class NO_DEPS empty"
+        )
+
+    for task in tasks:
+        if task.status == Task.Status.DONE:
+            classes = ["done"]
+
+        elif task.status == (
+            Task.Status.IN_PROGRESS
+        ):
+            classes = ["inProgress"]
+
+        elif task.status == Task.Status.REVIEW:
+            classes = ["review"]
+
+        else:
+            classes = ["todo"]
+
+        if task.is_blocked:
+            classes.append("blocked")
+
+        lines.append(
+            f"class T{task.pk} "
+            + ",".join(classes)
+        )
+
+    lines.extend(
+        [
+            (
+                "classDef todo "
+                "fill:#334155,"
+                "stroke:#64748b,"
+                "stroke-width:2px,"
+                "color:#f8fafc"
+            ),
+            (
+                "classDef inProgress "
+                "fill:#1d4ed8,"
+                "stroke:#60a5fa,"
+                "stroke-width:2px,"
+                "color:#ffffff"
+            ),
+            (
+                "classDef review "
+                "fill:#92400e,"
+                "stroke:#f59e0b,"
+                "stroke-width:2px,"
+                "color:#ffffff"
+            ),
+            (
+                "classDef done "
+                "fill:#166534,"
+                "stroke:#4ade80,"
+                "stroke-width:2px,"
+                "color:#ffffff"
+            ),
+            (
+                "classDef blocked "
+                "stroke:#ef4444,"
+                "stroke-width:4px,"
+                "stroke-dasharray:6 3"
+            ),
+            (
+                "classDef empty "
+                "fill:#1e293b,"
+                "stroke:#64748b,"
+                "color:#cbd5e1"
+            ),
+        ]
+    )
+
+    return "\n".join(lines)
+
+@login_required
+@require_POST
+def regenerate_project_budget(
+    request,
+    project_pk,
+):
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    budget_folder = get_object_or_404(
+        WorkspaceFolder,
+        project=project,
+        folder_type="budget",
+    )
+
+    try:
+        generated_budget = generate_project_budget(
+            project
+        )
+
+        budget_items = build_budget_items_from_ai(
+            project=project,
+            generated_items=(
+                generated_budget.budget_items
+            ),
+        )
+
+        if not budget_items:
+            raise ValueError(
+                "Budget generation returned "
+                "no usable budget items."
+            )
+
+        with transaction.atomic():
+            project.budget_items.all().delete()
+
+            BudgetItem.objects.bulk_create(
+                budget_items
+            )
+
+            budget_folder.description = (
+                generated_budget.summary or ""
+            ).strip()
+
+            budget_folder.save(
+                update_fields=[
+                    "description",
+                    "updated_at",
+                ]
+            )
+
+            record_project_event(
+                project=project,
+                event_type=(
+                    ProjectEvent.EventType
+                    .WORKSPACE_UPDATED
+                ),
+                title=(
+                    "Budget and parts list "
+                    "regenerated"
+                ),
+                description=(
+                    f"Generated "
+                    f"{len(budget_items)} "
+                    "budget items."
+                ),
+                metadata={
+                    "folder_id": budget_folder.pk,
+                    "folder_type": (
+                        budget_folder.folder_type
+                    ),
+                    "item_count": len(
+                        budget_items
+                    ),
+                },
+            )
+
+        mark_schedule_for_refresh(
+            project=project,
+            reason=(
+                "The budget and parts list "
+                "were regenerated."
+            ),
+        )
+
+        messages.success(
+            request,
+            (
+                "Budget and parts list "
+                "were regenerated successfully."
+            ),
+        )
+
+    except Exception:
+        print("\n" + "=" * 80)
+        print(
+            "BUDGET AND PARTS LIST "
+            "REGENERATION FAILED"
+        )
+        traceback.print_exc()
+        print("=" * 80 + "\n")
+
+        messages.error(
+            request,
+            (
+                "Projivo could not regenerate "
+                "the budget and parts list. "
+                "Please try again."
+            ),
+        )
+
+    return redirect(
+        "workspace_folder",
+        project_pk=project.pk,
+        folder_pk=budget_folder.pk,
+    )
+def home(request):
+    if request.user.is_authenticated:
+        return render(
+            request,
+            "projects/home.html",
+        )
+
+    return render(
+        request,
+        "projects/home.html",
+    )
+class TaskAssignmentForm(forms.ModelForm):
+    class Meta:
+        model = Task
+
+        fields = [
+            "assignee",
+        ]
+
+    def __init__(
+        self,
+        *args,
+        project,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            **kwargs,
+        )
+
+        allowed_user_ids = [
+            project.user_id,
+        ]
+
+        allowed_user_ids.extend(
+            project.memberships.values_list(
+                "user_id",
+                flat=True,
+            )
+        )
+
+        self.fields[
+            "assignee"
+        ].queryset = (
+            self.fields[
+                "assignee"
+            ]
+            .queryset.filter(
+                pk__in=allowed_user_ids,
+            )
+            .order_by(
+                "username",
+            )
+        )
+
+        self.fields[
+            "assignee"
+        ].required = False
+
+        self.fields[
+            "assignee"
+        ].empty_label = (
+            "Unassigned"
+        )
+
+
+@login_required
+@require_POST
+def assign_task(
+    request,
+    project_pk,
+    task_pk,
+):
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    task = get_object_or_404(
+        Task,
+        pk=task_pk,
+        project=project,
+    )
+
+    previous_assignee = (
+        task.assignee
+    )
+
+    form = TaskAssignmentForm(
+        request.POST,
+        instance=task,
+        project=project,
+    )
+
+    if not form.is_valid():
+        messages.error(
+            request,
+            (
+                "The selected assignee is "
+                "not valid."
+            ),
+        )
+
+        return redirect(
+            "project_board",
+            project_pk=project.pk,
+        )
+
+    updated_task = form.save(
+        commit=False
+    )
+
+    if updated_task.assignee:
+        if (
+            updated_task.assignee.project_id
+            != project.pk
+        ):
+            messages.error(
+                request,
+                (
+                    "That member does not "
+                    "belong to this project."
+                ),
+            )
+
+            return redirect(
+                "project_board",
+                project_pk=project.pk,
+            )
+
+        updated_task.assigned_at = (
+            timezone.now()
+        )
+
+    else:
+        updated_task.assigned_at = None
+
+    updated_task.save(
+        update_fields=[
+            "assignee",
+            "assigned_at",
+            "updated_at",
+        ]
+    )
+
+    previous_username = (
+        previous_assignee.user.username
+        if previous_assignee
+        else "Unassigned"
+    )
+
+    new_username = (
+        updated_task.assignee.user.username
+        if updated_task.assignee
+        else "Unassigned"
+    )
+
+    record_project_event(
+        project=project,
+        event_type=(
+            ProjectEvent.EventType
+            .MEMBER_ROLE_CHANGED
+        ),
+        title="Task assignment changed",
+        description=(
+            f'"{task.title}" was reassigned '
+            f"from {previous_username} "
+            f"to {new_username}."
+        ),
+        metadata={
+            "task_id": task.pk,
+            "previous_membership_id": (
+                previous_assignee.pk
+                if previous_assignee
+                else None
+            ),
+            "membership_id": (
+                updated_task.assignee.pk
+                if updated_task.assignee
+                else None
+            ),
+        },
+    )
+
+    messages.success(
+        request,
+        (
+            f'"{task.title}" is now assigned '
+            f"to {new_username}."
+        ),
+    )
+
+    next_url = request.POST.get(
+        "next",
+        "",
+    )
+
+    if (
+        next_url
+        and next_url.startswith("/")
+    ):
+        return redirect(
+            next_url
+        )
+
+    return redirect(
+        "project_board",
+        project_pk=project.pk,
+    )
+@login_required
+def my_tasks(
+    request,
+):
+    tasks = (
+        Task.objects
+        .filter(
+            assignee__user=request.user,
+        )
+        .select_related(
+            "project",
+            "assignee",
+            "assignee__user",
+            "assignee__project_role",
+            "milestone",
+        )
+        .prefetch_related(
+            "dependencies",
+        )
+        .order_by(
+            "completed",
+            "status",
+            "-priority",
+            "due_date",
+            "order",
+        )
+    )
+
+    return render(
+        request,
+        "projects/my_tasks.html",
+        {
+            "tasks": tasks,
+        },
+    )
+from django import forms
+
+from .models import (
+    ProjectMembership,
+    ProjectRole,
+    Task,
+)
+
+
+class ProjectRoleForm(forms.ModelForm):
+    class Meta:
+        model = ProjectRole
+
+        fields = [
+            "name",
+            "description",
+            "responsibilities",
+            "skills",
+        ]
+
+        widgets = {
+            "name": forms.TextInput(
+                attrs={
+                    "placeholder": (
+                        "Example: Backend Developer"
+                    ),
+                }
+            ),
+            "description": forms.Textarea(
+                attrs={
+                    "rows": 3,
+                    "placeholder": (
+                        "Describe this role's purpose."
+                    ),
+                }
+            ),
+            "responsibilities": forms.Textarea(
+                attrs={
+                    "rows": 5,
+                    "placeholder": (
+                        "List this role's responsibilities."
+                    ),
+                }
+            ),
+            "skills": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                    "placeholder": (
+                        "Example: Django, PostgreSQL, REST APIs"
+                    ),
+                }
+            ),
+        }
+
+    def __init__(
+        self,
+        *args,
+        project,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            **kwargs,
+        )
+
+        self.project = project
+
+    def clean_name(self):
+        name = (
+            self.cleaned_data[
+                "name"
+            ]
+            .strip()
+        )
+
+        duplicate_roles = (
+            ProjectRole.objects
+            .filter(
+                project=self.project,
+                name__iexact=name,
+            )
+        )
+
+        if self.instance.pk:
+            duplicate_roles = (
+                duplicate_roles.exclude(
+                    pk=self.instance.pk,
+                )
+            )
+
+        if duplicate_roles.exists():
+            raise forms.ValidationError(
+                (
+                    "A project role with this "
+                    "name already exists."
+                )
+            )
+
+        return name
+
+    def save(
+        self,
+        commit=True,
+    ):
+        role = super().save(
+            commit=False
+        )
+
+        role.project = self.project
+
+        if commit:
+            role.save()
+
+        return role
+
+
+class MemberRoleForm(forms.ModelForm):
+    class Meta:
+        model = ProjectMembership
+
+        fields = [
+            "role",
+            "project_role",
+            "role_notes",
+        ]
+
+        widgets = {
+            "role_notes": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                    "placeholder": (
+                        "Specific responsibilities "
+                        "for this member."
+                    ),
+                }
+            ),
+        }
+
+    def __init__(
+        self,
+        *args,
+        project,
+        membership,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            instance=membership,
+            **kwargs,
+        )
+
+        self.project = project
+        self.membership = membership
+
+        self.fields[
+            "project_role"
+        ].queryset = (
+            project.project_roles
+            .order_by(
+                "name",
+            )
+        )
+
+        if (
+            membership.role
+            == ProjectMembership.Role.OWNER
+        ):
+            self.fields[
+                "role"
+            ].disabled = True
+
+
+class TaskAssignmentForm(forms.ModelForm):
+    class Meta:
+        model = Task
+
+        fields = [
+            "assignee",
+        ]
+
+    def __init__(
+        self,
+        *args,
+        project,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            **kwargs,
+        )
+
+        self.fields[
+            "assignee"
+        ].queryset = (
+            project.memberships
+            .select_related(
+                "user",
+                "project_role",
+            )
+            .order_by(
+                "user__username",
+            )
+        )
+
+        self.fields[
+            "assignee"
+        ].required = False
+
+        self.fields[
+            "assignee"
+        ].empty_label = (
+            "Unassigned"
+        )
+@login_required
+def create_project_role(
+    request,
+    project_pk,
+):
+    project = get_owned_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    if request.method == "POST":
+        form = ProjectRoleForm(
+            request.POST,
+            project=project,
+        )
+
+        if form.is_valid():
+            project_role = form.save()
+
+            record_project_event(
+                project=project,
+                event_type=(
+                    ProjectEvent.EventType
+                    .MEMBER_ROLE_CHANGED
+                ),
+                title="Project role created",
+                description=(
+                    project_role.name
+                ),
+                metadata={
+                    "project_role_id": (
+                        project_role.pk
+                    ),
+                    "project_role_name": (
+                        project_role.name
+                    ),
+                },
+            )
+
+            messages.success(
+                request,
+                (
+                    f'Role "{project_role.name}" '
+                    "was created."
+                ),
+            )
+
+            return redirect(
+                "project_members",
+                project_pk=project.pk,
+            )
+
+    else:
+        form = ProjectRoleForm(
+            project=project,
+        )
+
+    return render(
+        request,
+        "projects/project_role_form.html",
+        {
+            "project": project,
+            "form": form,
+            "page_title": (
+                "Create Project Role"
+            ),
+        },
+    )
+@login_required
+def edit_project_role(
+    request,
+    project_pk,
+    role_pk,
+):
+    project = get_owned_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    project_role = get_object_or_404(
+        ProjectRole,
+        pk=role_pk,
+        project=project,
+    )
+
+    if request.method == "POST":
+        form = ProjectRoleForm(
+            request.POST,
+            instance=project_role,
+            project=project,
+        )
+
+        if form.is_valid():
+            project_role = form.save()
+
+            record_project_event(
+                project=project,
+                event_type=(
+                    ProjectEvent.EventType
+                    .MEMBER_ROLE_CHANGED
+                ),
+                title="Project role updated",
+                description=(
+                    project_role.name
+                ),
+                metadata={
+                    "project_role_id": (
+                        project_role.pk
+                    ),
+                },
+            )
+
+            messages.success(
+                request,
+                (
+                    f'Role "{project_role.name}" '
+                    "was updated."
+                ),
+            )
+
+            return redirect(
+                "project_members",
+                project_pk=project.pk,
+            )
+
+    else:
+        form = ProjectRoleForm(
+            instance=project_role,
+            project=project,
+        )
+
+    return render(
+        request,
+        "projects/project_role_form.html",
+        {
+            "project": project,
+            "project_role": project_role,
+            "form": form,
+            "page_title": (
+                "Edit Project Role"
+            ),
+        },
+    )
+@login_required
+@require_POST
+def delete_project_role(
+    request,
+    project_pk,
+    role_pk,
+):
+    project = get_owned_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    project_role = get_object_or_404(
+        ProjectRole,
+        pk=role_pk,
+        project=project,
+    )
+
+    role_name = project_role.name
+
+    project_role.delete()
+
+    record_project_event(
+        project=project,
+        event_type=(
+            ProjectEvent.EventType
+            .MEMBER_ROLE_CHANGED
+        ),
+        title="Project role deleted",
+        description=role_name,
+    )
+
+    messages.success(
+        request,
+        (
+            f'Role "{role_name}" '
+            "was deleted."
+        ),
+    )
+
+    return redirect(
+        "project_members",
+        project_pk=project.pk,
+    )
+@login_required
+@require_POST
+def update_project_member(
+    request,
+    project_pk,
+    membership_pk,
+):
+    project = get_owned_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    membership = get_object_or_404(
+        ProjectMembership,
+        pk=membership_pk,
+        project=project,
+    )
+
     previous_permission = (
-        membership.role
+        f"{membership.user.username}'s "
+        "team role"
     )
 
     previous_project_role = (
@@ -7965,6 +9024,17 @@ def project_members(
             project=project,
             user=request.user,
         )
+    )
+
+    return render(
+        request,
+        "projects/project_members.html",
+        {
+            "project": project,
+            "memberships": memberships,
+            "project_roles": project_roles,
+            **permission_context,
+        },
     )
 
     return render(
