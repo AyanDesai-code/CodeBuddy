@@ -1577,16 +1577,17 @@ def build_compact_workspace_text(
 
 def build_compact_tasks_text(
     project,
-    *,
-    include_descriptions: bool = False,
-    description_limit: int = 300,
-) -> str:
+):
     tasks = (
         project.tasks
         .select_related(
             "assignee",
             "assignee__user",
             "assignee__project_role",
+            "milestone",
+        )
+        .prefetch_related(
+            "dependencies",
         )
         .order_by(
             "order",
@@ -1597,76 +1598,69 @@ def build_compact_tasks_text(
     task_blocks = []
 
     for task in tasks:
-        assignee_username = "Unassigned"
-        assignee_membership_id = None
-        assignee_project_role = ""
-        assignee_permission = ""
+        assignee_name = "Unassigned"
+        membership_id = "None"
+        team_role = "None"
 
         if task.assignee:
-            assignee_membership_id = (
-                task.assignee.pk
-            )
+            membership_id = task.assignee.pk
 
-            assignee_username = (
+            assignee_name = (
                 task.assignee.user.username
             )
 
-            assignee_permission = (
-                task.assignee.role
-            )
-
             if task.assignee.project_role:
-                assignee_project_role = (
+                team_role = (
                     task.assignee
                     .project_role
                     .name
                 )
 
-        lines = [
-            f"TASK ID: {task.pk}",
-            f"TITLE: {task.title}",
-            f"PRIORITY: {task.priority}",
-            f"STATUS: {task.status}",
-            f"COMPLETED: {task.completed}",
-            (
-                "ASSIGNEE MEMBERSHIP ID: "
-                f"{assignee_membership_id}"
-            ),
-            (
-                "ASSIGNEE USERNAME: "
-                f"{assignee_username}"
-            ),
-            (
-                "ASSIGNEE PROJECT ROLE: "
-                f"{assignee_project_role or 'None'}"
-            ),
-            (
-                "ASSIGNEE PERMISSION LEVEL: "
-                f"{assignee_permission or 'None'}"
-            ),
-        ]
-
-        if include_descriptions:
-            lines.insert(
-                2,
-                (
-                    "DESCRIPTION: "
-                    + truncate_text(
-                        task.description,
-                        description_limit,
-                    )
-                ),
-            )
-
         task_blocks.append(
-            "\n".join(lines)
+            "\n".join(
+                [
+                    f"TASK ID: {task.pk}",
+                    f"TITLE: {task.title}",
+                    (
+                        "DESCRIPTION: "
+                        f"{task.description}"
+                    ),
+                    f"STATUS: {task.status}",
+                    f"PRIORITY: {task.priority}",
+                    (
+                        "ESTIMATED HOURS: "
+                        f"{task.estimated_hours}"
+                    ),
+                    (
+                        "ASSIGNEE MEMBERSHIP ID: "
+                        f"{membership_id}"
+                    ),
+                    (
+                        "ASSIGNEE USERNAME: "
+                        f"{assignee_name}"
+                    ),
+                    (
+                        "ASSIGNEE TEAM ROLE: "
+                        f"{team_role}"
+                    ),
+                    (
+                        "DEPENDENCY IDS: "
+                        f"{list(
+                            task.dependencies
+                            .values_list(
+                                'pk',
+                                flat=True,
+                            )
+                        )}"
+                    ),
+                ]
+            )
         )
 
     return (
         "\n\n".join(task_blocks)
         or "No tasks exist."
     )
-
 
 CASCADE_SECTION_PROMPT = """
 You are BuilderOS, a dependency-aware AI project manager.
@@ -2123,6 +2117,7 @@ Every finding must contain:
 def generate_workspace_update_plan(
     project,
 ) -> WorkspaceUpdatePlan:
+    
     project_state = getattr(
         project,
         "state",
@@ -2157,9 +2152,7 @@ def generate_workspace_update_plan(
     )
 
     tasks_text = build_compact_tasks_text(
-        project,
-        include_descriptions=True,
-        description_limit=250,
+        project
     )
 
     assistant_text = build_recent_workspace_messages(
@@ -2173,35 +2166,6 @@ def generate_workspace_update_plan(
     )
 
     generation_input = f"""
-PROJECT DISCOVERY SUMMARY:
-
-{discovery_text}
-
-
-CURRENT CANONICAL FACTS:
-
-{current_facts}
-
-
-CURRENT WORKSPACE:
-
-{workspace_text}
-
-
-CURRENT DATABASE-BACKED TASKS:
-
-{tasks_text}
-
-
-RECENT WORKSPACE-ASSISTANT CONVERSATION:
-
-{assistant_text}
-
-
-LATEST USER REQUEST:
-
-{latest_user_message.content}
-
 PROJECT DISCOVERY SUMMARY:
 
 {discovery_text}
@@ -2253,7 +2217,11 @@ LATEST USER REQUEST:
         reasoning={
             "effort": "minimal",
         },
-        instructions=FAST_WORKSPACE_UPDATE_PROMPT,
+        instructions=(
+            FAST_WORKSPACE_UPDATE_PROMPT
+            + "\n\n"
+            + TEAM_COLLABORATION_RULES
+        ),
         input=generation_input,
         text_format=WorkspaceUpdatePlan,
     )
@@ -2512,6 +2480,53 @@ Scheduling guidance:
 
 Return only the structured response required by ProjectSchedule.
 """
+TEAM_COLLABORATION_RULES = """
+TEAM AND ROLE RULES
+
+The supplied PROJECT TEAM data is authoritative.
+
+Each collaborator may have:
+
+- membership_id
+- username
+- permission_level
+- team_role
+- role_description
+- role_responsibilities
+- role_skills
+- member_notes
+- active_tasks
+- active_task_count
+
+Permission level and team role are different:
+
+- permission_level controls access to the application
+- team_role describes the person's project responsibility
+
+Do not treat Editor or Viewer as a professional team role.
+
+When reasoning about the team:
+
+- use the named team_role, responsibilities, skills, and member notes
+- use only membership IDs supplied in PROJECT TEAM
+- never invent members or membership IDs
+- match usernames case-insensitively
+- consider current workload before recommending assignments
+- preserve existing task assignments unless a reassignment is justified
+- leave a task unassigned when nobody is a reasonable fit
+- identify missing skills or roles when appropriate
+- never assume that an owner must perform every task
+- permission level does not determine technical suitability
+
+When assigning work:
+
+- assign software work to members with relevant software roles or skills
+- assign mechanical work to members with relevant mechanical roles or skills
+- assign design work to members with relevant design roles or skills
+- consider responsibilities and member-specific notes
+- avoid concentrating all tasks on one person
+- explain important assignment or reassignment decisions
+"""
 def generate_project_schedule(project) -> ProjectSchedule:
     project_state = getattr(
         project,
@@ -2652,6 +2667,25 @@ def build_workspace_generation_input(project):
     ]
 
 
+class TeamMemberAnalysis(BaseModel):
+    membership_id: int
+    username: str
+    active_task_count: int
+    estimated_active_hours: float
+    overload_risk: str
+    blocked_task_count: int
+    recommendations: list[str]
+
+
+class CollaborationAnalysis(BaseModel):
+    workload_balance_score: int
+    missing_roles: list[str]
+    missing_skills: list[str]
+    bottlenecks: list[str]
+    overloaded_members: list[int]
+    underutilized_members: list[int]
+    reassignment_recommendations: list[str]
+    sprint_plan_summary: str
 def build_project_team_context(
     project,
 ):
@@ -2672,7 +2706,7 @@ def build_project_team_context(
     team = []
 
     for membership in memberships:
-        assigned_tasks = list(
+        active_tasks = list(
             membership.assigned_tasks
             .exclude(
                 status="done",
@@ -2683,8 +2717,13 @@ def build_project_team_context(
                 "status",
                 "priority",
                 "estimated_hours",
+                "start_date",
                 "due_date",
             )
+        )
+
+        project_role = (
+            membership.project_role
         )
 
         team.append(
@@ -2695,90 +2734,45 @@ def build_project_team_context(
                 "username": (
                     membership.user.username
                 ),
+
+                # Access control
                 "permission_level": (
                     membership.role
                 ),
+
+                # Actual project responsibility
                 "team_role": (
-                    membership.project_role.name
-                    if membership.project_role
-                    else ""
+                    project_role.name
+                    if project_role
+                    else "Unassigned role"
                 ),
                 "role_description": (
-                    membership.project_role.description
-                    if membership.project_role
+                    project_role.description
+                    if project_role
                     else ""
                 ),
-                "responsibilities": (
-                    membership.project_role.responsibilities
-                    if membership.project_role
+                "role_responsibilities": (
+                    project_role.responsibilities
+                    if project_role
                     else ""
                 ),
-                "skills": (
-                    membership.project_role.skills
-                    if membership.project_role
+                "role_skills": (
+                    project_role.skills
+                    if project_role
                     else ""
                 ),
+
+                # Person-specific instructions
                 "member_notes": (
                     membership.role_notes
+                    or ""
                 ),
-                "active_tasks": (
-                    assigned_tasks
+
+                "active_tasks": active_tasks,
+                "active_task_count": (
+                    len(active_tasks)
                 ),
             }
         )
 
     return team
-TEAM_COLLABORATION_RULES = """
-TEAM AND COLLABORATION RULES
-
-The project may contain multiple collaborators.
-
-Each collaborator has:
-
-- a stable membership ID
-- a username
-- a permission level
-- a project-specific team role
-- responsibilities
-- skills
-- member-specific notes
-- currently assigned work
-
-Permission level and team role are different.
-
-Permission level controls access.
-
-Team role describes responsibility.
-
-When generating or updating tasks:
-
-- use only supplied membership IDs
-- never invent team members
-- consider roles, skills, and responsibilities
-- consider current workload
-- avoid overloading one member
-- leave tasks unassigned when no member clearly fits
-- identify missing skills
-- preserve existing assignments unless a change is justified
-- assign cross-discipline tasks to the primary owner
-- mention supporting collaborators in the description
-"""
-class TeamMemberAnalysis(BaseModel):
-    membership_id: int
-    username: str
-    active_task_count: int
-    estimated_active_hours: float
-    overload_risk: str
-    blocked_task_count: int
-    recommendations: list[str]
-
-
-class CollaborationAnalysis(BaseModel):
-    workload_balance_score: int
-    missing_roles: list[str]
-    missing_skills: list[str]
-    bottlenecks: list[str]
-    overloaded_members: list[int]
-    underutilized_members: list[int]
-    reassignment_recommendations: list[str]
-    sprint_plan_summary: str
