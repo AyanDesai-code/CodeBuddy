@@ -24,7 +24,6 @@ from openai import project
 from projects.analytics import capture_event
 
 from .ai.services import (
-
     generate_additional_tasks,
     generate_project_schedule,
     generate_reply,
@@ -34,7 +33,6 @@ from .ai.services import (
     review_project,
     generate_project_budget,
     answer_workspace_question,
-    apply_workspace_change,
     classify_workspace_assistant_intent,
 )
 from .models import (
