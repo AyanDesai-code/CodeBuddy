@@ -45,6 +45,14 @@
         rel="manifest"
         href="{% static 'site.webmanifest' %}"
     >
+    <a
+        href="YOUR_BUY_ME_A_COFFEE_LINK"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="support-button"
+    >
+    ☕ Support Projivo
+</a>
 
     <style>
         :root {
@@ -367,6 +375,35 @@
     background: #ffe95c;
     border-color: #ffe95c;
     color: #111827;
+    .support-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    width: fit-content;
+    padding: 7px 11px;
+
+    border: 1px solid var(--border);
+    border-radius: 7px;
+
+    background: transparent;
+    color: var(--text-muted);
+
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+
+    transition:
+        background 0.15s ease,
+        color 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.support-button:hover {
+    background: var(--surface-soft);
+    color: var(--text);
+    border-color: var(--border-strong);
+}
 }
     </style>
 
