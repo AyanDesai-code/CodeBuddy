@@ -906,3 +906,74 @@ class GeneratedLearningResource(BaseModel):
     related_task: str
     difficulty: str
 
+class GitHubRepository(models.Model):
+    project = models.OneToOneField(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="github_repository",
+    )
+
+    installation_id = models.BigIntegerField()
+
+    repository_id = models.BigIntegerField(
+        unique=True,
+    )
+
+    owner = models.CharField(
+        max_length=255,
+    )
+
+    name = models.CharField(
+        max_length=255,
+    )
+
+    html_url = models.URLField()
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    def __str__(self):
+        return (
+            f"{self.owner}/{self.name}"
+        )
+
+
+class GitHubIssueLink(models.Model):
+    task = models.OneToOneField(
+        Task,
+        on_delete=models.CASCADE,
+        related_name="github_issue_link",
+    )
+
+    repository = models.ForeignKey(
+        GitHubRepository,
+        on_delete=models.CASCADE,
+        related_name="issue_links",
+    )
+
+    issue_id = models.BigIntegerField(
+        unique=True,
+    )
+
+    issue_number = models.PositiveIntegerField()
+
+    issue_url = models.URLField()
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    def __str__(self):
+        return (
+            f"{self.repository} "
+            f"#{self.issue_number}"
+        )

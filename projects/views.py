@@ -75,6 +75,34 @@ from concurrent.futures import (
     ThreadPoolExecutor,
 )
 from django import forms
+from django.contrib import messages
+from django.shortcuts import redirect
+
+from .github_service import (
+    create_github_issue_for_task,
+)
+
+from .models import (
+    GitHubIssueLink,
+)
+import json
+
+from django.http import (
+    HttpResponse,
+    HttpResponseForbidden,
+)
+
+from django.views.decorators.csrf import (
+    csrf_exempt,
+)
+
+from .github_service import (
+    verify_github_webhook,
+)
+
+from .models import (
+    GitHubIssueLink,
+)
 User = get_user_model()
 def record_project_event(
     *,
@@ -9208,3 +9236,201 @@ def handle_workspace_assistant_message(
         "assistant_message": None,
         "update_result": update_result,
     }
+@login_required
+@require_POST
+def create_task_github_issue(
+    request,
+    project_pk,
+    task_pk,
+):
+    project = (
+        get_editable_project_for_user(
+            project_pk=project_pk,
+            user=request.user,
+        )
+    )
+
+    task = get_object_or_404(
+        project.tasks,
+        pk=task_pk,
+    )
+
+    github_repository = getattr(
+        project,
+        "github_repository",
+        None,
+    )
+
+    if github_repository is None:
+        messages.error(
+            request,
+            (
+                "Connect a GitHub repository "
+                "first."
+            ),
+        )
+
+        return redirect(
+            "project_board",
+            project_pk=project.pk,
+        )
+
+    existing_link = getattr(
+        task,
+        "github_issue_link",
+        None,
+    )
+
+    if existing_link is not None:
+        messages.warning(
+            request,
+            (
+                "This task already has a "
+                "GitHub issue."
+            ),
+        )
+
+        return redirect(
+            "project_board",
+            project_pk=project.pk,
+        )
+
+    try:
+        issue_data = (
+            create_github_issue_for_task(
+                github_repository=(
+                    github_repository
+                ),
+                task=task,
+            )
+        )
+
+        GitHubIssueLink.objects.create(
+            task=task,
+            repository=github_repository,
+            issue_id=issue_data["id"],
+            issue_number=(
+                issue_data["number"]
+            ),
+            issue_url=(
+                issue_data["html_url"]
+            ),
+        )
+
+        messages.success(
+            request,
+            (
+                "GitHub issue created "
+                "successfully."
+            ),
+        )
+
+    except Exception as exc:
+        print(
+            "GITHUB ISSUE CREATE ERROR:",
+            repr(exc),
+        )
+
+        messages.error(
+            request,
+            (
+                "Could not create the "
+                "GitHub issue."
+            ),
+        )
+
+    return redirect(
+        "project_board",
+        project_pk=project.pk,
+    )
+@csrf_exempt
+@require_POST
+def github_webhook(
+    request,
+):
+    signature = request.headers.get(
+        "X-Hub-Signature-256",
+        "",
+    )
+
+    if not verify_github_webhook(
+        body=request.body,
+        signature=signature,
+    ):
+        return HttpResponseForbidden(
+            "Invalid signature."
+        )
+
+    event_name = request.headers.get(
+        "X-GitHub-Event",
+        "",
+    )
+
+    if event_name != "issues":
+        return HttpResponse(
+            status=204,
+        )
+
+    payload = json.loads(
+        request.body.decode("utf-8")
+    )
+
+    action = payload.get(
+        "action"
+    )
+
+    issue = payload.get(
+        "issue",
+        {},
+    )
+
+    issue_id = issue.get(
+        "id"
+    )
+
+    if issue_id is None:
+        return HttpResponse(
+            status=204,
+        )
+
+    issue_link = (
+        GitHubIssueLink.objects
+        .select_related(
+            "task",
+        )
+        .filter(
+            issue_id=issue_id,
+        )
+        .first()
+    )
+
+    if issue_link is None:
+        return HttpResponse(
+            status=204,
+        )
+
+    task = issue_link.task
+
+    if action == "closed":
+        task.status = Task.Status.DONE
+
+        task.save(
+            update_fields=[
+                "status",
+            ]
+        )
+
+    elif action == "reopened":
+        task.status = (
+            Task.Status.TODO
+        )
+
+        task.save(
+            update_fields=[
+                "status",
+            ]
+        )
+
+    return HttpResponse(
+        status=204,
+    )

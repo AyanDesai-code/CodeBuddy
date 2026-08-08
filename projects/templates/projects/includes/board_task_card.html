@@ -94,4 +94,32 @@
             </span>
         {% endif %}
     </div>
+    {% if can_edit %}
+    {% if project.github_repository %}
+        {% if task.github_issue_link %}
+            <a
+                href="{{ task.github_issue_link.issue_url }}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="github-issue-link"
+            >
+                GitHub #{{ task.github_issue_link.issue_number }}
+            </a>
+        {% else %}
+            <form
+                method="POST"
+                action="{% url 'create_task_github_issue' project.pk task.pk %}"
+            >
+                {% csrf_token %}
+
+                <button
+                    type="submit"
+                    class="github-issue-button"
+                >
+                    Create GitHub Issue
+                </button>
+            </form>
+        {% endif %}
+    {% endif %}
+{% endif %}
 </article>

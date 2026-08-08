@@ -49,4 +49,6 @@ urlpatterns = [
     path("<int:project_pk>/roles/new/",views.create_project_role,name="create_project_role",),
     path("<int:project_pk>/roles/<int:role_pk>/edit/",views.edit_project_role,name="edit_project_role",),
     path("<int:project_pk>/roles/<int:role_pk>/delete/",views.delete_project_role,name="delete_project_role",),
+    path("projects/<int:project_pk>/tasks/""<int:task_pk>/github-issue/",views.create_task_github_issue,name="create_task_github_issue",),
+    path("github/webhook/",views.github_webhook,name="github_webhook",),
 ]

@@ -364,3 +364,27 @@ POSTHOG_HOST = os.environ.get(
     "POSTHOG_HOST",
     "https://us.i.posthog.com",
 )
+import os
+
+
+GITHUB_APP_ID = os.environ.get(
+    "GITHUB_APP_ID",
+)
+
+GITHUB_APP_PRIVATE_KEY = os.environ.get(
+    "GITHUB_APP_PRIVATE_KEY",
+    "",
+).replace(
+    "\\n",
+    "\n",
+)
+
+GITHUB_WEBHOOK_SECRET = os.environ.get(
+    "GITHUB_WEBHOOK_SECRET",
+    "",
+)
+
+GITHUB_APP_SLUG = os.environ.get(
+    "GITHUB_APP_SLUG",
+    "",
+)
