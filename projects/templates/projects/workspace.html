@@ -6,159 +6,1125 @@
 
 {% block extra_css %}
 <style>
+    .workspace-dashboard {
+        width: 100%;
+        max-width: 1180px;
+        margin: 0 auto;
+
+        display: grid;
+        gap: 26px;
+    }
+
     .workspace-header {
         display: flex;
         justify-content: space-between;
-        gap: 18px;
         align-items: flex-start;
-        margin-bottom: 24px;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .workspace-header h1 {
+        margin: 0;
+
+        font-size: clamp(
+            30px,
+            5vw,
+            44px
+        );
+
+        letter-spacing: -0.035em;
     }
 
     .workspace-header p {
+        max-width: 700px;
+        margin: 8px 0 0;
+
         color: var(--text-muted);
+        line-height: 1.6;
     }
 
-    .metrics {
+    .workspace-header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+    }
+
+
+    /* ---------------------------------
+       Navigation cards
+    --------------------------------- */
+
+    .workspace-links {
         display: grid;
+
         grid-template-columns:
-            repeat(auto-fit, minmax(160px, 1fr));
+            repeat(4, minmax(0, 1fr));
+
         gap: 12px;
-        margin-bottom: 24px;
     }
 
-    .metric-card {
-        background: var(--surface);
+    .workspace-link {
+        min-height: 125px;
+
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+
+        padding: 18px;
+
         border: 1px solid var(--border);
-        border-radius: 11px;
-        padding: 15px;
+        border-radius: 13px;
+
+        background: var(--surface);
+
+        color: var(--text);
+        text-decoration: none;
+
+        transition:
+            transform 0.15s ease,
+            border-color 0.15s ease,
+            background 0.15s ease;
     }
 
-    .metric-value {
-        font-size: 24px;
+    .workspace-link:hover {
+        transform: translateY(-2px);
+
+        border-color: var(--accent);
+
+        background: var(--surface-soft);
+
+        color: var(--text);
+    }
+
+    .workspace-link-icon {
+        font-size: 25px;
+    }
+
+    .workspace-link-title {
+        display: block;
+
+        margin-top: 18px;
+
+        font-size: 16px;
         font-weight: 750;
     }
 
-    .metric-label {
+    .workspace-link-description {
+        display: block;
+
+        margin-top: 4px;
+
+        color: var(--text-muted);
+
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+
+    /* ---------------------------------
+       Secondary links
+    --------------------------------- */
+
+    .workspace-tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+    }
+
+    .workspace-tool {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+
+        padding: 8px 11px;
+
+        border: 1px solid var(--border);
+        border-radius: 8px;
+
+        background: var(--surface-soft);
+        color: var(--text-muted);
+
+        text-decoration: none;
+
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .workspace-tool:hover {
+        border-color: var(--border-strong);
+
+        background: var(--surface-raised);
+        color: var(--text);
+    }
+
+
+    /* ---------------------------------
+       Section heading
+    --------------------------------- */
+
+    .dashboard-section {
+        display: grid;
+        gap: 14px;
+    }
+
+    .dashboard-section-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+
+        flex-wrap: wrap;
+    }
+
+    .dashboard-section-heading h2 {
+        margin: 0;
+
+        font-size: 21px;
+    }
+
+    .dashboard-section-heading p {
+        margin: 0;
+
         color: var(--text-muted);
         font-size: 13px;
     }
 
-    .workspace-grid {
+
+    /* ---------------------------------
+       Base metrics
+    --------------------------------- */
+
+    .metrics-grid {
         display: grid;
+
         grid-template-columns:
-            repeat(auto-fit, minmax(260px, 1fr));
-        gap: 16px;
+            repeat(4, minmax(0, 1fr));
+
+        gap: 12px;
     }
 
-    .folder-card {
-        background: var(--surface);
+    .metric-card {
+        padding: 18px;
+
         border: 1px solid var(--border);
         border-radius: 12px;
-        padding: 18px;
-        box-shadow: var(--shadow);
+
+        background: var(--surface);
     }
 
-    .folder-card h3 {
-        margin-top: 0;
+    .metric-value {
+        font-size: 29px;
+        font-weight: 800;
+
+        letter-spacing: -0.035em;
     }
 
-    .folder-preview {
+    .metric-label {
+        margin-top: 3px;
+
         color: var(--text-muted);
-        display: -webkit-box;
-        -webkit-line-clamp: 5;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
+
+        font-size: 12px;
+        font-weight: 600;
     }
+
+    .metric-subtext {
+        margin-top: 9px;
+
+        color: var(--text-muted);
+
+        font-size: 12px;
+    }
+
+
+    /* ---------------------------------
+       Task progress
+    --------------------------------- */
+
+    .progress-card {
+        padding: 20px;
+
+        border: 1px solid var(--border);
+        border-radius: 13px;
+
+        background: var(--surface);
+    }
+
+    .progress-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 15px;
+
+        margin-bottom: 13px;
+    }
+
+    .progress-card-header strong {
+        font-size: 17px;
+    }
+
+    .progress-card-header span {
+        color: var(--text-muted);
+
+        font-size: 13px;
+    }
+
+    .progress-track {
+        width: 100%;
+        height: 10px;
+
+        overflow: hidden;
+
+        border-radius: 999px;
+
+        background: var(--surface-soft);
+    }
+
+    .progress-bar {
+        height: 100%;
+
+        border-radius: inherit;
+
+        background: var(--accent);
+    }
+
+    .task-status-grid {
+        display: grid;
+
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr));
+
+        gap: 10px;
+
+        margin-top: 16px;
+    }
+
+    .task-status {
+        padding: 11px;
+
+        border: 1px solid var(--border);
+        border-radius: 9px;
+
+        background: var(--surface-soft);
+
+        text-align: center;
+    }
+
+    .task-status strong {
+        display: block;
+
+        font-size: 18px;
+    }
+
+    .task-status span {
+        display: block;
+
+        margin-top: 2px;
+
+        color: var(--text-muted);
+
+        font-size: 11px;
+    }
+
+
+    /* ---------------------------------
+       Project health
+    --------------------------------- */
+
+    .health-card {
+        padding: 20px;
+
+        border: 1px solid var(--border);
+        border-radius: 13px;
+
+        background: var(--surface);
+    }
+
+    .health-top {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+
+        margin-bottom: 16px;
+    }
+
+    .health-score {
+        display: grid;
+        place-items: center;
+
+        width: 68px;
+        height: 68px;
+
+        flex: 0 0 auto;
+
+        border: 1px solid var(--success-border);
+        border-radius: 50%;
+
+        background: var(--success-background);
+
+        color: var(--success);
+
+        font-size: 19px;
+        font-weight: 800;
+    }
+
+    .health-summary h3 {
+        margin: 0;
+
+        font-size: 17px;
+    }
+
+    .health-summary p {
+        margin: 5px 0 0;
+
+        color: var(--text-muted);
+
+        line-height: 1.55;
+    }
+
+    .health-items {
+        display: grid;
+        gap: 8px;
+    }
+
+    .health-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+
+        padding: 10px 11px;
+
+        border: 1px solid var(--border);
+        border-radius: 9px;
+
+        background: var(--surface-soft);
+
+        font-size: 13px;
+    }
+
+    .health-item-icon {
+        flex: 0 0 auto;
+    }
+
+
+    /* ---------------------------------
+       Two-column dashboard
+    --------------------------------- */
+
+    .dashboard-two-column {
+        display: grid;
+
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+        gap: 14px;
+    }
+
+    .dashboard-card {
+        padding: 20px;
+
+        border: 1px solid var(--border);
+        border-radius: 13px;
+
+        background: var(--surface);
+    }
+
+    .dashboard-card h3 {
+        margin: 0 0 14px;
+
+        font-size: 17px;
+    }
+
+    .dashboard-list {
+        display: grid;
+        gap: 9px;
+
+        margin: 0;
+        padding: 0;
+
+        list-style: none;
+    }
+
+    .dashboard-list li {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+
+        padding-bottom: 9px;
+
+        border-bottom:
+            1px solid
+            var(--border);
+
+        font-size: 13px;
+    }
+
+    .dashboard-list li:last-child {
+        padding-bottom: 0;
+
+        border-bottom: 0;
+    }
+
+    .dashboard-list span {
+        color: var(--text-muted);
+    }
+
+
+    /* ---------------------------------
+       Read only
+    --------------------------------- */
 
     .readonly-note {
-        border: 1px solid var(--warning-border);
-        background: var(--warning-background);
-        border-radius: 9px;
         padding: 11px 13px;
-        margin-bottom: 20px;
+
+        border: 1px solid var(--warning-border);
+        border-radius: 9px;
+
+        background: var(--warning-background);
+
         color: #e3b341;
+    }
+
+
+    /* ---------------------------------
+       Responsive
+    --------------------------------- */
+
+    @media (max-width: 900px) {
+        .workspace-links,
+        .metrics-grid {
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+        }
+
+        .dashboard-two-column {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .workspace-links,
+        .metrics-grid,
+        .task-status-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .workspace-header-actions {
+            width: 100%;
+        }
+
+        .workspace-header-actions .button {
+            flex: 1;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="workspace-header">
-    <div>
-        <h1 class="page-heading">
-            {{ project.name|default:"Untitled Project" }}
-        </h1>
-        <p>
-            Your project workspace, tasks, health, and recent changes.
-        </p>
-    </div>
+<div class="workspace-dashboard">
 
-    {% if can_edit %}
+    <!-- PROJECT HEADER -->
+    <header class="workspace-header">
+        <div>
+            <h1>
+                {{ project.name }}
+            </h1>
+
+            {% if project.description %}
+                <p>
+                    {{ project.description }}
+                </p>
+            {% endif %}
+        </div>
+
+        <div class="workspace-header-actions">
+            {% if can_edit %}
+                <a
+                    class="button"
+                    href="{% url 'workspace_assistant' project.pk %}"
+                >
+                    ✨ Ask Projivo
+                </a>
+            {% endif %}
+        </div>
+    </header>
+
+
+    {% if not can_edit %}
+        <div class="readonly-note">
+            You have read-only access to this project.
+        </div>
+    {% endif %}
+
+
+    <!-- MAIN PROJECT LINKS -->
+    <section class="workspace-links">
+
         <a
-            class="button"
+            class="workspace-link"
+            href="{% url 'project_board' project.pk %}"
+        >
+            <div class="workspace-link-icon">
+                ✓
+            </div>
+
+            <div>
+                <span class="workspace-link-title">
+                    Tasks
+                </span>
+
+                <span class="workspace-link-description">
+                    Plan, assign, and complete project work.
+                </span>
+            </div>
+        </a>
+
+
+        <a
+            class="workspace-link"
+            href="{% url 'project_timeline' project.pk %}"
+        >
+            <div class="workspace-link-icon">
+                ◷
+            </div>
+
+            <div>
+                <span class="workspace-link-title">
+                    Timeline
+                </span>
+
+                <span class="workspace-link-description">
+                    See milestones, deadlines, and dependencies.
+                </span>
+            </div>
+        </a>
+
+
+        <!--
+        Replace this URL name with your actual
+        budget route if yours is different.
+        -->
+        <a
+            class="workspace-link"
+            href="{% url 'workspace_folder' project.pk 'budget' %}"
+        >
+            <div class="workspace-link-icon">
+                $
+            </div>
+
+            <div>
+                <span class="workspace-link-title">
+                    Budget
+                </span>
+
+                <span class="workspace-link-description">
+                    Track estimated and actual project costs.
+                </span>
+            </div>
+        </a>
+
+
+        <!--
+        Replace URL if your resource route differs.
+        -->
+        <a
+            class="workspace-link"
+            href="{% url 'workspace_folder' project.pk 'learning_resources' %}"
+        >
+            <div class="workspace-link-icon">
+                ↗
+            </div>
+
+            <div>
+                <span class="workspace-link-title">
+                    Resources
+                </span>
+
+                <span class="workspace-link-description">
+                    Links, documentation, products, and references.
+                </span>
+            </div>
+        </a>
+
+
+        <!--
+        Replace URL if your docs route differs.
+        -->
+        <a
+            class="workspace-link"
+            href="{% url 'workspace_folder' project.pk 'documentation' %}"
+        >
+            <div class="workspace-link-icon">
+                ≡
+            </div>
+
+            <div>
+                <span class="workspace-link-title">
+                    Docs
+                </span>
+
+                <span class="workspace-link-description">
+                    Project notes, specifications, and documentation.
+                </span>
+            </div>
+        </a>
+
+
+        <a
+            class="workspace-link"
             href="{% url 'workspace_assistant' project.pk %}"
         >
-            Update Project
+            <div class="workspace-link-icon">
+                ✦
+            </div>
+
+            <div>
+                <span class="workspace-link-title">
+                    Assistant
+                </span>
+
+                <span class="workspace-link-description">
+                    Ask questions or change the project.
+                </span>
+            </div>
         </a>
-    {% endif %}
-</div>
 
-{% if not can_edit %}
-    <div class="readonly-note">
-        You have read-only access to this project.
-    </div>
-{% endif %}
 
-<div class="metrics">
-    <div class="metric-card">
-        <div class="metric-value">{{ task_progress }}%</div>
-        <div class="metric-label">Task progress</div>
-    </div>
+        <a
+            class="workspace-link"
+            href="{% url 'project_members' project.pk %}"
+        >
+            <div class="workspace-link-icon">
+                ◉
+            </div>
 
-    <div class="metric-card">
-        <div class="metric-value">
-            {% if health_score != None %}
-                {{ health_score }}%
-            {% else %}
-                —
-            {% endif %}
+            <div>
+                <span class="workspace-link-title">
+                    Members
+                </span>
+
+                <span class="workspace-link-description">
+                    Manage collaborators, roles, and permissions.
+                </span>
+            </div>
+        </a>
+
+
+        <!--
+        Point this at your GitHub page once
+        your integration view is ready.
+        -->
+        <div class="workspace-link">
+            <div class="workspace-link-icon">
+                &lt;/&gt;
+            </div>
+
+            <div>
+                <span class="workspace-link-title">
+                    GitHub
+                </span>
+
+                <span class="workspace-link-description">
+                    Connect tasks and development activity.
+                </span>
+            </div>
         </div>
-        <div class="metric-label">Health score</div>
+
+    </section>
+
+
+    <!-- SECONDARY PROJECT TOOLS -->
+    <div class="workspace-tools">
+        <a
+            class="workspace-tool"
+            href="{% url 'project_review' project.pk %}"
+        >
+            Project Review
+        </a>
+
+        <a
+            class="workspace-tool"
+            href="{% url 'project_activity' project.pk %}"
+        >
+            Activity
+        </a>
+
+        <a
+            class="workspace-tool"
+            href="{% url 'project_change_history' project.pk %}"
+        >
+            History
+        </a>
     </div>
 
-    <div class="metric-card">
-        <div class="metric-value">{{ open_conflict_count }}</div>
-        <div class="metric-label">Open conflicts</div>
-    </div>
 
-    <div class="metric-card">
-        <div class="metric-value">{{ completed_tasks }}/{{ total_tasks }}</div>
-        <div class="metric-label">Tasks complete</div>
-    </div>
-</div>
+    <!-- PROJECT SNAPSHOT -->
+    <section class="dashboard-section">
+        <div class="dashboard-section-heading">
+            <h2>
+                Project snapshot
+            </h2>
 
-<h2>Workspace</h2>
+            <p>
+                Live statistics from your project.
+            </p>
+        </div>
 
-<div class="workspace-grid">
-    {% for folder in folders %}
-        <article class="folder-card">
+        <div class="metrics-grid">
+
+            <div class="metric-card">
+                <div class="metric-value">
+                    {% if health_score != None %}
+                        {{ health_score }}%
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
+
+                <div class="metric-label">
+                    Health score
+                </div>
+            </div>
+
+
+            <div class="metric-card">
+                <div class="metric-value">
+                    {{ completed_tasks }}/{{ total_tasks }}
+                </div>
+
+                <div class="metric-label">
+                    Tasks complete
+                </div>
+            </div>
+
+
+            <div class="metric-card">
+                <div class="metric-value">
+                    {{ open_conflict_count }}
+                </div>
+
+                <div class="metric-label">
+                    Open conflicts
+                </div>
+            </div>
+
+
+            <div class="metric-card">
+                <div class="metric-value">
+                    {{ member_count|default:"—" }}
+                </div>
+
+                <div class="metric-label">
+                    Project members
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+
+    <!-- TASK PROGRESS -->
+    <section class="dashboard-section">
+        <div class="dashboard-section-heading">
+            <h2>
+                Progress
+            </h2>
+
+            <a
+                href="{% url 'project_board' project.pk %}"
+            >
+                Open board →
+            </a>
+        </div>
+
+        <div class="progress-card">
+            <div class="progress-card-header">
+                <strong>
+                    Overall task completion
+                </strong>
+
+                <span>
+                    {{ completed_tasks }}
+                    of
+                    {{ total_tasks }}
+                    complete
+                </span>
+            </div>
+
+            <div class="progress-track">
+                <div
+                    class="progress-bar"
+                    style="
+                        width:
+                        {{ task_completion_percentage|default:0 }}%;
+                    "
+                ></div>
+            </div>
+
+            <div class="task-status-grid">
+                <div class="task-status">
+                    <strong>
+                        {{ todo_count|default:0 }}
+                    </strong>
+
+                    <span>
+                        To do
+                    </span>
+                </div>
+
+                <div class="task-status">
+                    <strong>
+                        {{ in_progress_count|default:0 }}
+                    </strong>
+
+                    <span>
+                        In progress
+                    </span>
+                </div>
+
+                <div class="task-status">
+                    <strong>
+                        {{ review_count|default:0 }}
+                    </strong>
+
+                    <span>
+                        Review
+                    </span>
+                </div>
+
+                <div class="task-status">
+                    <strong>
+                        {{ completed_tasks|default:0 }}
+                    </strong>
+
+                    <span>
+                        Done
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- PROJECT HEALTH -->
+    <section class="dashboard-section">
+        <div class="dashboard-section-heading">
+            <h2>
+                Project health
+            </h2>
+
+            <a
+                href="{% url 'project_review' project.pk %}"
+            >
+                Full review →
+            </a>
+        </div>
+
+        <div class="health-card">
+            <div class="health-top">
+                <div class="health-score">
+                    {% if health_score != None %}
+                        {{ health_score }}%
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
+
+                <div class="health-summary">
+                    <h3>
+                        {% if health_score == None %}
+                            Not reviewed yet
+                        {% elif health_score >= 80 %}
+                            Project looks healthy
+                        {% elif health_score >= 60 %}
+                            Project needs attention
+                        {% else %}
+                            Project is at risk
+                        {% endif %}
+                    </h3>
+
+                    <p>
+                        Based on project tasks,
+                        conflicts, planning, and
+                        the latest saved review.
+                    </p>
+                </div>
+            </div>
+
+            <div class="health-items">
+
+                {% if open_conflict_count %}
+                    <div class="health-item">
+                        <span class="health-item-icon">
+                            ⚠
+                        </span>
+
+                        <div>
+                            {{ open_conflict_count }}
+                            unresolved project
+                            conflict{{ open_conflict_count|pluralize }}.
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="health-item">
+                        <span class="health-item-icon">
+                            ✓
+                        </span>
+
+                        <div>
+                            No open project conflicts.
+                        </div>
+                    </div>
+                {% endif %}
+
+
+                {% if blocked_task_count %}
+                    <div class="health-item">
+                        <span class="health-item-icon">
+                            ⚠
+                        </span>
+
+                        <div>
+                            {{ blocked_task_count }}
+                            blocked
+                            task{{ blocked_task_count|pluralize }}.
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="health-item">
+                        <span class="health-item-icon">
+                            ✓
+                        </span>
+
+                        <div>
+                            No blocked tasks.
+                        </div>
+                    </div>
+                {% endif %}
+
+
+                {% if overdue_task_count %}
+                    <div class="health-item">
+                        <span class="health-item-icon">
+                            ⚠
+                        </span>
+
+                        <div>
+                            {{ overdue_task_count }}
+                            overdue
+                            task{{ overdue_task_count|pluralize }}.
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="health-item">
+                        <span class="health-item-icon">
+                            ✓
+                        </span>
+
+                        <div>
+                            No overdue tasks.
+                        </div>
+                    </div>
+                {% endif %}
+
+            </div>
+        </div>
+    </section>
+
+
+    <!-- BUDGET + TIMELINE SNAPSHOT -->
+    <section class="dashboard-two-column">
+
+        <article class="dashboard-card">
             <h3>
-                <a href="{% url 'workspace_folder' project.pk folder.pk %}">
-                    {{ folder.name }}
-                </a>
+                Budget
             </h3>
 
-            {% if folder.description %}
-                <div class="folder-preview">
-                    {{ folder.description|linebreaks }}
-                </div>
-            {% else %}
-                <p class="folder-preview">Empty section</p>
-            {% endif %}
+            <ul class="dashboard-list">
+                <li>
+                    <span>
+                        Estimated
+                    </span>
+
+                    <strong>
+                        {% if estimated_one_time_total != None %}
+                            ${{ estimated_one_time_total }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </strong>
+                </li>
+
+                <li>
+                    <span>
+                        Spent
+                    </span>
+
+                    <strong>
+                        {% if actual_spent_total != None %}
+                            ${{ actual_spent_total }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </strong>
+                </li>
+
+                <li>
+                    <span>
+                        Monthly
+                    </span>
+
+                    <strong>
+                        {% if estimated_monthly_total != None %}
+                            ${{ estimated_monthly_total }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </strong>
+                </li>
+            </ul>
         </article>
-    {% empty %}
-        <div class="card">
-            No workspace sections exist yet.
-        </div>
-    {% endfor %}
+
+
+        <article class="dashboard-card">
+            <h3>
+                Tasks
+            </h3>
+
+            <ul class="dashboard-list">
+                <li>
+                    <span>
+                        Active
+                    </span>
+
+                    <strong>
+                        {{ active_task_count|default:0 }}
+                    </strong>
+                </li>
+
+                <li>
+                    <span>
+                        Blocked
+                    </span>
+
+                    <strong>
+                        {{ blocked_task_count|default:0 }}
+                    </strong>
+                </li>
+
+                <li>
+                    <span>
+                        Overdue
+                    </span>
+
+                    <strong>
+                        {{ overdue_task_count|default:0 }}
+                    </strong>
+                </li>
+            </ul>
+        </article>
+
+    </section>
+
 </div>
 {% endblock %}
