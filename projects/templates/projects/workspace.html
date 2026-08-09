@@ -15,6 +15,11 @@
         gap: 28px;
     }
 
+
+    /* =========================
+       HEADER
+    ========================= */
+
     .workspace-header {
         display: flex;
         justify-content: space-between;
@@ -37,10 +42,12 @@
     }
 
     .workspace-header p {
-        max-width: 700px;
+        max-width: 720px;
+
         margin: 8px 0 0;
 
         color: var(--text-muted);
+
         line-height: 1.6;
     }
 
@@ -61,9 +68,9 @@
     }
 
 
-    /* =====================================
-       MAIN WORKSPACE LINKS
-    ===================================== */
+    /* =========================
+       MAIN NAVIGATION CARDS
+    ========================= */
 
     .workspace-links {
         display: grid;
@@ -75,7 +82,7 @@
     }
 
     .workspace-link {
-        min-height: 130px;
+        min-height: 132px;
 
         display: flex;
         flex-direction: column;
@@ -141,12 +148,14 @@
 
         border-color: var(--border);
         background: var(--surface);
+
+        color: var(--text);
     }
 
 
-    /* =====================================
-       SECONDARY LINKS
-    ===================================== */
+    /* =========================
+       SECONDARY TOOLS
+    ========================= */
 
     .workspace-tools {
         display: flex;
@@ -182,9 +191,9 @@
     }
 
 
-    /* =====================================
-       DASHBOARD
-    ===================================== */
+    /* =========================
+       DASHBOARD SECTIONS
+    ========================= */
 
     .dashboard-section {
         display: grid;
@@ -210,19 +219,20 @@
         margin: 0;
 
         color: var(--text-muted);
+
         font-size: 13px;
     }
 
 
-    /* =====================================
+    /* =========================
        METRICS
-    ===================================== */
+    ========================= */
 
     .metrics-grid {
         display: grid;
 
         grid-template-columns:
-            repeat(3, minmax(0, 1fr));
+            repeat(4, minmax(0, 1fr));
 
         gap: 12px;
     }
@@ -237,7 +247,7 @@
     }
 
     .metric-value {
-        font-size: 32px;
+        font-size: 30px;
         font-weight: 800;
 
         letter-spacing: -0.035em;
@@ -253,9 +263,71 @@
     }
 
 
-    /* =====================================
-       HEALTH
-    ===================================== */
+    /* =========================
+       PROGRESS
+    ========================= */
+
+    .progress-card {
+        padding: 20px;
+
+        border: 1px solid var(--border);
+        border-radius: 13px;
+
+        background: var(--surface);
+    }
+
+    .progress-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+
+        gap: 14px;
+        flex-wrap: wrap;
+
+        margin-bottom: 13px;
+    }
+
+    .progress-heading strong {
+        font-size: 17px;
+    }
+
+    .progress-heading span {
+        color: var(--text-muted);
+
+        font-size: 13px;
+    }
+
+    .progress-track {
+        width: 100%;
+        height: 10px;
+
+        overflow: hidden;
+
+        border-radius: 999px;
+
+        background: var(--surface-soft);
+    }
+
+    .progress-fill {
+        height: 100%;
+
+        border-radius: inherit;
+
+        background: var(--accent);
+    }
+
+    .progress-number {
+        margin-top: 10px;
+
+        color: var(--text-muted);
+
+        font-size: 13px;
+    }
+
+
+    /* =========================
+       PROJECT HEALTH
+    ========================= */
 
     .health-card {
         padding: 22px;
@@ -292,20 +364,20 @@
         font-weight: 800;
     }
 
-    .health-score.no-score {
+    .health-score.empty {
         border-color: var(--border);
 
         background: var(--surface-soft);
         color: var(--text-muted);
     }
 
-    .health-summary h3 {
+    .health-copy h3 {
         margin: 0;
 
         font-size: 18px;
     }
 
-    .health-summary p {
+    .health-copy p {
         margin: 6px 0 0;
 
         color: var(--text-muted);
@@ -336,25 +408,31 @@
         font-size: 13px;
     }
 
-    .health-item-icon {
-        flex: 0 0 auto;
-        font-weight: 800;
-    }
-
     .health-good {
         color: var(--success);
+        font-weight: 800;
     }
 
     .health-warning {
         color: var(--warning);
+        font-weight: 800;
     }
 
 
-    /* =====================================
-       TASK SNAPSHOT
-    ===================================== */
+    /* =========================
+       BOTTOM CARDS
+    ========================= */
 
-    .task-summary-card {
+    .dashboard-two-column {
+        display: grid;
+
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+        gap: 14px;
+    }
+
+    .dashboard-card {
         padding: 20px;
 
         border: 1px solid var(--border);
@@ -363,79 +441,89 @@
         background: var(--surface);
     }
 
-    .task-summary-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
+    .dashboard-card h3 {
+        margin: 0 0 15px;
 
-        gap: 14px;
-        flex-wrap: wrap;
-    }
-
-    .task-summary-header strong {
         font-size: 17px;
     }
 
-    .task-summary-header span {
-        color: var(--text-muted);
-
-        font-size: 13px;
-    }
-
-    .task-summary-numbers {
+    .dashboard-list {
         display: grid;
+        gap: 0;
 
-        grid-template-columns:
-            repeat(2, minmax(0, 1fr));
+        margin: 0;
+        padding: 0;
 
-        gap: 10px;
-
-        margin-top: 16px;
+        list-style: none;
     }
 
-    .task-summary-number {
-        padding: 14px;
+    .dashboard-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
 
-        border: 1px solid var(--border);
-        border-radius: 9px;
+        gap: 14px;
 
-        background: var(--surface-soft);
+        padding: 10px 0;
+
+        border-bottom:
+            1px solid
+            var(--border);
     }
 
-    .task-summary-number strong {
-        display: block;
-
-        font-size: 22px;
+    .dashboard-list li:first-child {
+        padding-top: 0;
     }
 
-    .task-summary-number span {
+    .dashboard-list li:last-child {
+        padding-bottom: 0;
+
+        border-bottom: 0;
+    }
+
+    .dashboard-list-title {
+        font-size: 13px;
+        font-weight: 650;
+    }
+
+    .dashboard-list-meta {
         display: block;
 
         margin-top: 3px;
 
         color: var(--text-muted);
+
         font-size: 12px;
     }
 
+    .empty-dashboard-message {
+        margin: 0;
 
-    /* =====================================
+        color: var(--text-muted);
+
+        font-size: 13px;
+    }
+
+
+    /* =========================
        RESPONSIVE
-    ===================================== */
+    ========================= */
 
     @media (max-width: 900px) {
-        .workspace-links {
+        .workspace-links,
+        .metrics-grid {
             grid-template-columns:
                 repeat(2, minmax(0, 1fr));
         }
 
-        .metrics-grid {
+        .dashboard-two-column {
             grid-template-columns: 1fr;
         }
     }
 
     @media (max-width: 600px) {
         .workspace-links,
-        .task-summary-numbers {
+        .metrics-grid {
             grid-template-columns: 1fr;
         }
 
@@ -444,7 +532,7 @@
         }
 
         .workspace-header-actions .button {
-            flex: 1;
+            width: 100%;
         }
 
         .health-top {
@@ -458,14 +546,15 @@
 {% block content %}
 <div class="workspace-dashboard">
 
-    <!-- ==============================
+    <!-- =========================
          PROJECT HEADER
-    =============================== -->
+    ========================== -->
 
     <header class="workspace-header">
+
         <div>
             <h1>
-                {{ project.name }}
+                {{ project.name|default:"Untitled Project" }}
             </h1>
 
             {% if project.description %}
@@ -475,14 +564,20 @@
             {% endif %}
         </div>
 
-        <div class="workspace-header-actions">
-            <a
-                class="button"
-                href="{% url 'workspace_assistant' project.pk %}"
-            >
-                ✨ Ask Projivo
-            </a>
-        </div>
+
+        {% if can_edit %}
+            <div class="workspace-header-actions">
+
+                <a
+                    class="button"
+                    href="{% url 'workspace_assistant' project.pk %}"
+                >
+                    ✨ Ask Projivo
+                </a>
+
+            </div>
+        {% endif %}
+
     </header>
 
 
@@ -493,38 +588,43 @@
     {% endif %}
 
 
-    <!-- ==============================
-         MAIN PROJECT LINKS
-    =============================== -->
+    <!-- =========================
+         MAIN LINKS
+    ========================== -->
 
     <section class="workspace-links">
 
+
         <!-- TASKS -->
+
         {% for folder in folders %}
-    {% if folder.folder_type == "tasks" %}
-        <a
-            class="workspace-link"
-            href="{% url 'workspace_folder' project.pk folder.pk %}"
-        >
-            <div class="workspace-link-icon">
-                ✓
-            </div>
+            {% if folder.folder_type == "tasks" %}
 
-            <div>
-                <span class="workspace-link-title">
-                    Tasks
-                </span>
+                <a
+                    class="workspace-link"
+                    href="{% url 'workspace_folder' project.pk folder.pk %}"
+                >
+                    <div class="workspace-link-icon">
+                        ✓
+                    </div>
 
-                <span class="workspace-link-description">
-                    Plan, assign, and complete project work.
-                </span>
-            </div>
-        </a>
-    {% endif %}
-{% endfor %}
+                    <div>
+                        <span class="workspace-link-title">
+                            Tasks
+                        </span>
+
+                        <span class="workspace-link-description">
+                            Plan, assign, and complete project work.
+                        </span>
+                    </div>
+                </a>
+
+            {% endif %}
+        {% endfor %}
 
 
         <!-- TIMELINE -->
+
         <a
             class="workspace-link"
             href="{% url 'project_timeline' project.pk %}"
@@ -545,19 +645,11 @@
         </a>
 
 
-        <!--
-            IMPORTANT:
-
-            workspace_folder expects an actual
-            WorkspaceFolder PK.
-
-            Therefore we find the existing folder
-            first and use folder.pk.
-        -->
+        <!-- BUDGET -->
 
         {% for folder in folders %}
-
             {% if folder.folder_type == "budget" %}
+
                 <a
                     class="workspace-link"
                     href="{% url 'workspace_folder' project.pk folder.pk %}"
@@ -576,10 +668,19 @@
                         </span>
                     </div>
                 </a>
+
             {% endif %}
+        {% endfor %}
 
 
-            {% if folder.folder_type == "learning_resources" or folder.folder_type == "resources" %}
+        <!-- RESOURCES
+             Your generated workspace calls this
+             folder type "learning".
+        -->
+
+        {% for folder in folders %}
+            {% if folder.folder_type == "learning" %}
+
                 <a
                     class="workspace-link"
                     href="{% url 'workspace_folder' project.pk folder.pk %}"
@@ -594,14 +695,20 @@
                         </span>
 
                         <span class="workspace-link-description">
-                            Links, references, tools, and learning material.
+                            References, tutorials, links, and learning material.
                         </span>
                     </div>
                 </a>
+
             {% endif %}
+        {% endfor %}
 
 
+        <!-- DOCUMENTATION -->
+
+        {% for folder in folders %}
             {% if folder.folder_type == "documentation" %}
+
                 <a
                     class="workspace-link"
                     href="{% url 'workspace_folder' project.pk folder.pk %}"
@@ -620,12 +727,13 @@
                         </span>
                     </div>
                 </a>
-            {% endif %}
 
+            {% endif %}
         {% endfor %}
 
 
         <!-- ASSISTANT -->
+
         <a
             class="workspace-link"
             href="{% url 'workspace_assistant' project.pk %}"
@@ -647,6 +755,7 @@
 
 
         <!-- MEMBERS -->
+
         <a
             class="workspace-link"
             href="{% url 'project_members' project.pk %}"
@@ -661,18 +770,17 @@
                 </span>
 
                 <span class="workspace-link-description">
-                    Manage collaborators, roles, and permissions.
+                    Collaborators, roles, responsibilities, and permissions.
                 </span>
             </div>
         </a>
 
 
-        <!--
-            Leave GitHub non-clickable until the
-            GitHub project connection route exists.
-
-            This prevents another NoReverseMatch.
+        <!-- GITHUB
+             Leave non-clickable until your
+             connection page is finished.
         -->
+
         <div
             class="
                 workspace-link
@@ -689,7 +797,7 @@
                 </span>
 
                 <span class="workspace-link-description">
-                    Repository integration coming next.
+                    Connect your repository and development activity.
                 </span>
             </div>
         </div>
@@ -697,9 +805,9 @@
     </section>
 
 
-    <!-- ==============================
-         SECONDARY PROJECT TOOLS
-    =============================== -->
+    <!-- =========================
+         SECONDARY TOOLS
+    ========================== -->
 
     <div class="workspace-tools">
 
@@ -727,9 +835,9 @@
     </div>
 
 
-    <!-- ==============================
+    <!-- =========================
          PROJECT SNAPSHOT
-    =============================== -->
+    ========================== -->
 
     <section class="dashboard-section">
 
@@ -746,8 +854,21 @@
 
         <div class="metrics-grid">
 
-            <!-- HEALTH -->
             <article class="metric-card">
+
+                <div class="metric-value">
+                    {{ task_progress }}%
+                </div>
+
+                <div class="metric-label">
+                    Progress
+                </div>
+
+            </article>
+
+
+            <article class="metric-card">
+
                 <div class="metric-value">
                     {% if health_score != None %}
                         {{ health_score }}%
@@ -759,11 +880,12 @@
                 <div class="metric-label">
                     Health score
                 </div>
+
             </article>
 
 
-            <!-- TASKS -->
             <article class="metric-card">
+
                 <div class="metric-value">
                     {{ completed_tasks }}/{{ total_tasks }}
                 </div>
@@ -771,11 +893,12 @@
                 <div class="metric-label">
                     Tasks complete
                 </div>
+
             </article>
 
 
-            <!-- CONFLICTS -->
             <article class="metric-card">
+
                 <div class="metric-value">
                     {{ open_conflict_count }}
                 </div>
@@ -783,6 +906,7 @@
                 <div class="metric-label">
                     Open conflicts
                 </div>
+
             </article>
 
         </div>
@@ -790,30 +914,40 @@
     </section>
 
 
-    <!-- ==============================
+    <!-- =========================
          TASK PROGRESS
-    =============================== -->
+    ========================== -->
 
     <section class="dashboard-section">
 
         <div class="dashboard-heading">
+
             <h2>
                 Progress
             </h2>
 
-            <a
-                href="{% url 'project_board' project.pk %}"
-            >
-                Open board →
-            </a>
+
+            {% for folder in folders %}
+                {% if folder.folder_type == "tasks" %}
+
+                    <a
+                        href="{% url 'workspace_folder' project.pk folder.pk %}"
+                    >
+                        Open tasks →
+                    </a>
+
+                {% endif %}
+            {% endfor %}
+
         </div>
 
 
-        <article class="task-summary-card">
+        <article class="progress-card">
 
-            <div class="task-summary-header">
+            <div class="progress-heading">
+
                 <strong>
-                    Task completion
+                    Overall task completion
                 </strong>
 
                 <span>
@@ -822,32 +956,22 @@
                     {{ total_tasks }}
                     complete
                 </span>
+
             </div>
 
 
-            <div class="task-summary-numbers">
+            <div class="progress-track">
 
-                <div class="task-summary-number">
-                    <strong>
-                        {{ completed_tasks }}
-                    </strong>
+                <div
+                    class="progress-fill"
+                    style="width: {{ task_progress }}%;"
+                ></div>
 
-                    <span>
-                        Completed
-                    </span>
-                </div>
+            </div>
 
 
-                <div class="task-summary-number">
-                    <strong>
-                        {{ total_tasks }}
-                    </strong>
-
-                    <span>
-                        Total tasks
-                    </span>
-                </div>
-
+            <div class="progress-number">
+                {{ task_progress }}% complete
             </div>
 
         </article>
@@ -855,13 +979,14 @@
     </section>
 
 
-    <!-- ==============================
+    <!-- =========================
          PROJECT HEALTH
-    =============================== -->
+    ========================== -->
 
     <section class="dashboard-section">
 
         <div class="dashboard-heading">
+
             <h2>
                 Project health
             </h2>
@@ -871,6 +996,7 @@
             >
                 Full review →
             </a>
+
         </div>
 
 
@@ -878,40 +1004,39 @@
 
             <div class="health-top">
 
+
                 {% if health_score != None %}
+
                     <div class="health-score">
                         {{ health_score }}%
                     </div>
+
                 {% else %}
-                    <div class="health-score no-score">
+
+                    <div class="health-score empty">
                         —
                     </div>
+
                 {% endif %}
 
 
-                <div class="health-summary">
+                <div class="health-copy">
 
                     <h3>
                         {% if health_score == None %}
-                            No project review yet
-
+                            No review yet
                         {% elif health_score >= 80 %}
                             Project looks healthy
-
                         {% elif health_score >= 60 %}
                             Project needs attention
-
                         {% else %}
                             Project is at risk
-
                         {% endif %}
                     </h3>
 
-
                     <p>
-                        Project health is based on the
-                        latest saved review and detected
-                        project conflicts.
+                        Based on your latest project review,
+                        tasks, and detected conflicts.
                     </p>
 
                 </div>
@@ -921,15 +1046,12 @@
 
             <div class="health-items">
 
+
                 {% if open_conflict_count %}
 
                     <div class="health-item">
-                        <span
-                            class="
-                                health-item-icon
-                                health-warning
-                            "
-                        >
+
+                        <span class="health-warning">
                             ⚠
                         </span>
 
@@ -938,68 +1060,157 @@
                             unresolved project
                             conflict{{ open_conflict_count|pluralize }}.
                         </div>
+
                     </div>
 
                 {% else %}
 
                     <div class="health-item">
-                        <span
-                            class="
-                                health-item-icon
-                                health-good
-                            "
-                        >
+
+                        <span class="health-good">
                             ✓
                         </span>
 
                         <div>
                             No open project conflicts.
                         </div>
+
                     </div>
 
                 {% endif %}
 
 
-                {% if total_tasks %}
+                {% if critical_conflict_count %}
 
                     <div class="health-item">
-                        <span
-                            class="
-                                health-item-icon
-                                health-good
-                            "
-                        >
-                            ✓
-                        </span>
 
-                        <div>
-                            {{ completed_tasks }}
-                            of
-                            {{ total_tasks }}
-                            project tasks are complete.
-                        </div>
-                    </div>
-
-                {% else %}
-
-                    <div class="health-item">
-                        <span
-                            class="
-                                health-item-icon
-                                health-warning
-                            "
-                        >
+                        <span class="health-warning">
                             ⚠
                         </span>
 
                         <div>
-                            No project tasks exist yet.
+                            {{ critical_conflict_count }}
+                            critical
+                            conflict{{ critical_conflict_count|pluralize }}
+                            need attention.
                         </div>
+
                     </div>
 
                 {% endif %}
 
+
+                <div class="health-item">
+
+                    <span class="health-good">
+                        ✓
+                    </span>
+
+                    <div>
+                        {{ completed_tasks }}
+                        of
+                        {{ total_tasks }}
+                        tasks complete.
+                    </div>
+
+                </div>
+
             </div>
+
+        </article>
+
+    </section>
+
+
+    <!-- =========================
+         CURRENT WORK
+    ========================== -->
+
+    <section class="dashboard-two-column">
+
+
+        <!-- HIGH PRIORITY TASKS -->
+
+        <article class="dashboard-card">
+
+            <h3>
+                High priority
+            </h3>
+
+
+            <ul class="dashboard-list">
+
+                {% for task in high_priority_tasks %}
+
+                    <li>
+
+                        <div>
+                            <span class="dashboard-list-title">
+                                {{ task.title }}
+                            </span>
+
+                            <span class="dashboard-list-meta">
+                                {{ task.get_status_display }}
+                            </span>
+                        </div>
+
+                    </li>
+
+                {% empty %}
+
+                    <li>
+                        <p class="empty-dashboard-message">
+                            No incomplete high-priority tasks.
+                        </p>
+                    </li>
+
+                {% endfor %}
+
+            </ul>
+
+        </article>
+
+
+        <!-- RECENT ACTIVITY -->
+
+        <article class="dashboard-card">
+
+            <h3>
+                Recent activity
+            </h3>
+
+
+            <ul class="dashboard-list">
+
+                {% for event in recent_events %}
+
+                    <li>
+
+                        <div>
+
+                            <span class="dashboard-list-title">
+                                {{ event.title }}
+                            </span>
+
+                            <span class="dashboard-list-meta">
+                                {{ event.created_at|date:"M j, g:i A" }}
+                            </span>
+
+                        </div>
+
+                    </li>
+
+                {% empty %}
+
+                    <li>
+                        <p class="empty-dashboard-message">
+                            No recent project activity.
+                        </p>
+                    </li>
+
+                {% endfor %}
+
+            </ul>
 
         </article>
 
