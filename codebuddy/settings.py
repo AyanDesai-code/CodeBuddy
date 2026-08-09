@@ -414,3 +414,4 @@ GITHUB_APP_SLUG = os.environ.get(
     "GITHUB_APP_SLUG",
     "",
 )
+SOCIALACCOUNT_LOGIN_ON_GET = True
