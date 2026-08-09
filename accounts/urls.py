@@ -3,7 +3,6 @@ from django.urls import path
 
 from . import views
 
-
 urlpatterns = [
     path(
         "signup/",
@@ -24,6 +23,7 @@ urlpatterns = [
         auth_views.LogoutView.as_view(),
         name="logout",
     ),
+
     path(
         "password-reset/",
         auth_views.PasswordResetView.as_view(
@@ -55,6 +55,7 @@ urlpatterns = [
         ),
         name="password_reset_complete",
     ),
+
     path(
         "cache-debug/",
         views.cache_debug,
