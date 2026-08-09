@@ -500,9 +500,11 @@
     <section class="workspace-links">
 
         <!-- TASKS -->
+        {% for folder in folders %}
+    {% if folder.folder_type == "tasks" %}
         <a
             class="workspace-link"
-            href="{% url 'task_section' project.pk %}"
+            href="{% url 'workspace_folder' project.pk folder.pk %}"
         >
             <div class="workspace-link-icon">
                 ✓
@@ -518,6 +520,8 @@
                 </span>
             </div>
         </a>
+    {% endif %}
+{% endfor %}
 
 
         <!-- TIMELINE -->
