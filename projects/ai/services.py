@@ -752,7 +752,7 @@ def generate_workspace_content(
         response = client.responses.parse(
             model="gpt-5-mini",
             reasoning={
-                "effort": "medium",
+                "effort": "minimal",
             },
             instructions=WORKSPACE_PROMPT,
             input=conversation,
