@@ -55,12 +55,13 @@ def user_can_edit_project(
     project,
     user,
 ):
+    # The Project.owner always has full access.
+    if project.owner_id == user.id:
+        return True
+
     return project.memberships.filter(
         user=user,
-        role__in=[
-            ProjectMembership.Role.OWNER,
-            ProjectMembership.Role.EDITOR,
-        ],
+        role=ProjectMembership.Role.EDITOR,
     ).exists()
 
 
@@ -69,10 +70,7 @@ def user_is_project_owner(
     project,
     user,
 ):
-    return project.memberships.filter(
-        user=user,
-        role=ProjectMembership.Role.OWNER,
-    ).exists()
+    return project.owner_id == user.id
 
 
 def require_project_editor(
@@ -109,19 +107,17 @@ def project_permission_context(
         .first()
     )
 
-    can_edit = (
-        membership is not None
-        and membership.role
-        in [
-            ProjectMembership.Role.OWNER,
-            ProjectMembership.Role.EDITOR,
-        ]
+    is_owner = (
+        project.owner_id == user.id
     )
 
-    is_owner = (
-        membership is not None
-        and membership.role
-        == ProjectMembership.Role.OWNER
+    can_edit = (
+        is_owner
+        or (
+            membership is not None
+            and membership.role
+            == ProjectMembership.Role.EDITOR
+        )
     )
 
     return {

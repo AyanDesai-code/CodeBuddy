@@ -411,17 +411,19 @@ def normalize_task_title(title):
     }
 
 
+from django.db.models import Q
+
 @login_required
 def project_list(request):
     show_archived = (
-        request.GET.get("archived")
-        == "1"
+        request.GET.get("archived") == "1"
     )
 
     projects = (
         Project.objects
         .filter(
-            memberships__user=request.user
+            Q(owner=request.user) |
+            Q(memberships__user=request.user)
         )
         .select_related("owner")
         .prefetch_related(
@@ -447,9 +449,7 @@ def project_list(request):
     project_cards = []
 
     for project in projects:
-        total_tasks = (
-            project.tasks.count()
-        )
+        total_tasks = project.tasks.count()
 
         completed_tasks = (
             project.tasks
@@ -483,9 +483,7 @@ def project_list(request):
         open_conflict_count = (
             project.conflicts
             .filter(
-                status=(
-                    ProjectConflict.Status.OPEN
-                ),
+                status=ProjectConflict.Status.OPEN,
             )
             .count()
         )
@@ -501,15 +499,9 @@ def project_list(request):
             {
                 "project": project,
                 "total_tasks": total_tasks,
-                "completed_tasks": (
-                    completed_tasks
-                ),
-                "task_progress": (
-                    task_progress
-                ),
-                "health_score": (
-                    health_score
-                ),
+                "completed_tasks": completed_tasks,
+                "task_progress": task_progress,
+                "health_score": health_score,
                 "open_conflict_count": (
                     open_conflict_count
                 ),
@@ -517,7 +509,6 @@ def project_list(request):
             }
         )
 
-    # These belong OUTSIDE the loop.
     owned_active_project_count = (
         get_owned_active_project_count(
             request.user
@@ -542,20 +533,15 @@ def project_list(request):
         {
             "project_cards": project_cards,
             "show_archived": show_archived,
-
-            # Names must match the template.
             "can_create_project": (
                 user_can_create_project
             ),
             "active_project_count": (
                 owned_active_project_count
             ),
-            "project_limit": (
-                project_limit
-            ),
+            "project_limit": project_limit,
         },
     )
-
 @login_required
 @require_POST
 def rename_project(request, project_pk):
