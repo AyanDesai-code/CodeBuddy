@@ -669,6 +669,81 @@
             >
             ☕ Support Projivo
 </a>
+    <!-- PROJECT ROLE DROPDOWN -->
+{% if membership and membership.project_role %}
+    <div class="role-dropdown">
+        <button
+            type="button"
+            class="role-dropdown-button"
+            onclick="toggleRoleDropdown()"
+        >
+            <span class="role-dropdown-icon">👤</span>
+
+            <span class="role-dropdown-label">
+                {{ membership.project_role.name }}
+            </span>
+
+            <span class="role-dropdown-chevron">⌄</span>
+        </button>
+
+        <div
+            id="roleDropdown"
+            class="role-dropdown-menu"
+        >
+            <div class="role-dropdown-header">
+                <span class="role-dropdown-eyebrow">
+                    YOUR ROLE
+                </span>
+
+                <h3>
+                    {{ membership.project_role.name }}
+                </h3>
+
+                {% if membership.project_role.description %}
+                    <p>
+                        {{ membership.project_role.description }}
+                    </p>
+                {% endif %}
+            </div>
+
+            {% if membership.project_role.responsibilities %}
+                <div class="role-dropdown-section">
+                    <div class="role-dropdown-section-title">
+                        Responsibilities
+                    </div>
+
+                    <div class="role-dropdown-text">
+                        {{ membership.project_role.responsibilities|linebreaksbr }}
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if membership.project_role.skills %}
+                <div class="role-dropdown-section">
+                    <div class="role-dropdown-section-title">
+                        Skills
+                    </div>
+
+                    <div class="role-dropdown-text">
+                        {{ membership.project_role.skills|linebreaksbr }}
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if membership.role_notes %}
+                <div class="role-dropdown-section">
+                    <div class="role-dropdown-section-title">
+                        Project Notes
+                    </div>
+
+                    <div class="role-dropdown-text">
+                        {{ membership.role_notes|linebreaksbr }}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
         </div>
     </nav>
 {% endif %}
