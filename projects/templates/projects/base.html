@@ -717,67 +717,6 @@
     </div>
    
 </header>
-
-{% if project %}
-    <nav class="project-nav">
-        <div class="project-nav-inner">
-            <span class="project-title-inline">
-                {{ project.name|default:"Untitled Project" }}
-            </span>
-
-            {% if membership %}
-                <span class="role-badge">
-                    {{ membership.get_role_display }}
-                </span>
-            {% endif %}
-
-            {% if membership and not can_edit %}
-                <span class="readonly-badge">
-                    Read only
-                </span>
-            {% endif %}
-
-            <a href="{% url 'workspace' project.pk %}">
-                Workspace
-            </a>
-
-            <a href="{% url 'workspace_assistant' project.pk %}">
-                Assistant
-            </a>
-
-            <a href="{% url 'project_board' project.pk %}">
-                Board
-            </a>
-
-            <a href="{% url 'project_timeline' project.pk %}">
-                Timeline
-            </a>
-
-            <a href="{% url 'project_review' project.pk %}">
-                Review
-            </a>
-
-            <a href="{% url 'project_activity' project.pk %}">
-                Activity
-            </a>
-
-            <a href="{% url 'project_change_history' project.pk %}">
-                History
-            </a>
-
-            <a href="{% url 'project_members' project.pk %}">
-                Members
-            </a>
-            <a
-                href="https://www.buymeacoffee.com/projivo"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="support-button"
-            >
-            ☕ Support Projivo
-</a>
-    <!-- PROJECT ROLE DROPDOWN -->
-```html
 {% if project %}
 <div class="project-nav">
     <div class="project-nav-inner">
@@ -831,11 +770,10 @@
         </a>
 
         {% if membership and membership.project_role %}
-    <span class="role-badge">
-        {{ membership.project_role.name }}
-    </span>
-{% endif %}
-
+            <span class="role-badge">
+                {{ membership.project_role.name }}
+            </span>
+        {% endif %}
 
         <a
             href="https://www.buymeacoffee.com/projivo"
@@ -848,13 +786,6 @@
 
     </div>
 </div>
-{% endif %}
-
-        </div>
-    </div>
-{% endif %}
-        </div>
-    </nav>
 {% endif %}
 
 {% if messages %}
@@ -969,32 +900,29 @@
     </script>
 {% endif %}
 
-{% block extra_js %}
-
-{% endblock %}
 
 {% if POSTHOG_KEY and request.user.is_authenticated %}
-    <script>
-        const logoutForm =
-            document.getElementById(
-                "logout-form"
-            );
+<script>
+    const logoutForm =
+        document.getElementById(
+            "logout-form"
+        );
 
-        if (logoutForm) {
-            logoutForm.addEventListener(
-                "submit",
-                function () {
-                    if (
-                        window.posthog
-                        && typeof posthog.reset
-                            === "function"
-                    ) {
-                        posthog.reset();
-                    }
+    if (logoutForm) {
+        logoutForm.addEventListener(
+            "submit",
+            function () {
+                if (
+                    window.posthog
+                    && typeof posthog.reset
+                        === "function"
+                ) {
+                    posthog.reset();
                 }
-            );
-        }
-    </script>
+            }
+        );
+    }
+</script>
 {% endif %}
 </body>
 </html>
