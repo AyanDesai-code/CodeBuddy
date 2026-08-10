@@ -747,6 +747,11 @@
                 Read only
             </span>
         {% endif %}
+        {% if membership and membership.project_role %}
+            <span class="role-badge">
+                {{ membership.project_role.name }}
+            </span>
+        {% endif %}
 
         <a href="{% url 'workspace' project.pk %}">
             Workspace
@@ -780,11 +785,7 @@
             Members
         </a>
 
-        {% if membership and membership.project_role %}
-            <span class="role-badge">
-                {{ membership.project_role.name }}
-            </span>
-        {% endif %}
+        
        
 
         <a
