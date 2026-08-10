@@ -378,6 +378,113 @@
     border-color: var(--border-strong);
     color: var(--text);
 }
+.nav-role-dropdown {
+    position: relative;
+}
+
+.nav-role-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+
+    padding: 7px 10px;
+
+    border: 1px solid var(--border);
+    border-radius: 7px;
+
+    background: var(--surface-soft);
+    color: var(--text);
+
+    cursor: pointer;
+}
+
+.nav-role-button:hover {
+    border-color: var(--accent);
+    background: var(--surface-raised);
+}
+
+.nav-role-chevron {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.nav-role-menu {
+    display: none;
+
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+
+    width: 340px;
+    max-width: calc(100vw - 40px);
+
+    padding: 16px;
+
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+
+    background: var(--surface);
+    box-shadow: var(--shadow);
+
+    z-index: 100;
+}
+
+.nav-role-menu.open {
+    display: block;
+}
+
+.nav-role-header {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.nav-role-label {
+    margin-bottom: 4px;
+
+    color: var(--text-muted);
+
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.nav-role-header h3 {
+    margin: 0;
+
+    color: var(--text);
+    font-size: 17px;
+}
+
+.nav-role-header p {
+    margin: 6px 0 0;
+
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.nav-role-section {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.nav-role-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.nav-role-section-title {
+    margin-bottom: 5px;
+
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.nav-role-content {
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
 
     </style>
 
@@ -671,101 +778,151 @@
 </a>
     <!-- PROJECT ROLE DROPDOWN -->
 ```html
-{% if membership %}
-    <span class="project-role">
-        {{ membership.get_role_display }}
-    </span>
+{% if project %}
+<div class="project-nav">
+    <div class="project-nav-inner">
 
-    {% if membership.role == "viewer" %}
-        <span class="project-permission">
-            Read only
+        <span class="project-title-inline">
+            {{ project.name|default:"Untitled Project" }}
         </span>
-    {% endif %}
 
-    {% if membership.project_role %}
-        <div class="nav-role-dropdown">
+        {% if membership %}
+            <span class="role-badge">
+                {{ membership.get_role_display }}
+            </span>
+        {% endif %}
 
-            <button
-                type="button"
-                class="nav-role-button"
-                onclick="toggleNavRoleDropdown(event)"
-            >
-                <span>
-                    {{ membership.project_role.name }}
-                </span>
+        {% if membership and not can_edit %}
+            <span class="readonly-badge">
+                Read only
+            </span>
+        {% endif %}
 
-                <span class="nav-role-chevron">
-                    ▾
-                </span>
-            </button>
+        <a href="{% url 'workspace' project.pk %}">
+            Workspace
+        </a>
 
-            <div
-                id="navRoleDropdown"
-                class="nav-role-menu"
-            >
-                <div class="nav-role-header">
+        <a href="{% url 'workspace_assistant' project.pk %}">
+            Assistant
+        </a>
 
-                    <div class="nav-role-label">
-                        YOUR ROLE
+        <a href="{% url 'project_board' project.pk %}">
+            Board
+        </a>
+
+        <a href="{% url 'project_timeline' project.pk %}">
+            Timeline
+        </a>
+
+        <a href="{% url 'project_review' project.pk %}">
+            Review
+        </a>
+
+        <a href="{% url 'project_activity' project.pk %}">
+            Activity
+        </a>
+
+        <a href="{% url 'project_change_history' project.pk %}">
+            History
+        </a>
+
+        <a href="{% url 'project_members' project.pk %}">
+            Members
+        </a>
+
+        {% if membership and membership.project_role %}
+            <div class="nav-role-dropdown">
+
+                <button
+                    type="button"
+                    class="nav-role-button"
+                    onclick="toggleNavRoleDropdown(event)"
+                >
+                    <span>
+                        {{ membership.project_role.name }}
+                    </span>
+
+                    <span class="nav-role-chevron">
+                        ▾
+                    </span>
+                </button>
+
+                <div
+                    id="navRoleDropdown"
+                    class="nav-role-menu"
+                >
+
+                    <div class="nav-role-header">
+                        <div class="nav-role-label">
+                            YOUR ROLE
+                        </div>
+
+                        <h3>
+                            {{ membership.project_role.name }}
+                        </h3>
+
+                        {% if membership.project_role.description %}
+                            <p>
+                                {{ membership.project_role.description }}
+                            </p>
+                        {% endif %}
                     </div>
 
-                    <h3>
-                        {{ membership.project_role.name }}
-                    </h3>
 
-                    {% if membership.project_role.description %}
-                        <p>
-                            {{ membership.project_role.description }}
-                        </p>
+                    {% if membership.project_role.responsibilities %}
+                        <div class="nav-role-section">
+                            <div class="nav-role-section-title">
+                                Responsibilities
+                            </div>
+
+                            <div class="nav-role-content">
+                                {{ membership.project_role.responsibilities|linebreaksbr }}
+                            </div>
+                        </div>
+                    {% endif %}
+
+
+                    {% if membership.project_role.skills %}
+                        <div class="nav-role-section">
+                            <div class="nav-role-section-title">
+                                Skills
+                            </div>
+
+                            <div class="nav-role-content">
+                                {{ membership.project_role.skills|linebreaksbr }}
+                            </div>
+                        </div>
+                    {% endif %}
+
+
+                    {% if membership.role_notes %}
+                        <div class="nav-role-section">
+                            <div class="nav-role-section-title">
+                                Project Notes
+                            </div>
+
+                            <div class="nav-role-content">
+                                {{ membership.role_notes|linebreaksbr }}
+                            </div>
+                        </div>
                     {% endif %}
 
                 </div>
-
-                {% if membership.project_role.responsibilities %}
-                    <div class="nav-role-section">
-
-                        <div class="nav-role-section-title">
-                            Responsibilities
-                        </div>
-
-                        <div class="nav-role-content">
-                            {{ membership.project_role.responsibilities|linebreaksbr }}
-                        </div>
-
-                    </div>
-                {% endif %}
-
-                {% if membership.project_role.skills %}
-                    <div class="nav-role-section">
-
-                        <div class="nav-role-section-title">
-                            Skills
-                        </div>
-
-                        <div class="nav-role-content">
-                            {{ membership.project_role.skills|linebreaksbr }}
-                        </div>
-
-                    </div>
-                {% endif %}
-
-                {% if membership.role_notes %}
-                    <div class="nav-role-section">
-
-                        <div class="nav-role-section-title">
-                            Project Notes
-                        </div>
-
-                        <div class="nav-role-content">
-                            {{ membership.role_notes|linebreaksbr }}
-                        </div>
-
-                    </div>
-                {% endif %}
-
             </div>
-        </div>
-    {% endif %}
+        {% endif %}
+
+
+        <a
+            href="https://www.buymeacoffee.com/projivo"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="support-button"
+        >
+            ☕ Support Projivo
+        </a>
+
+    </div>
+</div>
 {% endif %}
 
         </div>
@@ -888,6 +1045,46 @@
 {% endif %}
 
 {% block extra_js %}
+<script>
+function toggleNavRoleDropdown(event) {
+    event.stopPropagation();
+
+    const dropdown =
+        document.getElementById("navRoleDropdown");
+
+    if (!dropdown) {
+        return;
+    }
+
+    dropdown.classList.toggle("open");
+}
+
+
+document.addEventListener(
+    "click",
+    function () {
+        const dropdown =
+            document.getElementById("navRoleDropdown");
+
+        if (dropdown) {
+            dropdown.classList.remove("open");
+        }
+    }
+);
+
+
+const navRoleMenu =
+    document.getElementById("navRoleDropdown");
+
+if (navRoleMenu) {
+    navRoleMenu.addEventListener(
+        "click",
+        function (event) {
+            event.stopPropagation();
+        }
+    );
+}
+</script>
 {% endblock %}
 
 {% if POSTHOG_KEY and request.user.is_authenticated %}
