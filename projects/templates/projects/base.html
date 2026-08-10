@@ -831,85 +831,10 @@
         </a>
 
         {% if membership and membership.project_role %}
-            <div class="nav-role-dropdown">
-
-                <button
-                    type="button"
-                    class="nav-role-button"
-                    onclick="toggleNavRoleDropdown(event)"
-                >
-                    <span>
-                        {{ membership.project_role.name }}
-                    </span>
-
-                    <span class="nav-role-chevron">
-                        ▾
-                    </span>
-                </button>
-
-                <div
-                    id="navRoleDropdown"
-                    class="nav-role-menu"
-                >
-
-                    <div class="nav-role-header">
-                        <div class="nav-role-label">
-                            YOUR ROLE
-                        </div>
-
-                        <h3>
-                            {{ membership.project_role.name }}
-                        </h3>
-
-                        {% if membership.project_role.description %}
-                            <p>
-                                {{ membership.project_role.description }}
-                            </p>
-                        {% endif %}
-                    </div>
-
-
-                    {% if membership.project_role.responsibilities %}
-                        <div class="nav-role-section">
-                            <div class="nav-role-section-title">
-                                Responsibilities
-                            </div>
-
-                            <div class="nav-role-content">
-                                {{ membership.project_role.responsibilities|linebreaksbr }}
-                            </div>
-                        </div>
-                    {% endif %}
-
-
-                    {% if membership.project_role.skills %}
-                        <div class="nav-role-section">
-                            <div class="nav-role-section-title">
-                                Skills
-                            </div>
-
-                            <div class="nav-role-content">
-                                {{ membership.project_role.skills|linebreaksbr }}
-                            </div>
-                        </div>
-                    {% endif %}
-
-
-                    {% if membership.role_notes %}
-                        <div class="nav-role-section">
-                            <div class="nav-role-section-title">
-                                Project Notes
-                            </div>
-
-                            <div class="nav-role-content">
-                                {{ membership.role_notes|linebreaksbr }}
-                            </div>
-                        </div>
-                    {% endif %}
-
-                </div>
-            </div>
-        {% endif %}
+    <span class="role-badge">
+        {{ membership.project_role.name }}
+    </span>
+{% endif %}
 
 
         <a
@@ -1045,46 +970,7 @@
 {% endif %}
 
 {% block extra_js %}
-<script>
-function toggleNavRoleDropdown(event) {
-    event.stopPropagation();
 
-    const dropdown =
-        document.getElementById("navRoleDropdown");
-
-    if (!dropdown) {
-        return;
-    }
-
-    dropdown.classList.toggle("open");
-}
-
-
-document.addEventListener(
-    "click",
-    function () {
-        const dropdown =
-            document.getElementById("navRoleDropdown");
-
-        if (dropdown) {
-            dropdown.classList.remove("open");
-        }
-    }
-);
-
-
-const navRoleMenu =
-    document.getElementById("navRoleDropdown");
-
-if (navRoleMenu) {
-    navRoleMenu.addEventListener(
-        "click",
-        function (event) {
-            event.stopPropagation();
-        }
-    );
-}
-</script>
 {% endblock %}
 
 {% if POSTHOG_KEY and request.user.is_authenticated %}
