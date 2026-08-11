@@ -539,6 +539,48 @@
             align-items: flex-start;
         }
     }
+    .workspace-bottom-links {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    gap: 16px;
+    margin-top: 20px;
+    width: 100%;
+}
+
+.workspace-bottom-links .workspace-link {
+    flex: 0 0 300px;
+    width: 300px;
+    max-width: 300px;
+}
+
+.workspace-tools {
+    margin-top: 30px;
+}
+.workspace-bottom-links {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    gap: 16px;
+    margin-top: 20px;
+    width: 100%;
+}
+
+.workspace-bottom-links .workspace-link {
+    flex: 0 0 300px;
+    width: 300px;
+    max-width: 300px;
+}
+
+.workspace-tools {
+    margin-top: 30px;
+}
+
+    @media (max-width: 900px) {
+        .workspace-bottom-links {
+            flex-wrap: wrap;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -704,76 +746,87 @@
         {% endfor %}
 
 
-        <!-- DOCUMENTATION -->
-
-        {% for folder in folders %}
-            {% if folder.folder_type == "documentation" %}
-
-                <a
-                    class="workspace-link"
-                    href="{% url 'workspace_folder' project.pk folder.pk %}"
-                >
-                    <div class="workspace-link-icon">
-                        ≡
-                    </div>
-
-                    <div>
-                        <span class="workspace-link-title">
-                            Docs
-                        </span>
-
-                        <span class="workspace-link-description">
-                            Notes, specifications, and project documentation.
-                        </span>
-                    </div>
-                </a>
-
-            {% endif %}
-        {% endfor %}
+        </section>
 
 
-        <!-- ASSISTANT -->
+<!-- =========================
+     BOTTOM WORKSPACE LINKS
+========================== -->
 
-        <a
-            class="workspace-link"
-            href="{% url 'workspace_assistant' project.pk %}"
-        >
-            <div class="workspace-link-icon">
-                ✦
-            </div>
+<section class="workspace-bottom-links">
 
-            <div>
-                <span class="workspace-link-title">
-                    Assistant
-                </span>
+    <!-- DOCS -->
 
-                <span class="workspace-link-description">
-                    Ask questions or update the project.
-                </span>
-            </div>
-        </a>
+    {% for folder in folders %}
+        {% if folder.folder_type == "documentation" %}
+
+            <a
+                class="workspace-link"
+                href="{% url 'workspace_folder' project.pk folder.pk %}"
+            >
+                <div class="workspace-link-icon">
+                    ≡
+                </div>
+
+                <div>
+                    <span class="workspace-link-title">
+                        Docs
+                    </span>
+
+                    <span class="workspace-link-description">
+                        Notes, specifications, and project documentation.
+                    </span>
+                </div>
+            </a>
+
+        {% endif %}
+    {% endfor %}
 
 
-        <!-- MEMBERS -->
+    <!-- ASSISTANT -->
 
-        <a
-            class="workspace-link"
-            href="{% url 'project_members' project.pk %}"
-        >
-            <div class="workspace-link-icon">
-                ◉
-            </div>
+    <a
+        class="workspace-link"
+        href="{% url 'workspace_assistant' project.pk %}"
+    >
+        <div class="workspace-link-icon">
+            ✦
+        </div>
 
-            <div>
-                <span class="workspace-link-title">
-                    Members
-                </span>
+        <div>
+            <span class="workspace-link-title">
+                Assistant
+            </span>
 
-                <span class="workspace-link-description">
-                    Collaborators, roles, responsibilities, and permissions.
-                </span>
-            </div>
-        </a>
+            <span class="workspace-link-description">
+                Ask questions or update the project.
+            </span>
+        </div>
+    </a>
+
+
+    <!-- MEMBERS -->
+
+    <a
+        class="workspace-link"
+        href="{% url 'project_members' project.pk %}"
+    >
+        <div class="workspace-link-icon">
+            ◉
+        </div>
+
+        <div>
+            <span class="workspace-link-title">
+                Members
+            </span>
+
+            <span class="workspace-link-description">
+                Collaborators, roles, responsibilities, and permissions.
+            </span>
+        </div>
+    </a>
+
+</section>
 
 
         <!-- GITHUB
