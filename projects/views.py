@@ -9420,3 +9420,332 @@ def github_webhook(
     return HttpResponse(
         status=204,
     )
+
+
+class BudgetItemForm(forms.ModelForm):
+    class Meta:
+        model = BudgetItem
+
+        fields = [
+            "name",
+            "description",
+            "category",
+            "requirement_level",
+            "quantity",
+            "unit_cost",
+            "actual_cost",
+            "is_recurring",
+            "is_physical_part",
+            "source_name",
+            "source_url",
+            "alternative_notes",
+        ]
+
+        widgets = {
+            "description": forms.Textarea(
+                attrs={
+                    "rows": 3,
+                }
+            ),
+
+            "alternative_notes": forms.Textarea(
+                attrs={
+                    "rows": 3,
+                }
+            ),
+
+            "source_url": forms.URLInput(),
+        }
+@login_required
+def edit_budget_item(
+    request,
+    project_pk,
+    item_pk,
+):
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    item = get_object_or_404(
+        BudgetItem,
+        pk=item_pk,
+        project=project,
+    )
+
+    if request.method == "POST":
+        form = BudgetItemForm(
+            request.POST,
+            instance=item,
+        )
+
+        if form.is_valid():
+            form.save()
+
+            messages.success(
+                request,
+                "Budget item updated.",
+            )
+
+            budget_folder = (
+                project.workspace_folders
+                .filter(
+                    folder_type="budget",
+                )
+                .first()
+            )
+
+            if budget_folder:
+                return redirect(
+                    "workspace_folder",
+                    project_pk=project.pk,
+                    folder_pk=budget_folder.pk,
+                )
+
+            return redirect(
+                "workspace",
+                project_pk=project.pk,
+            )
+
+    else:
+        form = BudgetItemForm(
+            instance=item,
+        )
+
+    return render(
+        request,
+        "projects/edit_budget_item.html",
+        {
+            "project": project,
+            "item": item,
+            "form": form,
+        },
+    )
+@login_required
+def new_budget_item(
+    request,
+    project_pk,
+):
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    if request.method == "POST":
+        form = BudgetItemForm(
+            request.POST,
+        )
+
+        if form.is_valid():
+            item = form.save(
+                commit=False,
+            )
+
+            item.project = project
+            item.save()
+
+            messages.success(
+                request,
+                "Budget item added.",
+            )
+
+            budget_folder = (
+                project.workspace_folders
+                .filter(
+                    folder_type="budget",
+                )
+                .first()
+            )
+
+            if budget_folder:
+                return redirect(
+                    "workspace_folder",
+                    project_pk=project.pk,
+                    folder_pk=budget_folder.pk,
+                )
+
+            return redirect(
+                "workspace",
+                project_pk=project.pk,
+            )
+
+    else:
+        form = BudgetItemForm()
+
+    return render(
+        request,
+        "projects/edit_budget_item.html",
+        {
+            "project": project,
+            "item": None,
+            "form": form,
+        },
+    )
+@login_required
+@require_POST
+def delete_budget_item(
+    request,
+    project_pk,
+    item_pk,
+):
+    project = get_editable_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    item = get_object_or_404(
+        BudgetItem,
+        pk=item_pk,
+        project=project,
+    )
+
+    item.delete()
+
+    messages.success(
+        request,
+        "Budget item deleted.",
+    )
+
+    budget_folder = (
+        project.workspace_folders
+        .filter(
+            folder_type="budget",
+        )
+        .first()
+    )
+
+    if budget_folder:
+        return redirect(
+            "workspace_folder",
+            project_pk=project.pk,
+            folder_pk=budget_folder.pk,
+        )
+
+    return redirect(
+        "workspace",
+        project_pk=project.pk,
+    )
+from django.db import transaction
+
+from .models import BudgetItem
+
+
+@transaction.atomic
+def apply_budget_actions(
+    *,
+    project,
+    actions,
+):
+    results = []
+
+    for action in actions:
+
+        if action.action == "create":
+            item = BudgetItem.objects.create(
+                project=project,
+                name=action.name or "Budget Item",
+                description=action.description or "",
+                category=action.category or "other",
+                requirement_level=(
+                    action.requirement_level
+                    or "required"
+                ),
+                quantity=action.quantity or 1,
+                unit_cost=action.unit_cost or 0,
+                is_recurring=bool(
+                    action.is_recurring
+                ),
+                is_physical_part=bool(
+                    action.is_physical_part
+                ),
+                source_name=(
+                    action.source_name or ""
+                ),
+                source_url=(
+                    action.source_url or ""
+                ),
+                alternative_notes=(
+                    action.alternative_notes or ""
+                ),
+            )
+
+            results.append(
+                f"Created {item.name}"
+            )
+
+            continue
+
+
+        if action.item_id is None:
+            continue
+
+
+        item = (
+            BudgetItem.objects
+            .filter(
+                pk=action.item_id,
+                project=project,
+            )
+            .first()
+        )
+
+        if item is None:
+            continue
+
+
+        if action.action == "delete":
+            name = item.name
+            item.delete()
+
+            results.append(
+                f"Deleted {name}"
+            )
+
+            continue
+
+
+        if action.action == "update":
+
+            editable_fields = [
+                "name",
+                "description",
+                "category",
+                "requirement_level",
+                "quantity",
+                "unit_cost",
+                "is_recurring",
+                "is_physical_part",
+                "source_name",
+                "source_url",
+                "alternative_notes",
+            ]
+
+            changed_fields = []
+
+            for field_name in editable_fields:
+                value = getattr(
+                    action,
+                    field_name,
+                )
+
+                if value is not None:
+                    setattr(
+                        item,
+                        field_name,
+                        value,
+                    )
+
+                    changed_fields.append(
+                        field_name
+                    )
+
+            if changed_fields:
+                item.save(
+                    update_fields=changed_fields
+                )
+
+                results.append(
+                    f"Updated {item.name}"
+                )
+
+    return results

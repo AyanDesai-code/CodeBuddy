@@ -51,4 +51,7 @@ urlpatterns = [
     path("<int:project_pk>/roles/<int:role_pk>/delete/",views.delete_project_role,name="delete_project_role",),
     path("projects/<int:project_pk>/tasks/""<int:task_pk>/github-issue/",views.create_task_github_issue,name="create_task_github_issue",),
     path("github/webhook/",views.github_webhook,name="github_webhook",),
+    path("projects/<int:project_pk>/budget/new/",views.new_budget_item,name="new_budget_item",),
+    path("projects/<int:project_pk>/budget/<int:item_pk>/edit/",views.edit_budget_item,name="edit_budget_item",),
+    path("projects/<int:project_pk>/budget/<int:item_pk>/delete/",views.delete_budget_item,name="delete_budget_item",),
 ]

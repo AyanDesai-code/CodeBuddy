@@ -70,27 +70,34 @@
     {% endif %}
 
     {% if can_edit %}
-        <div class="budget-toolbar">
-            <form
-                method="POST"
-                action="{% url 'regenerate_project_budget' project.pk %}"
-                class="loading-form"
-            >
-                {% csrf_token %}
+    <div class="budget-toolbar">
+        <a
+            class="button"
+            href="{% url 'new_budget_item' project.pk %}"
+        >
+            + Add Budget Item
+        </a>
 
-                <button
-                    type="submit"
-                    data-loading-text="Regenerating Budget..."
-                >
-                    {% if budget_items %}
-                        Regenerate Budget & Parts
-                    {% else %}
-                        Generate Budget & Parts
-                    {% endif %}
-                </button>
-            </form>
-        </div>
-    {% endif %}
+        <form
+            method="POST"
+            action="{% url 'regenerate_project_budget' project.pk %}"
+            class="loading-form"
+        >
+            {% csrf_token %}
+
+            <button
+                type="submit"
+                data-loading-text="Regenerating Budget..."
+            >
+                {% if budget_items %}
+                    Regenerate Budget & Parts
+                {% else %}
+                    Generate Budget & Parts
+                {% endif %}
+            </button>
+        </form>
+    </div>
+{% endif %}
 
     <div class="budget-table-wrapper">
         <table class="budget-table">
@@ -104,79 +111,113 @@
                     <th>Total</th>
                     <th>Billing</th>
                     <th>Source</th>
+
+                    {% if can_edit %}
+                        <th>Actions</th>
+                    {% endif %}
                 </tr>
             </thead>
 
             <tbody>
-                {% for item in budget_items %}
-                    <tr>
-                        <td>
-                            <strong>
-                                {{ item.name }}
-                            </strong>
+    {% for item in budget_items %}
+        <tr>
+            <td>
+                <strong>
+                    {{ item.name }}
+                </strong>
 
-                            {% if item.description %}
-                                <small>
-                                    {{ item.description }}
-                                </small>
-                            {% endif %}
-                        </td>
+                {% if item.description %}
+                    <small>
+                        {{ item.description }}
+                    </small>
+                {% endif %}
+            </td>
 
-                        <td>
-                            {{ item.get_category_display }}
-                        </td>
+            <td>
+                {{ item.get_category_display }}
+            </td>
 
-                        <td>
-                            {{ item.get_requirement_level_display }}
-                        </td>
+            <td>
+                {{ item.get_requirement_level_display }}
+            </td>
 
-                        <td>
-                            {{ item.quantity }}
-                        </td>
+            <td>
+                {{ item.quantity }}
+            </td>
 
-                        <td>
-                            ${{ item.unit_cost|floatformat:2 }}
-                        </td>
+            <td>
+                ${{ item.unit_cost|floatformat:2 }}
+            </td>
 
-                        <td>
-                            ${{ item.estimated_total|floatformat:2 }}
-                        </td>
+            <td>
+                ${{ item.estimated_total|floatformat:2 }}
+            </td>
 
-                        <td>
-                            {% if item.is_recurring %}
-                                Monthly
-                            {% else %}
-                                One-time
-                            {% endif %}
-                        </td>
+            <td>
+                {% if item.is_recurring %}
+                    Monthly
+                {% else %}
+                    One-time
+                {% endif %}
+            </td>
 
-                        <td>
-                            {% if item.source_url %}
-                                <a
-                                    href="{{ item.source_url }}"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    {% if item.source_name %}
-                                        {{ item.source_name }} ↗
-                                    {% else %}
-                                        View ↗
-                                    {% endif %}
-                                </a>
-                            {% else %}
-                                —
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="8">
-                            No budget items have been
-                            generated yet.
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
+            <td>
+                {% if item.source_url %}
+                    <a
+                        href="{{ item.source_url }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        {% if item.source_name %}
+                            {{ item.source_name }} ↗
+                        {% else %}
+                            View ↗
+                        {% endif %}
+                    </a>
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+
+            {% if can_edit %}
+                <td>
+                    <div class="budget-item-actions">
+
+                        <a
+                            class="budget-edit-link"
+                            href="{% url 'edit_budget_item' project.pk item.pk %}"
+                        >
+                            Edit
+                        </a>
+
+                        <form
+                            method="POST"
+                            action="{% url 'delete_budget_item' project.pk item.pk %}"
+                        >
+                            {% csrf_token %}
+
+                            <button
+                                type="submit"
+                                class="danger-button budget-delete-button"
+                                onclick="return confirm('Delete this budget item?');"
+                            >
+                                Delete
+                            </button>
+                        </form>
+
+                    </div>
+                </td>
+            {% endif %}
+        </tr>
+
+    {% empty %}
+        <tr>
+            <td colspan="{% if can_edit %}9{% else %}8{% endif %}">
+                No budget items have been generated yet.
+            </td>
+        </tr>
+    {% endfor %}
+</tbody>
         </table>
     </div>
 </section>
@@ -211,4 +252,58 @@
             height: 260px;
         }
     }
+    .budget-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+
+    margin: 22px 0;
+}
+
+.budget-toolbar form {
+    margin: 0;
+}
+
+.budget-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.budget-item-actions form {
+    margin: 0;
+}
+
+.budget-edit-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 7px 10px;
+
+    border: 1px solid var(--border-strong);
+    border-radius: 7px;
+
+    background: var(--surface-soft);
+    color: var(--text);
+
+    text-decoration: none;
+
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.budget-edit-link:hover {
+    border-color: var(--accent);
+    background: var(--surface-raised);
+    color: var(--text);
+}
+
+.budget-delete-button {
+    padding: 7px 10px;
+
+    font-size: 12px;
+}
 </style>

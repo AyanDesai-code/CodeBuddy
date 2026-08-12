@@ -1,0 +1,173 @@
+{% extends "projects/base.html" %}
+
+{% block title %}
+    {% if item %}
+        Edit Budget Item
+    {% else %}
+        Add Budget Item
+    {% endif %}
+    | {{ project.name }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .budget-form-shell {
+        width: 100%;
+        max-width: 760px;
+        margin: 0 auto;
+
+        display: grid;
+        gap: 18px;
+    }
+
+    .budget-form-card {
+        padding: 22px;
+
+        border: 1px solid var(--border);
+        border-radius: 13px;
+
+        background: var(--surface);
+    }
+
+    .budget-form {
+        display: grid;
+        gap: 16px;
+    }
+
+    .form-row {
+        display: grid;
+        gap: 6px;
+    }
+
+    .form-row label {
+        color: var(--text-muted);
+
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .form-row input,
+    .form-row select,
+    .form-row textarea {
+        width: 100%;
+
+        padding: 10px 11px;
+
+        border: 1px solid var(--border-strong);
+        border-radius: 8px;
+
+        background: var(--surface-soft);
+        color: var(--text);
+    }
+
+    .form-row input:focus,
+    .form-row select:focus,
+    .form-row textarea:focus {
+        outline: none;
+
+        border-color: var(--accent);
+
+        box-shadow:
+            0 0 0 3px
+            rgba(88, 166, 255, 0.13);
+    }
+
+    .checkbox-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .checkbox-row input {
+        width: auto;
+    }
+
+    .budget-form-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="budget-form-shell">
+
+    <div>
+        <a href="{% url 'workspace' project.pk %}">
+            ← Back to Workspace
+        </a>
+
+        <h1>
+            {% if item %}
+                Edit Budget Item
+            {% else %}
+                Add Budget Item
+            {% endif %}
+        </h1>
+    </div>
+
+
+    <section class="budget-form-card">
+
+        <form
+            method="POST"
+            class="budget-form"
+        >
+            {% csrf_token %}
+
+            {% for field in form %}
+
+                {% if field.field.widget.input_type == "checkbox" %}
+
+                    <div class="checkbox-row">
+                        {{ field }}
+
+                        <label for="{{ field.id_for_label }}">
+                            {{ field.label }}
+                        </label>
+                    </div>
+
+                {% else %}
+
+                    <div class="form-row">
+                        <label for="{{ field.id_for_label }}">
+                            {{ field.label }}
+                        </label>
+
+                        {{ field }}
+
+                        {% if field.errors %}
+                            <div>
+                                {{ field.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                {% endif %}
+
+            {% endfor %}
+
+            <div class="budget-form-actions">
+                <button type="submit">
+                    {% if item %}
+                        Save Changes
+                    {% else %}
+                        Add Item
+                    {% endif %}
+                </button>
+
+                <a
+                    class="button"
+                    href="{% url 'workspace' project.pk %}"
+                >
+                    Cancel
+                </a>
+            </div>
+
+        </form>
+
+    </section>
+
+</div>
+{% endblock %}

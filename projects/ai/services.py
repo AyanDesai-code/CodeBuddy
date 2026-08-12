@@ -1578,7 +1578,58 @@ def build_compact_workspace_text(
         "\n\n".join(section_blocks)
         or "No workspace sections exist."
     )
+def build_compact_budget_text(
+    project,
+) -> str:
+    budget_items = (
+        project.budget_items
+        .order_by("pk")
+    )
 
+    blocks = []
+
+    for item in budget_items:
+        blocks.append(
+            "\n".join(
+                [
+                    f"BUDGET ITEM ID: {item.pk}",
+                    f"NAME: {item.name}",
+                    f"DESCRIPTION: {item.description}",
+                    f"CATEGORY: {item.category}",
+                    (
+                        "REQUIREMENT LEVEL: "
+                        f"{item.requirement_level}"
+                    ),
+                    f"QUANTITY: {item.quantity}",
+                    f"UNIT COST: {item.unit_cost}",
+                    (
+                        "RECURRING: "
+                        f"{item.is_recurring}"
+                    ),
+                    (
+                        "PHYSICAL PART: "
+                        f"{item.is_physical_part}"
+                    ),
+                    (
+                        "SOURCE NAME: "
+                        f"{item.source_name}"
+                    ),
+                    (
+                        "SOURCE URL: "
+                        f"{item.source_url}"
+                    ),
+                    (
+                        "ALTERNATIVE NOTES: "
+                        f"{item.alternative_notes}"
+                    ),
+                ]
+            )
+        )
+
+    return (
+        "\n\n".join(blocks)
+        or "No structured budget items exist."
+    )
 def build_compact_tasks_text(
     project,
 ):
@@ -1803,7 +1854,57 @@ Return only the structured response required by TaskSynchronization.
 class UpdatedWorkspaceSection(BaseModel):
     folder_type: str
     content: str
+from typing import Literal
+from pydantic import BaseModel, Field
 
+
+class BudgetAction(BaseModel):
+    action: Literal[
+        "create",
+        "update",
+        "delete",
+    ]
+
+    item_id: int | None = None
+
+    name: str | None = None
+    description: str | None = None
+
+    category: Literal[
+        "hardware",
+        "electronics",
+        "mechanical",
+        "software",
+        "api",
+        "hosting",
+        "design",
+        "marketing",
+        "labor",
+        "other",
+    ] | None = None
+
+    requirement_level: Literal[
+        "required",
+        "recommended",
+        "optional",
+    ] | None = None
+
+    quantity: int | None = Field(
+        default=None,
+        ge=1,
+    )
+
+    unit_cost: float | None = Field(
+        default=None,
+        ge=0,
+    )
+
+    is_recurring: bool | None = None
+    is_physical_part: bool | None = None
+
+    source_name: str | None = None
+    source_url: str | None = None
+    alternative_notes: str | None = None
 class WorkspaceUpdatePlan(BaseModel):
     summary: str
     canonical_updates: list[CanonicalFactUpdate]
@@ -1827,6 +1928,10 @@ class WorkspaceUpdatePlan(BaseModel):
     tasks_to_add: list[GeneratedTask]
     tasks_to_update: list[TaskToUpdate]
     task_ids_to_remove: list[int]
+
+    budget_actions: list[BudgetAction] = Field(
+        default_factory=list
+    )
 
     task_summary: str
     assistant_message: str
@@ -2063,6 +2168,73 @@ When the user asks about a person's tasks:
 - do not modify the workspace unless the user explicitly asks for a change
 - answer informational questions directly
 
+STRUCTURED BUDGET RULES
+
+Budget items are stored separately in the database.
+
+When the user explicitly requests a change to a budget item,
+use budget_actions.
+
+Supported actions:
+
+create
+update
+delete
+
+For an existing budget item:
+
+- Use its BUDGET ITEM ID.
+- Never invent an item_id.
+- Use "update" when changing an existing item.
+- Use "delete" only when the user explicitly wants the item removed.
+- Include only fields that actually need to change.
+- Leave unrelated fields null.
+
+For a new budget item:
+
+- Use action="create".
+- item_id must be null.
+- Include a clear name.
+- Include quantity and unit_cost when known.
+- Use reasonable category and requirement_level values.
+
+Never modify a budget item merely because the user asks a question.
+
+Examples:
+
+"How much does the Raspberry Pi cost?"
+Do not return a budget action.
+
+"Change the Raspberry Pi to $65."
+Return an update action for the existing Raspberry Pi budget item.
+
+"Remove the Raspberry Pi."
+Return a delete action using its existing item ID.
+
+"Add a $20/month API subscription."
+Return a create action with is_recurring=true.
+
+Do not regenerate or replace the entire structured budget when only
+one or a few items need to change.
+
+The structured database-backed budget is authoritative for individual
+budget items, quantities, prices, recurring status, and sources.
+
+When the user changes only one or more individual budget items:
+
+- use budget_actions
+- do not mark the "budget" workspace section as affected solely because
+  an individual budget item changed
+- do not return replacement text for the budget workspace section
+
+Only mark the "budget" workspace section as affected when the user
+changes a project-level budget assumption, such as:
+
+- the overall target budget
+- contingency strategy
+- cost constraints
+- general budget allocation
+- recurring-cost policy
 """
 class RegeneratedWorkspaceSections(BaseModel):
     sections: list[UpdatedWorkspaceSection]
@@ -2266,6 +2438,9 @@ def generate_workspace_update_plan(
     tasks_text = build_compact_tasks_text(
         project
     )
+    budget_text = build_compact_budget_text(
+        project
+    )
 
     assistant_text = build_recent_workspace_messages(
         project,
@@ -2305,6 +2480,11 @@ CURRENT WORKSPACE:
 CURRENT DATABASE-BACKED TASKS:
 
 {tasks_text}
+
+
+CURRENT DATABASE-BACKED BUDGET:
+
+{budget_text}
 
 
 RECENT WORKSPACE-ASSISTANT CONVERSATION:
@@ -2960,6 +3140,11 @@ def answer_workspace_question(
             project
         )
     )
+    budget_text = (
+        build_compact_budget_text(
+            project
+        )
+    )
 
     team_context = (
         build_project_team_context(
@@ -3004,6 +3189,16 @@ CURRENT WORKSPACE:
 CURRENT DATABASE-BACKED TASKS:
 
 {tasks_text}
+
+
+CURRENT DATABASE-BACKED TASKS:
+
+{tasks_text}
+
+
+CURRENT DATABASE-BACKED BUDGET:
+
+{budget_text}
 
 
 USER QUESTION:
