@@ -129,6 +129,10 @@
         margin-top: 11px;
     }
 
+    /* ------------------------------ */
+    /* FLOWCHART */
+    /* ------------------------------ */
+
     .task-flowchart-card {
         margin-bottom: 28px;
         padding: 22px;
@@ -162,6 +166,7 @@
     }
 
     .flowchart-header-actions a,
+    .flowchart-header-actions button,
     .flowchart-controls button {
         display: inline-flex;
         align-items: center;
@@ -178,9 +183,119 @@
     }
 
     .flowchart-header-actions a:hover,
+    .flowchart-header-actions button:hover,
     .flowchart-controls button:hover {
-        background: var(--surface-hover);
+        background: var(--surface-raised);
     }
+
+    /* ------------------------------ */
+    /* FLOWCHART FILTERS */
+    /* ------------------------------ */
+
+    .flow-filters {
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+
+        margin-bottom: 18px;
+        padding: 14px;
+
+        border: 1px solid var(--border);
+        border-radius: 9px;
+
+        background: var(--surface-soft);
+    }
+
+    .flow-filter-field {
+        display: grid;
+        gap: 5px;
+    }
+
+    .flow-filter-field label {
+        color: var(--text-muted);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .flow-filter-field select,
+    .flow-filter-field input {
+        min-height: 38px;
+        padding: 8px 10px;
+
+        border: 1px solid var(--border);
+        border-radius: 7px;
+
+        background: var(--background);
+        color: var(--text);
+
+        font: inherit;
+    }
+
+    .flow-filter-field select:focus,
+    .flow-filter-field input:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+
+    .flow-filter-search {
+        flex: 1 1 220px;
+    }
+
+    .flow-filter-search input {
+        width: 100%;
+        min-width: 180px;
+    }
+
+    .flow-filter-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .flow-filter-actions button,
+    .flow-filter-actions a {
+        min-height: 38px;
+        padding: 8px 12px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        border: 1px solid var(--border);
+        border-radius: 7px;
+
+        background: var(--surface-raised);
+        color: var(--text);
+
+        font: inherit;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .flow-filter-actions button {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #ffffff;
+    }
+
+    .flow-filter-actions a:hover {
+        border-color: var(--border-strong);
+    }
+
+    .flow-filter-result {
+        width: 100%;
+        margin: 0;
+
+        color: var(--text-muted);
+        font-size: 12px;
+    }
+
+    /* ------------------------------ */
+    /* LEGEND */
+    /* ------------------------------ */
 
     .task-flowchart-legend {
         display: flex;
@@ -257,6 +372,10 @@
         border: 1px solid #64748b;
     }
 
+    /* ------------------------------ */
+    /* GRAPH CONTROLS */
+    /* ------------------------------ */
+
     .flowchart-controls {
         display: flex;
         gap: 8px;
@@ -277,9 +396,11 @@
         overflow: hidden;
         min-height: 360px;
         padding: 0;
+
         background: var(--background);
         border: 1px solid var(--border);
         border-radius: 9px;
+
         cursor: grab;
         user-select: none;
         touch-action: none;
@@ -293,6 +414,7 @@
         display: inline-block;
         min-width: max-content;
         padding: 28px;
+
         transform-origin: top left;
         will-change: transform;
     }
@@ -330,17 +452,19 @@
         position: fixed;
         inset: 0;
         z-index: 10000;
+
         margin: 0;
         border: 0;
         border-radius: 0;
         padding: 22px;
+
         background: var(--background);
         overflow: auto;
     }
 
     .task-flowchart-card.is-fullscreen
     .task-flowchart-wrapper {
-        min-height: calc(100vh - 230px);
+        min-height: calc(100vh - 300px);
     }
 
     body.flowchart-fullscreen-open {
@@ -383,11 +507,27 @@
             display: inline-block;
             margin-top: 8px;
         }
+
+        .flow-filters {
+            display: grid;
+        }
+
+        .flow-filter-field,
+        .flow-filter-search {
+            width: 100%;
+        }
+
+        .flow-filter-field select,
+        .flow-filter-field input {
+            width: 100%;
+        }
     }
 </style>
 {% endblock %}
 
+
 {% block content %}
+
 <div class="timeline-toolbar">
     <a href="{% url 'workspace' project.pk %}">
         ← Back to Workspace
@@ -415,6 +555,7 @@
     {% endif %}
 </div>
 
+
 {% if schedule_message %}
     <div
         class="
@@ -430,17 +571,25 @@
     </div>
 {% endif %}
 
+
 {% if project.schedule_needs_refresh %}
     <div class="notice warning">
-        <strong>Schedule may be out of date.</strong>
+        <strong>
+            Schedule may be out of date.
+        </strong>
 
         {% if project.schedule_refresh_reason %}
-            <p>{{ project.schedule_refresh_reason }}</p>
+            <p>
+                {{ project.schedule_refresh_reason }}
+            </p>
         {% endif %}
     </div>
 {% endif %}
 
-<h1>{{ project.name }} Timeline</h1>
+
+<h1>
+    {{ project.name }} Timeline
+</h1>
 
 <p class="timeline-summary">
     Tasks grouped by milestone, dates, and dependencies.
@@ -453,17 +602,23 @@
     </p>
 {% endif %}
 
+
 <div class="timeline-metrics">
     <div class="timeline-metric">
-        <strong>{{ blocked_tasks|length }}</strong>
+        <strong>
+            {{ blocked_tasks|length }}
+        </strong>
         blocked
     </div>
 
     <div class="timeline-metric">
-        <strong>{{ overdue_tasks|length }}</strong>
+        <strong>
+            {{ overdue_tasks|length }}
+        </strong>
         overdue
     </div>
 </div>
+
 
 <section
     class="task-flowchart-card"
@@ -471,7 +626,9 @@
 >
     <div class="task-flowchart-header">
         <div>
-            <h2>Task Flow</h2>
+            <h2>
+                Task Flow
+            </h2>
 
             <p>
                 Generated from live task dependencies.
@@ -493,30 +650,211 @@
         </div>
     </div>
 
+
+    <!-- FLOWCHART FILTERS -->
+
+    <form
+        method="GET"
+        class="flow-filters"
+    >
+        <div class="flow-filter-field">
+            <label for="flow-milestone">
+                Milestone
+            </label>
+
+            <select
+                name="milestone"
+                id="flow-milestone"
+            >
+                <option value="">
+                    All milestones
+                </option>
+
+                {% for milestone in milestones %}
+                    <option
+                        value="{{ milestone.pk }}"
+                        {% if milestone_filter == milestone.pk|stringformat:"s" %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ milestone.name }}
+                    </option>
+                {% endfor %}
+
+                <option
+                    value="none"
+                    {% if milestone_filter == "none" %}
+                        selected
+                    {% endif %}
+                >
+                    No milestone
+                </option>
+            </select>
+        </div>
+
+
+        <div class="flow-filter-field">
+            <label for="flow-status">
+                Status
+            </label>
+
+            <select
+                name="status"
+                id="flow-status"
+            >
+                <option value="">
+                    All statuses
+                </option>
+
+                {% for value, label in status_choices %}
+                    <option
+                        value="{{ value }}"
+                        {% if status_filter == value %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ label }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+
+        <div
+            class="
+                flow-filter-field
+                flow-filter-search
+            "
+        >
+            <label for="flow-search">
+                Search
+            </label>
+
+            <input
+                type="search"
+                name="q"
+                id="flow-search"
+                value="{{ search_query }}"
+                placeholder="Search tasks..."
+            >
+        </div>
+
+
+        <div class="flow-filter-field">
+            <label for="flow-mode">
+                View
+            </label>
+
+            <select
+                name="flow"
+                id="flow-mode"
+            >
+                <option
+                    value="all"
+                    {% if flow_filter == "all" %}
+                        selected
+                    {% endif %}
+                >
+                    All tasks
+                </option>
+
+                <option
+                    value="blocked"
+                    {% if flow_filter == "blocked" %}
+                        selected
+                    {% endif %}
+                >
+                    Blocked only
+                </option>
+
+                <option
+                    value="incomplete"
+                    {% if flow_filter == "incomplete" %}
+                        selected
+                    {% endif %}
+                >
+                    Incomplete only
+                </option>
+            </select>
+        </div>
+
+
+        <div class="flow-filter-actions">
+            <button type="submit">
+                Apply
+            </button>
+
+            <a
+                href="{% url 'project_timeline' project.pk %}"
+            >
+                Reset
+            </a>
+        </div>
+
+
+        <p class="flow-filter-result">
+            Showing {{ flow_task_count }} task{{ flow_task_count|pluralize }}
+            in the dependency graph.
+        </p>
+    </form>
+
+
+    <!-- LEGEND -->
+
     <div class="task-flowchart-legend">
         <div class="legend-group">
             <span class="legend-item">
-                <span class="legend-dot legend-todo"></span>
+                <span
+                    class="
+                        legend-dot
+                        legend-todo
+                    "
+                ></span>
+
                 To Do
             </span>
 
             <span class="legend-item">
-                <span class="legend-dot legend-progress"></span>
+                <span
+                    class="
+                        legend-dot
+                        legend-progress
+                    "
+                ></span>
+
                 In Progress
             </span>
 
             <span class="legend-item">
-                <span class="legend-dot legend-review"></span>
+                <span
+                    class="
+                        legend-dot
+                        legend-review
+                    "
+                ></span>
+
                 Review
             </span>
 
             <span class="legend-item">
-                <span class="legend-dot legend-done"></span>
+                <span
+                    class="
+                        legend-dot
+                        legend-done
+                    "
+                ></span>
+
                 Done
             </span>
 
             <span class="legend-item">
-                <span class="legend-dot legend-blocked"></span>
+                <span
+                    class="
+                        legend-dot
+                        legend-blocked
+                    "
+                ></span>
+
                 Blocked
             </span>
         </div>
@@ -525,23 +863,43 @@
 
         <div class="legend-group">
             <span class="legend-item">
-                <span class="legend-border legend-high"></span>
+                <span
+                    class="
+                        legend-border
+                        legend-high
+                    "
+                ></span>
+
                 High priority
             </span>
 
             <span class="legend-item">
-                <span class="legend-border legend-medium"></span>
+                <span
+                    class="
+                        legend-border
+                        legend-medium
+                    "
+                ></span>
+
                 Medium priority
             </span>
 
             <span class="legend-item">
-                <span class="legend-border legend-low"></span>
+                <span
+                    class="
+                        legend-border
+                        legend-low
+                    "
+                ></span>
+
                 Low priority
             </span>
         </div>
     </div>
 
+
     {% if task_flowchart %}
+
         <div class="flowchart-controls">
             <button
                 type="button"
@@ -581,6 +939,7 @@
             </button>
         </div>
 
+
         <div
             class="task-flowchart-wrapper"
             id="task-flowchart-wrapper"
@@ -597,23 +956,33 @@
             Drag to pan. Use the mouse wheel to zoom.
             Click a task node to open it.
         </p>
+
     {% else %}
+
         <div class="empty-flowchart">
-            Add tasks to generate a task flowchart.
+            No tasks match the current filters.
         </div>
+
     {% endif %}
 </section>
 
+
 <div id="task-list"></div>
+
 
 {% for milestone in milestones %}
     <section class="milestone">
+
         <div class="milestone-header">
             <div>
-                <h2>{{ milestone.name }}</h2>
+                <h2>
+                    {{ milestone.name }}
+                </h2>
 
                 {% if milestone.description %}
-                    <p>{{ milestone.description }}</p>
+                    <p>
+                        {{ milestone.description }}
+                    </p>
                 {% endif %}
             </div>
 
@@ -626,36 +995,54 @@
             </div>
         </div>
 
+
         <ul class="task-list">
             {% for task in milestone.tasks.all %}
+
                 {% include "projects/includes/timeline_task.html" %}
+
             {% empty %}
+
                 <li class="task-card">
                     No tasks assigned to this milestone.
                 </li>
+
             {% endfor %}
         </ul>
+
     </section>
+
 {% empty %}
+
     <div class="card">
         No milestones have been created yet.
     </div>
+
 {% endfor %}
 
+
 <section class="unscheduled">
-    <h2>Tasks Without a Milestone</h2>
+    <h2>
+        Tasks Without a Milestone
+    </h2>
 
     <ul class="task-list">
         {% for task in unscheduled_tasks %}
+
             {% include "projects/includes/timeline_task.html" %}
+
         {% empty %}
+
             <li class="task-card">
                 Every task is assigned to a milestone.
             </li>
+
         {% endfor %}
     </ul>
 </section>
+
 {% endblock %}
+
 
 {% block extra_js %}
 <script type="module">
@@ -665,6 +1052,7 @@
         startOnLoad: false,
         securityLevel: "loose",
         theme: "base",
+
         flowchart: {
             useMaxWidth: false,
             htmlLabels: true,
@@ -672,12 +1060,14 @@
             nodeSpacing: 45,
             rankSpacing: 70,
         },
+
         themeVariables: {
             fontFamily: "inherit",
             fontSize: "14px",
             lineColor: "#64748b",
         },
     });
+
 
     const diagrams = document.querySelectorAll(
         ".mermaid"
@@ -688,6 +1078,7 @@
             nodes: diagrams,
         });
     }
+
 
     const wrapper = document.getElementById(
         "task-flowchart-wrapper"
@@ -725,6 +1116,7 @@
         "flowchart-fullscreen"
     );
 
+
     if (
         wrapper
         && canvas
@@ -744,6 +1136,7 @@
         let originalTranslateX = 0;
         let originalTranslateY = 0;
 
+
         function clampScale(value) {
             return Math.min(
                 MAX_SCALE,
@@ -753,6 +1146,7 @@
                 )
             );
         }
+
 
         function renderTransform() {
             canvas.style.transform = (
@@ -765,12 +1159,14 @@
             );
         }
 
+
         function setScale(
             nextScale,
             originX = wrapper.clientWidth / 2,
             originY = wrapper.clientHeight / 2,
         ) {
             const previousScale = scale;
+
             const clampedScale = clampScale(
                 nextScale
             );
@@ -804,15 +1200,19 @@
             );
 
             scale = clampedScale;
+
             renderTransform();
         }
+
 
         function resetView() {
             scale = 1;
             translateX = 0;
             translateY = 0;
+
             renderTransform();
         }
+
 
         function fitDiagram() {
             const svg = canvas.querySelector(
@@ -861,8 +1261,10 @@
                 Math.min(
                     availableWidth
                     / diagramWidth,
+
                     availableHeight
                     / diagramHeight,
+
                     1,
                 )
             );
@@ -886,6 +1288,7 @@
             renderTransform();
         }
 
+
         zoomInButton?.addEventListener(
             "click",
             function () {
@@ -894,6 +1297,7 @@
                 );
             }
         );
+
 
         zoomOutButton?.addEventListener(
             "click",
@@ -904,15 +1308,18 @@
             }
         );
 
+
         resetButton?.addEventListener(
             "click",
             resetView
         );
 
+
         fitButton?.addEventListener(
             "click",
             fitDiagram
         );
+
 
         wrapper.addEventListener(
             "wheel",
@@ -942,6 +1349,7 @@
                 setScale(
                     scale
                     + direction * SCALE_STEP,
+
                     originX,
                     originY,
                 );
@@ -950,6 +1358,7 @@
                 passive: false,
             }
         );
+
 
         wrapper.addEventListener(
             "pointerdown",
@@ -965,11 +1374,14 @@
                 }
 
                 dragging = true;
+
                 dragStartX = event.clientX;
                 dragStartY = event.clientY;
+
                 originalTranslateX = (
                     translateX
                 );
+
                 originalTranslateY = (
                     translateY
                 );
@@ -983,6 +1395,7 @@
                 );
             }
         );
+
 
         wrapper.addEventListener(
             "pointermove",
@@ -1007,6 +1420,7 @@
             }
         );
 
+
         function stopDragging(event) {
             if (!dragging) {
                 return;
@@ -1030,6 +1444,7 @@
             }
         }
 
+
         wrapper.addEventListener(
             "pointerup",
             stopDragging
@@ -1039,6 +1454,7 @@
             "pointercancel",
             stopDragging
         );
+
 
         function setFullscreen(
             shouldOpen
@@ -1065,6 +1481,7 @@
             );
         }
 
+
         fullscreenButton?.addEventListener(
             "click",
             function () {
@@ -1076,6 +1493,7 @@
             }
         );
 
+
         document.addEventListener(
             "keydown",
             function (event) {
@@ -1085,10 +1503,13 @@
                         "is-fullscreen"
                     )
                 ) {
-                    setFullscreen(false);
+                    setFullscreen(
+                        false
+                    );
                 }
             }
         );
+
 
         window.addEventListener(
             "resize",
@@ -1102,6 +1523,7 @@
                 }
             }
         );
+
 
         window.setTimeout(
             fitDiagram,

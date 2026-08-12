@@ -5680,105 +5680,6 @@ def escape_mermaid_text(value):
     )
 
 
-def build_task_flowchart(project):
-    tasks = list(
-        project.tasks
-        .prefetch_related("dependencies")
-        .order_by("order", "pk")
-    )
-
-    if not tasks:
-        return ""
-
-    lines = [
-        "flowchart TD",
-    ]
-
-    status_classes = {
-        Task.Status.TODO: "todo",
-        Task.Status.IN_PROGRESS: "inProgress",
-        Task.Status.REVIEW: "review",
-        Task.Status.DONE: "done",
-    }
-
-    task_ids = {
-        task.pk
-        for task in tasks
-    }
-
-    for task in tasks:
-        safe_title = escape_mermaid_text(
-            task.title
-        )
-
-        lines.append(
-            f'T{task.pk}["{safe_title}"]'
-        )
-
-        class_name = status_classes.get(
-            task.status,
-            "todo",
-        )
-
-        lines.append(
-            f"class T{task.pk} {class_name}"
-        )
-
-    connection_count = 0
-
-    for task in tasks:
-        for dependency in task.dependencies.all():
-            if dependency.pk not in task_ids:
-                continue
-
-            lines.append(
-                f"T{dependency.pk} --> T{task.pk}"
-            )
-
-            connection_count += 1
-
-    # If no dependencies exist yet, show tasks
-    # sequentially using their current order.
-    if connection_count == 0:
-        for previous_task, next_task in zip(
-            tasks,
-            tasks[1:],
-        ):
-            lines.append(
-                f"T{previous_task.pk} --> "
-                f"T{next_task.pk}"
-            )
-
-    lines.extend(
-        [
-            (
-                "classDef todo "
-                "fill:#f8fafc,"
-                "stroke:#64748b,"
-                "color:#0f172a"
-            ),
-            (
-                "classDef inProgress "
-                "fill:#dbeafe,"
-                "stroke:#2563eb,"
-                "color:#1e3a8a"
-            ),
-            (
-                "classDef review "
-                "fill:#fef3c7,"
-                "stroke:#d97706,"
-                "color:#78350f"
-            ),
-            (
-                "classDef done "
-                "fill:#dcfce7,"
-                "stroke:#16a34a,"
-                "color:#14532d"
-            ),
-        ]
-    )
-
-    return "\n".join(lines)
 @login_required
 def project_timeline(
     request,
@@ -5812,7 +5713,9 @@ def project_timeline(
 
         unscheduled_tasks = (
             project.tasks
-            .filter(milestone__isnull=True)
+            .filter(
+                milestone__isnull=True,
+            )
             .prefetch_related(
                 "dependencies",
                 "dependents",
@@ -5828,14 +5731,22 @@ def project_timeline(
 
         all_tasks = list(
             project.tasks
+            .select_related(
+                "milestone",
+            )
             .prefetch_related(
                 "dependencies",
                 "dependents",
             )
-            .order_by("order", "pk")
+            .order_by(
+                "order",
+                "pk",
+            )
         )
 
-        print("TIMELINE 5: Checking blocked tasks")
+        print(
+            "TIMELINE 5: Checking blocked tasks"
+        )
 
         blocked_tasks = [
             task
@@ -5843,7 +5754,9 @@ def project_timeline(
             if task.is_blocked
         ]
 
-        print("TIMELINE 6: Checking overdue tasks")
+        print(
+            "TIMELINE 6: Checking overdue tasks"
+        )
 
         overdue_tasks = [
             task
@@ -5851,26 +5764,203 @@ def project_timeline(
             if task.is_overdue
         ]
 
-        print("TIMELINE 7: Building flowchart")
+        # ---------------------------------
+        # FLOWCHART FILTERS
+        # ---------------------------------
 
-        task_flowchart = build_task_flowchart(
-            project
+        milestone_filter = (
+            request.GET.get(
+                "milestone",
+                "",
+            )
+            .strip()
+        )
+
+        status_filter = (
+            request.GET.get(
+                "status",
+                "",
+            )
+            .strip()
+        )
+
+        flow_filter = (
+            request.GET.get(
+                "flow",
+                "all",
+            )
+            .strip()
+        )
+
+        search_query = (
+            request.GET.get(
+                "q",
+                "",
+            )
+            .strip()
         )
 
         print(
-            "TIMELINE 8: Flowchart built:",
+            "TIMELINE 7: Applying "
+            "flowchart filters"
+        )
+
+        flow_tasks = (
+            project.tasks
+            .select_related(
+                "milestone",
+            )
+            .prefetch_related(
+                "dependencies",
+                "dependents",
+            )
+            .order_by(
+                "order",
+                "pk",
+            )
+        )
+
+        # ---------------------------------
+        # MILESTONE FILTER
+        # ---------------------------------
+
+        if milestone_filter:
+            if milestone_filter == "none":
+                flow_tasks = (
+                    flow_tasks.filter(
+                        milestone__isnull=True,
+                    )
+                )
+
+            else:
+                try:
+                    milestone_id = int(
+                        milestone_filter
+                    )
+
+                    flow_tasks = (
+                        flow_tasks.filter(
+                            milestone_id=(
+                                milestone_id
+                            ),
+                        )
+                    )
+
+                except ValueError:
+                    milestone_filter = ""
+
+        # ---------------------------------
+        # STATUS FILTER
+        # ---------------------------------
+
+        valid_statuses = {
+            value
+            for value, _
+            in Task.Status.choices
+        }
+
+        if (
+            status_filter
+            and status_filter
+            in valid_statuses
+        ):
+            flow_tasks = (
+                flow_tasks.filter(
+                    status=status_filter,
+                )
+            )
+
+        else:
+            if status_filter:
+                status_filter = ""
+
+        # ---------------------------------
+        # SEARCH FILTER
+        # ---------------------------------
+
+        if search_query:
+            flow_tasks = (
+                flow_tasks.filter(
+                    Q(
+                        title__icontains=(
+                            search_query
+                        )
+                    )
+                    |
+                    Q(
+                        description__icontains=(
+                            search_query
+                        )
+                    )
+                )
+            )
+
+        # ---------------------------------
+        # SPECIAL FLOW FILTER
+        # ---------------------------------
+
+        if flow_filter == "incomplete":
+            flow_tasks = (
+                flow_tasks.exclude(
+                    status=Task.Status.DONE,
+                )
+            )
+
+        elif flow_filter not in {
+            "all",
+            "blocked",
+            "incomplete",
+        }:
+            flow_filter = "all"
+
+        # Convert to list after database
+        # filtering so Python-only properties
+        # can be checked.
+        flow_tasks = list(
+            flow_tasks
+        )
+
+        if flow_filter == "blocked":
+            flow_tasks = [
+                task
+                for task in flow_tasks
+                if task.is_blocked
+            ]
+
+        print(
+            "TIMELINE 8: Flowchart task count:",
+            len(flow_tasks),
+        )
+
+        print(
+            "TIMELINE 9: Building flowchart"
+        )
+
+        task_flowchart = (
+            build_task_flowchart(
+                project,
+                tasks=flow_tasks,
+            )
+        )
+
+        print(
+            "TIMELINE 10: Flowchart built:",
             len(task_flowchart),
             "characters",
         )
 
-        schedule_message = request.session.pop(
-            "schedule_message",
-            None,
+        schedule_message = (
+            request.session.pop(
+                "schedule_message",
+                None,
+            )
         )
 
-        schedule_message_type = request.session.pop(
-            "schedule_message_type",
-            None,
+        schedule_message_type = (
+            request.session.pop(
+                "schedule_message_type",
+                None,
+            )
         )
 
         permission_context = (
@@ -5880,35 +5970,91 @@ def project_timeline(
             )
         )
 
-        print("TIMELINE 9: Rendering template")
+        print(
+            "TIMELINE 11: Rendering template"
+        )
 
         return render(
             request,
             "projects/project_timeline.html",
             {
                 "project": project,
+
                 "milestones": milestones,
+
                 "unscheduled_tasks": (
                     unscheduled_tasks
                 ),
-                "blocked_tasks": blocked_tasks,
-                "overdue_tasks": overdue_tasks,
+
+                "blocked_tasks": (
+                    blocked_tasks
+                ),
+
+                "overdue_tasks": (
+                    overdue_tasks
+                ),
+
                 "schedule_message": (
                     schedule_message
                 ),
+
                 "schedule_message_type": (
                     schedule_message_type
                 ),
-                "task_flowchart": task_flowchart,
+
+                "task_flowchart": (
+                    task_flowchart
+                ),
+
+                # -------------------------
+                # Flowchart filters
+                # -------------------------
+
+                "milestone_filter": (
+                    milestone_filter
+                ),
+
+                "status_filter": (
+                    status_filter
+                ),
+
+                "flow_filter": (
+                    flow_filter
+                ),
+
+                "search_query": (
+                    search_query
+                ),
+
+                "status_choices": (
+                    Task.Status.choices
+                ),
+
+                "flow_task_count": (
+                    len(flow_tasks)
+                ),
+
                 **permission_context,
             },
         )
 
     except Exception:
-        print("\n" + "=" * 80)
-        print("TIMELINE PAGE FAILED")
+        print(
+            "\n"
+            + "=" * 80
+        )
+
+        print(
+            "TIMELINE PAGE FAILED"
+        )
+
         traceback.print_exc()
-        print("=" * 80 + "\n")
+
+        print(
+            "=" * 80
+            + "\n"
+        )
+
         raise
 def task_depends_on(
     *,
@@ -6920,261 +7066,6 @@ def escape_mermaid_text(value):
     )
 
 
-def build_task_flowchart(project):
-    tasks = list(
-        project.tasks
-        .prefetch_related("dependencies")
-        .order_by("order", "pk")
-    )
-
-    if not tasks:
-        return ""
-
-    lines = [
-        "flowchart TD",
-    ]
-
-    status_classes = {
-        Task.Status.TODO: "todo",
-        Task.Status.IN_PROGRESS: "inProgress",
-        Task.Status.REVIEW: "review",
-        Task.Status.DONE: "done",
-    }
-
-    task_ids = {
-        task.pk
-        for task in tasks
-    }
-
-    for task in tasks:
-        safe_title = escape_mermaid_text(
-            task.title
-        )
-
-        lines.append(
-            f'T{task.pk}["{safe_title}"]'
-        )
-
-        class_name = status_classes.get(
-            task.status,
-            "todo",
-        )
-
-        lines.append(
-            f"class T{task.pk} {class_name}"
-        )
-
-    connection_count = 0
-
-    for task in tasks:
-        for dependency in task.dependencies.all():
-            if dependency.pk not in task_ids:
-                continue
-
-            lines.append(
-                f"T{dependency.pk} --> T{task.pk}"
-            )
-
-            connection_count += 1
-
-    # If no dependencies exist yet, show tasks
-    # sequentially using their current order.
-    if connection_count == 0:
-        for previous_task, next_task in zip(
-            tasks,
-            tasks[1:],
-        ):
-            lines.append(
-                f"T{previous_task.pk} --> "
-                f"T{next_task.pk}"
-            )
-
-    lines.extend(
-        [
-            (
-                "classDef todo "
-                "fill:#f8fafc,"
-                "stroke:#64748b,"
-                "color:#0f172a"
-            ),
-            (
-                "classDef inProgress "
-                "fill:#dbeafe,"
-                "stroke:#2563eb,"
-                "color:#1e3a8a"
-            ),
-            (
-                "classDef review "
-                "fill:#fef3c7,"
-                "stroke:#d97706,"
-                "color:#78350f"
-            ),
-            (
-                "classDef done "
-                "fill:#dcfce7,"
-                "stroke:#16a34a,"
-                "color:#14532d"
-            ),
-        ]
-    )
-
-    return "\n".join(lines)
-def build_task_flowchart(project):
-    tasks = list(
-        project.tasks
-        .prefetch_related(
-            "dependencies",
-        )
-        .order_by(
-            "order",
-            "pk",
-        )
-    )
-
-    if not tasks:
-        return ""
-
-    lines = [
-        "flowchart LR",
-    ]
-
-    task_ids = {
-        task.pk
-        for task in tasks
-    }
-
-    for task in tasks:
-        safe_title = escape_mermaid_text(
-            task.title
-        )
-
-        status_label = (
-            task.get_status_display()
-        )
-
-        priority_label = (
-            task.get_priority_display()
-        )
-
-        node_label = (
-            f"{safe_title}<br/>"
-            f"{status_label} · "
-            f"{priority_label}"
-        )
-
-        lines.append(
-            f'T{task.pk}["{node_label}"]'
-        )
-
-        task_url = reverse(
-            "edit_task",
-            kwargs={
-                "project_pk": project.pk,
-                "task_pk": task.pk,
-            },
-        )
-
-        lines.append(
-            f'click T{task.pk} "{task_url}" '
-            f'"Open {safe_title}"'
-        )
-
-    connection_count = 0
-
-    for task in tasks:
-        for dependency in (
-            task.dependencies.all()
-        ):
-            if dependency.pk not in task_ids:
-                continue
-
-            lines.append(
-                f"T{dependency.pk} --> "
-                f"T{task.pk}"
-            )
-
-            connection_count += 1
-
-    if connection_count == 0:
-        lines.append(
-            'NO_DEPS["No dependencies '
-            'have been defined yet"]'
-        )
-
-        lines.append(
-            "class NO_DEPS empty"
-        )
-
-    for task in tasks:
-        if task.status == Task.Status.DONE:
-            classes = ["done"]
-
-        elif task.status == (
-            Task.Status.IN_PROGRESS
-        ):
-            classes = ["inProgress"]
-
-        elif task.status == Task.Status.REVIEW:
-            classes = ["review"]
-
-        else:
-            classes = ["todo"]
-
-        if task.is_blocked:
-            classes.append("blocked")
-
-        lines.append(
-            f"class T{task.pk} "
-            + ",".join(classes)
-        )
-
-    lines.extend(
-        [
-            (
-                "classDef todo "
-                "fill:#334155,"
-                "stroke:#64748b,"
-                "stroke-width:2px,"
-                "color:#f8fafc"
-            ),
-            (
-                "classDef inProgress "
-                "fill:#1d4ed8,"
-                "stroke:#60a5fa,"
-                "stroke-width:2px,"
-                "color:#ffffff"
-            ),
-            (
-                "classDef review "
-                "fill:#92400e,"
-                "stroke:#f59e0b,"
-                "stroke-width:2px,"
-                "color:#ffffff"
-            ),
-            (
-                "classDef done "
-                "fill:#166534,"
-                "stroke:#4ade80,"
-                "stroke-width:2px,"
-                "color:#ffffff"
-            ),
-            (
-                "classDef blocked "
-                "stroke:#ef4444,"
-                "stroke-width:4px,"
-                "stroke-dasharray:6 3"
-            ),
-            (
-                "classDef empty "
-                "fill:#1e293b,"
-                "stroke:#64748b,"
-                "color:#cbd5e1"
-            ),
-        ]
-    )
-
-    return "\n".join(lines)
-
 @login_required
 @require_POST
 def regenerate_project_budget(
@@ -7977,117 +7868,23 @@ def escape_mermaid_text(value):
         .strip()
     )
 
-
-def build_task_flowchart(project):
-    tasks = list(
-        project.tasks
-        .prefetch_related("dependencies")
-        .order_by("order", "pk")
-    )
-
-    if not tasks:
-        return ""
-
-    lines = [
-        "flowchart TD",
-    ]
-
-    status_classes = {
-        Task.Status.TODO: "todo",
-        Task.Status.IN_PROGRESS: "inProgress",
-        Task.Status.REVIEW: "review",
-        Task.Status.DONE: "done",
-    }
-
-    task_ids = {
-        task.pk
-        for task in tasks
-    }
-
-    for task in tasks:
-        safe_title = escape_mermaid_text(
-            task.title
-        )
-
-        lines.append(
-            f'T{task.pk}["{safe_title}"]'
-        )
-
-        class_name = status_classes.get(
-            task.status,
-            "todo",
-        )
-
-        lines.append(
-            f"class T{task.pk} {class_name}"
-        )
-
-    connection_count = 0
-
-    for task in tasks:
-        for dependency in task.dependencies.all():
-            if dependency.pk not in task_ids:
-                continue
-
-            lines.append(
-                f"T{dependency.pk} --> T{task.pk}"
+def build_task_flowchart(
+    project,
+    tasks=None,
+):
+    if tasks is None:
+        tasks = list(
+            project.tasks
+            .prefetch_related(
+                "dependencies",
             )
-
-            connection_count += 1
-
-    # If no dependencies exist yet, show tasks
-    # sequentially using their current order.
-    if connection_count == 0:
-        for previous_task, next_task in zip(
-            tasks,
-            tasks[1:],
-        ):
-            lines.append(
-                f"T{previous_task.pk} --> "
-                f"T{next_task.pk}"
+            .order_by(
+                "order",
+                "pk",
             )
-
-    lines.extend(
-        [
-            (
-                "classDef todo "
-                "fill:#f8fafc,"
-                "stroke:#64748b,"
-                "color:#0f172a"
-            ),
-            (
-                "classDef inProgress "
-                "fill:#dbeafe,"
-                "stroke:#2563eb,"
-                "color:#1e3a8a"
-            ),
-            (
-                "classDef review "
-                "fill:#fef3c7,"
-                "stroke:#d97706,"
-                "color:#78350f"
-            ),
-            (
-                "classDef done "
-                "fill:#dcfce7,"
-                "stroke:#16a34a,"
-                "color:#14532d"
-            ),
-        ]
-    )
-
-    return "\n".join(lines)
-def build_task_flowchart(project):
-    tasks = list(
-        project.tasks
-        .prefetch_related(
-            "dependencies",
         )
-        .order_by(
-            "order",
-            "pk",
-        )
-    )
+    else:
+        tasks = list(tasks)
 
     if not tasks:
         return ""
@@ -8143,6 +7940,8 @@ def build_task_flowchart(project):
         for dependency in (
             task.dependencies.all()
         ):
+            # Do not draw dependencies to tasks
+            # hidden by the current filters.
             if dependency.pk not in task_ids:
                 continue
 
@@ -8155,8 +7954,8 @@ def build_task_flowchart(project):
 
     if connection_count == 0:
         lines.append(
-            'NO_DEPS["No dependencies '
-            'have been defined yet"]'
+            'NO_DEPS["No visible dependencies '
+            'for this filter"]'
         )
 
         lines.append(
@@ -8172,7 +7971,9 @@ def build_task_flowchart(project):
         ):
             classes = ["inProgress"]
 
-        elif task.status == Task.Status.REVIEW:
+        elif task.status == (
+            Task.Status.REVIEW
+        ):
             classes = ["review"]
 
         else:
@@ -8232,7 +8033,6 @@ def build_task_flowchart(project):
     )
 
     return "\n".join(lines)
-
 @login_required
 @require_POST
 def regenerate_project_budget(
@@ -9735,3 +9535,4 @@ def apply_budget_actions(
                 )
 
     return results
+
