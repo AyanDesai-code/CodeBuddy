@@ -1919,14 +1919,20 @@ def workspace_folder(
 ):
     try:
         print("=" * 70)
-        print("WORKSPACE FOLDER 1: Loading project")
+        print(
+            "WORKSPACE FOLDER 1: "
+            "Loading project"
+        )
 
         project = get_project_for_user(
             project_pk=project_pk,
             user=request.user,
         )
 
-        print("WORKSPACE FOLDER 2: Loading folder")
+        print(
+            "WORKSPACE FOLDER 2: "
+            "Loading folder"
+        )
 
         folder = get_object_or_404(
             WorkspaceFolder,
@@ -1947,7 +1953,10 @@ def workspace_folder(
             )
         )
 
-        # Default values for every folder type.
+        # ---------------------------------
+        # DEFAULT VALUES
+        # ---------------------------------
+
         tasks = None
         resources = None
         budget_items = None
@@ -1958,6 +1967,9 @@ def workspace_folder(
         completed_tasks = 0
         progress = 0
 
+        # Default task sorting.
+        task_list_sort = "chronological"
+
         estimated_one_time_total = Decimal(
             "0.00"
         )
@@ -1965,11 +1977,22 @@ def workspace_folder(
         estimated_monthly_total = Decimal(
             "0.00"
         )
-        labor_total=Decimal("0.00")
 
-        required_total = Decimal("0.00")
-        recommended_total = Decimal("0.00")
-        optional_total = Decimal("0.00")
+        labor_total = Decimal(
+            "0.00"
+        )
+
+        required_total = Decimal(
+            "0.00"
+        )
+
+        recommended_total = Decimal(
+            "0.00"
+        )
+
+        optional_total = Decimal(
+            "0.00"
+        )
 
         physical_parts_total = Decimal(
             "0.00"
@@ -1979,10 +2002,16 @@ def workspace_folder(
             "0.00"
         )
 
-        budget_variance = Decimal("0.00")
+        budget_variance = Decimal(
+            "0.00"
+        )
 
         category_totals = {}
         budget_chart_data = []
+
+        # ---------------------------------
+        # TASKS
+        # ---------------------------------
 
         if folder.folder_type == "tasks":
             print(
@@ -1990,24 +2019,82 @@ def workspace_folder(
                 "Loading tasks"
             )
 
+            task_list_sort = (
+                request.GET.get(
+                    "task_list_sort",
+                    "chronological",
+                )
+                .strip()
+            )
+
+            valid_task_sorts = {
+                "chronological",
+                "highest_priority",
+                "lowest_priority",
+            }
+
+            if (
+                task_list_sort
+                not in valid_task_sorts
+            ):
+                task_list_sort = (
+                    "chronological"
+                )
+
+            if (
+                task_list_sort
+                == "highest_priority"
+            ):
+                task_ordering = [
+                    "-priority",
+                    "due_date",
+                    "order",
+                    "pk",
+                ]
+
+            elif (
+                task_list_sort
+                == "lowest_priority"
+            ):
+                task_ordering = [
+                    "priority",
+                    "due_date",
+                    "order",
+                    "pk",
+                ]
+
+            else:
+                task_ordering = [
+                    "start_date",
+                    "due_date",
+                    "order",
+                    "pk",
+                ]
+
             tasks = (
                 project.tasks
-                .select_related("milestone")
+                .select_related(
+                    "milestone"
+                )
                 .prefetch_related(
                     "dependencies",
                 )
                 .order_by(
-                    "completed",
-                    "order",
-                    "pk",
+                    *task_ordering
                 )
             )
 
-            total_tasks = tasks.count()
+            total_tasks = (
+                project.tasks.count()
+            )
 
-            completed_tasks = tasks.filter(
-                status=Task.Status.DONE,
-            ).count()
+            completed_tasks = (
+                project.tasks
+                .filter(
+                    status=Task.Status.DONE,
+                )
+                .count()
+            )
 
             if total_tasks:
                 progress = round(
@@ -2015,6 +2102,10 @@ def workspace_folder(
                     / total_tasks
                     * 100
                 )
+
+        # ---------------------------------
+        # RESOURCES
+        # ---------------------------------
 
         elif folder.folder_type in {
             "learning",
@@ -2033,7 +2124,11 @@ def workspace_folder(
                     "pk",
                 )
             )
-        
+
+        # ---------------------------------
+        # BUDGET
+        # ---------------------------------
+
         elif folder.folder_type == "budget":
             print(
                 "WORKSPACE FOLDER 4: "
@@ -2062,8 +2157,6 @@ def workspace_folder(
             )
 
             for item in budget_items:
-                # Uses the upgraded property:
-                # quantity * unit_cost
                 item_total = (
                     item.estimated_total
                 )
@@ -2086,7 +2179,9 @@ def workspace_folder(
                     item.category
                     == BudgetItem.Category.LABOR
                 ):
-                    labor_total += item_total
+                    labor_total += (
+                        item_total
+                    )
 
                 elif item.is_recurring:
                     estimated_monthly_total += (
@@ -2104,7 +2199,9 @@ def workspace_folder(
                     .RequirementLevel
                     .REQUIRED
                 ):
-                    required_total += item_total
+                    required_total += (
+                        item_total
+                    )
 
                 elif (
                     item.requirement_level
@@ -2122,20 +2219,23 @@ def workspace_folder(
                     .RequirementLevel
                     .OPTIONAL
                 ):
-                    optional_total += item_total
+                    optional_total += (
+                        item_total
+                    )
 
                 if item.is_physical_part:
                     physical_parts_total += (
                         item_total
                     )
 
-                if item.actual_total is not None:
+                if (
+                    item.actual_total
+                    is not None
+                ):
                     actual_spent_total += (
                         item.actual_total
                     )
 
-            # Compare actual purchases against
-            # estimated one-time costs.
             budget_variance = (
                 actual_spent_total
                 - estimated_one_time_total
@@ -2144,12 +2244,16 @@ def workspace_folder(
             budget_chart_data = [
                 {
                     "category": category,
-                    "amount": float(amount),
+                    "amount": float(
+                        amount
+                    ),
                 }
                 for category, amount
                 in sorted(
                     category_totals.items(),
-                    key=lambda pair: pair[1],
+                    key=lambda pair: (
+                        pair[1]
+                    ),
                     reverse=True,
                 )
             ]
@@ -2166,50 +2270,94 @@ def workspace_folder(
                 "project": project,
                 "folder": folder,
 
+                # -------------------------
                 # Tasks
+                # -------------------------
+
                 "tasks": tasks,
-                "total_tasks": total_tasks,
+
+                "total_tasks": (
+                    total_tasks
+                ),
+
                 "completed_tasks": (
                     completed_tasks
                 ),
-                "progress": progress,
 
+                "progress": (
+                    progress
+                ),
+
+                "task_list_sort": (
+                    task_list_sort
+                ),
+
+                # -------------------------
                 # Resources
+                # -------------------------
+
                 "resources": resources,
 
+                # -------------------------
                 # Budget records
-                "budget_items": budget_items,
-                "physical_parts": physical_parts,
+                # -------------------------
+
+                "budget_items": (
+                    budget_items
+                ),
+
+                "physical_parts": (
+                    physical_parts
+                ),
+
                 "recurring_items": (
                     recurring_items
                 ),
 
+                # -------------------------
                 # Budget totals
+                # -------------------------
+
                 "one_time_total": (
                     estimated_one_time_total
                 ),
+
                 "monthly_total": (
                     estimated_monthly_total
                 ),
-                "required_total": required_total,
+
+                "required_total": (
+                    required_total
+                ),
+
                 "recommended_total": (
                     recommended_total
                 ),
-                "optional_total": optional_total,
+
+                "optional_total": (
+                    optional_total
+                ),
+
                 "physical_parts_total": (
                     physical_parts_total
                 ),
+
                 "actual_spent_total": (
                     actual_spent_total
                 ),
+
                 "budget_variance": (
                     budget_variance
                 ),
+
                 "labor_total": (
                     labor_total
                 ),
 
+                # -------------------------
                 # Chart
+                # -------------------------
+
                 "budget_chart_data": (
                     budget_chart_data
                 ),
@@ -2219,10 +2367,22 @@ def workspace_folder(
         )
 
     except Exception:
-        print("\n" + "=" * 80)
-        print("WORKSPACE FOLDER PAGE FAILED")
+        print(
+            "\n"
+            + "=" * 80
+        )
+
+        print(
+            "WORKSPACE FOLDER PAGE FAILED"
+        )
+
         traceback.print_exc()
-        print("=" * 80 + "\n")
+
+        print(
+            "=" * 80
+            + "\n"
+        )
+
         raise
 @login_required
 def edit_workspace_folder(
@@ -5695,23 +5855,70 @@ def project_timeline(
             user=request.user,
         )
 
+        # ---------------------------------
+        # TASK LIST SORTING
+        # ---------------------------------
+
+        task_list_sort = (
+            request.GET.get(
+                "task_list_sort",
+                "chronological",
+            )
+            .strip()
+        )
+
+        valid_task_sorts = {
+            "chronological",
+            "highest_priority",
+            "lowest_priority",
+        }
+
+        if (
+            task_list_sort
+            not in valid_task_sorts
+        ):
+            task_list_sort = (
+                "chronological"
+            )
+
+        task_list_ordering = (
+            get_task_list_ordering(
+                task_list_sort
+            )
+        )
+
         print(
             "TIMELINE 2: Loading milestones"
         )
 
-        milestones = (
+        milestones = list(
             project.milestones
-            .prefetch_related(
-                "tasks",
-                "tasks__dependencies",
-                "tasks__dependents",
-            )
             .order_by(
                 "order",
                 "target_date",
                 "created_at",
             )
         )
+
+        # Attach a sorted task list to
+        # every milestone.
+        for milestone in milestones:
+            milestone.sorted_tasks = list(
+                project.tasks
+                .filter(
+                    milestone=milestone,
+                )
+                .select_related(
+                    "milestone",
+                )
+                .prefetch_related(
+                    "dependencies",
+                    "dependents",
+                )
+                .order_by(
+                    *task_list_ordering
+                )
+            )
 
         print(
             "TIMELINE 3: Loading "
@@ -5723,14 +5930,15 @@ def project_timeline(
             .filter(
                 milestone__isnull=True,
             )
+            .select_related(
+                "milestone",
+            )
             .prefetch_related(
                 "dependencies",
                 "dependents",
             )
             .order_by(
-                "start_date",
-                "due_date",
-                "order",
+                *task_list_ordering
             )
         )
 
@@ -5991,6 +6199,10 @@ def project_timeline(
             {
                 "project": project,
 
+                # -------------------------
+                # Timeline task lists
+                # -------------------------
+
                 "milestones": (
                     milestones
                 ),
@@ -6003,6 +6215,14 @@ def project_timeline(
                     unscheduled_tasks
                 ),
 
+                "task_list_sort": (
+                    task_list_sort
+                ),
+
+                # -------------------------
+                # Timeline metrics
+                # -------------------------
+
                 "blocked_tasks": (
                     blocked_tasks
                 ),
@@ -6011,6 +6231,10 @@ def project_timeline(
                     overdue_tasks
                 ),
 
+                # -------------------------
+                # Schedule messages
+                # -------------------------
+
                 "schedule_message": (
                     schedule_message
                 ),
@@ -6018,6 +6242,10 @@ def project_timeline(
                 "schedule_message_type": (
                     schedule_message_type
                 ),
+
+                # -------------------------
+                # Flowchart
+                # -------------------------
 
                 "task_flowchart": (
                     task_flowchart
@@ -9553,3 +9781,26 @@ def apply_budget_actions(
 
     return results
 
+def get_task_list_ordering(sort_value):
+    if sort_value == "highest_priority":
+        return [
+            "-priority",
+            "due_date",
+            "order",
+            "pk",
+        ]
+
+    if sort_value == "lowest_priority":
+        return [
+            "priority",
+            "due_date",
+            "order",
+            "pk",
+        ]
+
+    return [
+        "start_date",
+        "due_date",
+        "order",
+        "pk",
+    ]

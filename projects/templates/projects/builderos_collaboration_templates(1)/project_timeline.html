@@ -4,6 +4,7 @@
     Timeline | {{ project.name }}
 {% endblock %}
 
+
 {% block extra_css %}
 <style>
     .timeline-toolbar {
@@ -55,11 +56,18 @@
         padding: 10px 13px;
     }
 
+
+    /* =====================================
+       TASK FLOWCHART
+    ===================================== */
+
     .task-flowchart-card {
         margin-bottom: 32px;
         padding: 24px;
+
         border: 1px solid var(--border);
         border-radius: 12px;
+
         background: var(--surface);
         box-shadow: var(--shadow);
     }
@@ -79,25 +87,118 @@
 
     .task-flowchart-wrapper {
         overflow: auto;
+
         min-height: 260px;
         padding: 20px;
+
         border: 1px solid var(--border);
         border-radius: 10px;
+
         background: var(--surface-soft);
     }
 
     .task-flowchart-wrapper .mermaid {
         display: flex;
         justify-content: center;
+
         min-width: max-content;
         margin: 0;
     }
 
+
+    /* =====================================
+       TASK LIST SORTING
+    ===================================== */
+
+    .task-list-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+
+        margin: 0 0 20px;
+        padding: 14px 16px;
+
+        border: 1px solid var(--border);
+        border-radius: 10px;
+
+        background: var(--surface);
+    }
+
+    .task-list-toolbar-title {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .task-list-toolbar-title strong {
+        font-size: 14px;
+    }
+
+    .task-list-toolbar-title span {
+        color: var(--text-muted);
+        font-size: 12px;
+    }
+
+    .task-sort-form {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        margin: 0;
+    }
+
+    .task-sort-form label {
+        color: var(--text-muted);
+
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .task-sort-form select {
+        min-width: 190px;
+
+        padding: 8px 10px;
+
+        border: 1px solid var(--border-strong);
+        border-radius: 8px;
+
+        background: var(--surface-soft);
+        color: var(--text);
+
+        font: inherit;
+        font-size: 13px;
+
+        cursor: pointer;
+    }
+
+    .task-sort-form select:hover {
+        border-color: var(--accent);
+    }
+
+    .task-sort-form select:focus {
+        outline: none;
+
+        border-color: var(--accent);
+
+        box-shadow:
+            0 0 0 3px
+            rgba(88, 166, 255, 0.13);
+    }
+
+
+    /* =====================================
+       TIMELINE
+    ===================================== */
+
     .milestone,
     .unscheduled {
         background: var(--surface);
+
         border: 1px solid var(--border);
         border-radius: 12px;
+
         padding: 18px;
         margin-bottom: 20px;
     }
@@ -112,6 +213,7 @@
 
     .task-list {
         list-style: none;
+
         padding: 0;
         margin: 0;
     }
@@ -131,9 +233,12 @@
 
     .status {
         color: var(--text-muted);
+
         border: 1px solid var(--border);
         border-radius: 999px;
+
         padding: 2px 7px;
+
         font-size: 12px;
     }
 
@@ -141,22 +246,33 @@
         display: flex;
         gap: 8px 18px;
         flex-wrap: wrap;
+
         color: var(--text-muted);
+
         font-size: 13px;
+
         margin-top: 9px;
     }
 
     .dependency-box {
         margin-top: 11px;
+
         border-left: 4px solid var(--warning);
-        background: var(--warning-background);
-        padding: 9px 11px;
         border-radius: 6px;
+
+        background: var(--warning-background);
+
+        padding: 9px 11px;
     }
 
     .task-actions {
         margin-top: 11px;
     }
+
+
+    /* =====================================
+       MOBILE
+    ===================================== */
 
     @media (max-width: 700px) {
         .milestone-header,
@@ -171,12 +287,29 @@
         .task-flowchart-wrapper {
             padding: 12px;
         }
+
+        .task-list-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .task-sort-form {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .task-sort-form select {
+            width: 100%;
+        }
     }
 </style>
 {% endblock %}
 
+
 {% block content %}
+
 <div class="timeline-toolbar">
+
     <a href="{% url 'workspace' project.pk %}">
         ← Back to Workspace
     </a>
@@ -201,7 +334,9 @@
             </button>
         </form>
     {% endif %}
+
 </div>
+
 
 {% if schedule_message %}
     <div
@@ -218,21 +353,30 @@
     </div>
 {% endif %}
 
+
 {% if project.schedule_needs_refresh %}
     <div class="notice warning">
-        <strong>Schedule may be out of date.</strong>
+        <strong>
+            Schedule may be out of date.
+        </strong>
 
         {% if project.schedule_refresh_reason %}
-            <p>{{ project.schedule_refresh_reason }}</p>
+            <p>
+                {{ project.schedule_refresh_reason }}
+            </p>
         {% endif %}
     </div>
 {% endif %}
 
-<h1>{{ project.name }} Timeline</h1>
+
+<h1>
+    {{ project.name }} Timeline
+</h1>
 
 <p class="timeline-summary">
     Tasks grouped by milestone, dates, and dependencies.
 </p>
+
 
 {% if project.schedule_last_generated_at %}
     <p class="generated-time">
@@ -241,21 +385,36 @@
     </p>
 {% endif %}
 
+
 <div class="timeline-metrics">
+
     <div class="timeline-metric">
-        <strong>{{ blocked_tasks|length }}</strong>
+        <strong>
+            {{ blocked_tasks|length }}
+        </strong>
         blocked
     </div>
 
     <div class="timeline-metric">
-        <strong>{{ overdue_tasks|length }}</strong>
+        <strong>
+            {{ overdue_tasks|length }}
+        </strong>
         overdue
     </div>
+
 </div>
 
+
+<!-- =========================================
+     TASK FLOWCHART
+========================================= -->
+
 <section class="task-flowchart-card">
+
     <div class="task-flowchart-header">
-        <h2>Task Flow</h2>
+        <h2>
+            Task Flow
+        </h2>
 
         <p>
             Automatically generated from task dependencies.
@@ -273,18 +432,133 @@
             a project flowchart.
         </p>
     {% endif %}
+
 </section>
 
+
+<!-- =========================================
+     TASK LIST SORTING
+========================================= -->
+
+<div class="task-list-toolbar">
+
+    <div class="task-list-toolbar-title">
+        <strong>
+            Project Tasks
+        </strong>
+
+        <span>
+            Change how tasks are ordered below.
+        </span>
+    </div>
+
+
+    <form
+        method="GET"
+        class="task-sort-form"
+    >
+
+        <!-- Preserve flowchart filters -->
+
+        {% if milestone_filter %}
+            <input
+                type="hidden"
+                name="milestone"
+                value="{{ milestone_filter }}"
+            >
+        {% endif %}
+
+        {% if status_filter %}
+            <input
+                type="hidden"
+                name="status"
+                value="{{ status_filter }}"
+            >
+        {% endif %}
+
+        {% if flow_filter %}
+            <input
+                type="hidden"
+                name="flow"
+                value="{{ flow_filter }}"
+            >
+        {% endif %}
+
+        {% if task_filter %}
+            <input
+                type="hidden"
+                name="task"
+                value="{{ task_filter }}"
+            >
+        {% endif %}
+
+
+        <label for="timeline-task-list-sort">
+            Sort tasks
+        </label>
+
+        <select
+            name="task_list_sort"
+            id="timeline-task-list-sort"
+            onchange="this.form.submit()"
+        >
+
+            <option
+                value="chronological"
+                {% if task_list_sort == "chronological" %}
+                    selected
+                {% endif %}
+            >
+                Chronological
+            </option>
+
+            <option
+                value="highest_priority"
+                {% if task_list_sort == "highest_priority" %}
+                    selected
+                {% endif %}
+            >
+                Highest priority
+            </option>
+
+            <option
+                value="lowest_priority"
+                {% if task_list_sort == "lowest_priority" %}
+                    selected
+                {% endif %}
+            >
+                Lowest priority
+            </option>
+
+        </select>
+
+    </form>
+
+</div>
+
+
+<!-- =========================================
+     MILESTONES
+========================================= -->
+
 {% for milestone in milestones %}
+
     <section class="milestone">
+
         <div class="milestone-header">
+
             <div>
-                <h2>{{ milestone.name }}</h2>
+                <h2>
+                    {{ milestone.name }}
+                </h2>
 
                 {% if milestone.description %}
-                    <p>{{ milestone.description }}</p>
+                    <p>
+                        {{ milestone.description }}
+                    </p>
                 {% endif %}
             </div>
+
 
             <div>
                 {% if milestone.target_date %}
@@ -293,38 +567,68 @@
                     No target date
                 {% endif %}
             </div>
+
         </div>
 
+
         <ul class="task-list">
-            {% for task in milestone.tasks.all %}
+
+            {% for task in milestone.sorted_tasks %}
+
                 {% include "projects/includes/timeline_task.html" %}
+
             {% empty %}
+
                 <li class="task-card">
                     No tasks assigned to this milestone.
                 </li>
+
             {% endfor %}
+
         </ul>
+
     </section>
+
+
 {% empty %}
+
     <div class="card">
         No milestones have been created yet.
     </div>
+
 {% endfor %}
 
+
+<!-- =========================================
+     UNSCHEDULED TASKS
+========================================= -->
+
 <section class="unscheduled">
-    <h2>Tasks Without a Milestone</h2>
+
+    <h2>
+        Tasks Without a Milestone
+    </h2>
 
     <ul class="task-list">
+
         {% for task in unscheduled_tasks %}
+
             {% include "projects/includes/timeline_task.html" %}
+
         {% empty %}
+
             <li class="task-card">
                 Every task is assigned to a milestone.
             </li>
+
         {% endfor %}
+
     </ul>
+
 </section>
+
 {% endblock %}
+
 
 {% block extra_js %}
 <script type="module">
