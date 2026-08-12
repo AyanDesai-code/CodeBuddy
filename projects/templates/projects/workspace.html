@@ -4,6 +4,7 @@
     {{ project.name }} | Projivo
 {% endblock %}
 
+
 {% block extra_css %}
 <style>
     .workspace-dashboard {
@@ -64,7 +65,7 @@
         border-radius: 9px;
 
         background: var(--warning-background);
-        color: #e3b341;
+        color: var(--warning);
     }
 
 
@@ -76,7 +77,10 @@
         display: grid;
 
         grid-template-columns:
-            repeat(4, minmax(0, 1fr));
+            repeat(
+                4,
+                minmax(0, 1fr)
+            );
 
         gap: 12px;
     }
@@ -108,6 +112,7 @@
         transform: translateY(-2px);
 
         border-color: var(--accent);
+
         background: var(--surface-soft);
 
         color: var(--text);
@@ -140,6 +145,7 @@
 
     .workspace-link-disabled {
         opacity: 0.55;
+
         cursor: default;
     }
 
@@ -147,6 +153,7 @@
         transform: none;
 
         border-color: var(--border);
+
         background: var(--surface);
 
         color: var(--text);
@@ -232,7 +239,10 @@
         display: grid;
 
         grid-template-columns:
-            repeat(4, minmax(0, 1fr));
+            repeat(
+                4,
+                minmax(0, 1fr)
+            );
 
         gap: 12px;
     }
@@ -410,24 +420,29 @@
 
     .health-good {
         color: var(--success);
+
         font-weight: 800;
     }
 
     .health-warning {
         color: var(--warning);
+
         font-weight: 800;
     }
 
 
     /* =========================
-       BOTTOM CARDS
+       BOTTOM DASHBOARD CARDS
     ========================= */
 
     .dashboard-two-column {
         display: grid;
 
         grid-template-columns:
-            repeat(2, minmax(0, 1fr));
+            repeat(
+                2,
+                minmax(0, 1fr)
+            );
 
         gap: 14px;
     }
@@ -513,7 +528,10 @@
         .workspace-links,
         .metrics-grid {
             grid-template-columns:
-                repeat(2, minmax(0, 1fr));
+                repeat(
+                    2,
+                    minmax(0, 1fr)
+                );
         }
 
         .dashboard-two-column {
@@ -538,47 +556,11 @@
         .health-top {
             align-items: flex-start;
         }
-    }
-    .workspace-bottom-links {
-    display: flex;
-    justify-content: center;
-    align-items: stretch;
-    gap: 16px;
-    margin-top: 20px;
-    width: 100%;
-}
 
-.workspace-bottom-links .workspace-link {
-    flex: 0 0 300px;
-    width: 300px;
-    max-width: 300px;
-}
+        .workspace-tool {
+            flex: 1 1 auto;
 
-.workspace-tools {
-    margin-top: 30px;
-}
-.workspace-bottom-links {
-    display: flex;
-    justify-content: center;
-    align-items: stretch;
-    gap: 16px;
-    margin-top: 20px;
-    width: 100%;
-}
-
-.workspace-bottom-links .workspace-link {
-    flex: 0 0 300px;
-    width: 300px;
-    max-width: 300px;
-}
-
-.workspace-tools {
-    margin-top: 30px;
-}
-
-    @media (max-width: 900px) {
-        .workspace-bottom-links {
-            flex-wrap: wrap;
+            justify-content: center;
         }
     }
 </style>
@@ -586,6 +568,7 @@
 
 
 {% block content %}
+
 <div class="workspace-dashboard">
 
     <!-- =========================
@@ -595,6 +578,7 @@
     <header class="workspace-header">
 
         <div>
+
             <h1>
                 {{ project.name|default:"Untitled Project" }}
             </h1>
@@ -604,10 +588,12 @@
                     {{ project.description }}
                 </p>
             {% endif %}
+
         </div>
 
 
         {% if can_edit %}
+
             <div class="workspace-header-actions">
 
                 <a
@@ -618,24 +604,26 @@
                 </a>
 
             </div>
+
         {% endif %}
 
     </header>
 
 
     {% if not can_edit %}
+
         <div class="readonly-note">
             You have read-only access to this project.
         </div>
+
     {% endif %}
 
 
     <!-- =========================
-         MAIN LINKS
+         WORKSPACE LINKS
     ========================== -->
 
     <section class="workspace-links">
-
 
         <!-- TASKS -->
 
@@ -646,11 +634,13 @@
                     class="workspace-link"
                     href="{% url 'workspace_folder' project.pk folder.pk %}"
                 >
+
                     <div class="workspace-link-icon">
                         ✓
                     </div>
 
                     <div>
+
                         <span class="workspace-link-title">
                             Tasks
                         </span>
@@ -658,7 +648,9 @@
                         <span class="workspace-link-description">
                             Plan, assign, and complete project work.
                         </span>
+
                     </div>
+
                 </a>
 
             {% endif %}
@@ -671,11 +663,13 @@
             class="workspace-link"
             href="{% url 'project_timeline' project.pk %}"
         >
+
             <div class="workspace-link-icon">
                 ◷
             </div>
 
             <div>
+
                 <span class="workspace-link-title">
                     Timeline
                 </span>
@@ -683,7 +677,9 @@
                 <span class="workspace-link-description">
                     Deadlines, milestones, and task dependencies.
                 </span>
+
             </div>
+
         </a>
 
 
@@ -696,11 +692,13 @@
                     class="workspace-link"
                     href="{% url 'workspace_folder' project.pk folder.pk %}"
                 >
+
                     <div class="workspace-link-icon">
                         $
                     </div>
 
                     <div>
+
                         <span class="workspace-link-title">
                             Budget
                         </span>
@@ -708,128 +706,136 @@
                         <span class="workspace-link-description">
                             Estimate and track project costs.
                         </span>
+
                     </div>
+
                 </a>
 
             {% endif %}
         {% endfor %}
 
 
-        <!-- RESOURCES
-             Your generated workspace calls this
-             folder type "learning".
-        -->
+        <!-- RESOURCES -->
 
         {% for folder in folders %}
-            {% if folder.folder_type == "learning" %}
+
+            {% if folder.folder_type == "learning" or folder.folder_type == "resources" %}
 
                 <a
                     class="workspace-link"
                     href="{% url 'workspace_folder' project.pk folder.pk %}"
                 >
+
                     <div class="workspace-link-icon">
                         ↗
                     </div>
 
                     <div>
+
                         <span class="workspace-link-title">
                             Resources
                         </span>
 
                         <span class="workspace-link-description">
-                            References, tutorials, links, and learning material.
+                            References, tutorials, links,
+                            and learning material.
                         </span>
+
                     </div>
+
+                </a>
+
+            {% endif %}
+
+        {% endfor %}
+
+
+        <!-- DOCS -->
+
+        {% for folder in folders %}
+            {% if folder.folder_type == "documentation" %}
+
+                <a
+                    class="workspace-link"
+                    href="{% url 'workspace_folder' project.pk folder.pk %}"
+                >
+
+                    <div class="workspace-link-icon">
+                        ≡
+                    </div>
+
+                    <div>
+
+                        <span class="workspace-link-title">
+                            Docs
+                        </span>
+
+                        <span class="workspace-link-description">
+                            Notes, specifications,
+                            and project documentation.
+                        </span>
+
+                    </div>
+
                 </a>
 
             {% endif %}
         {% endfor %}
 
 
-        </section>
+        <!-- ASSISTANT -->
+
+        <a
+            class="workspace-link"
+            href="{% url 'workspace_assistant' project.pk %}"
+        >
+
+            <div class="workspace-link-icon">
+                ✦
+            </div>
+
+            <div>
+
+                <span class="workspace-link-title">
+                    Assistant
+                </span>
+
+                <span class="workspace-link-description">
+                    Ask questions or update the project.
+                </span>
+
+            </div>
+
+        </a>
 
 
-<!-- =========================
-     BOTTOM WORKSPACE LINKS
-========================== -->
+        <!-- MEMBERS -->
 
-<section class="workspace-bottom-links">
+        <a
+            class="workspace-link"
+            href="{% url 'project_members' project.pk %}"
+        >
 
-    <!-- DOCS -->
+            <div class="workspace-link-icon">
+                ◉
+            </div>
 
-    {% for folder in folders %}
-        {% if folder.folder_type == "documentation" %}
+            <div>
 
-            <a
-                class="workspace-link"
-                href="{% url 'workspace_folder' project.pk folder.pk %}"
-            >
-                <div class="workspace-link-icon">
-                    ≡
-                </div>
+                <span class="workspace-link-title">
+                    Members
+                </span>
 
-                <div>
-                    <span class="workspace-link-title">
-                        Docs
-                    </span>
+                <span class="workspace-link-description">
+                    Collaborators, roles,
+                    responsibilities, and permissions.
+                </span>
 
-                    <span class="workspace-link-description">
-                        Notes, specifications, and project documentation.
-                    </span>
-                </div>
-            </a>
+            </div>
 
-        {% endif %}
-    {% endfor %}
+        </a>
 
-
-    <!-- ASSISTANT -->
-
-    <a
-        class="workspace-link"
-        href="{% url 'workspace_assistant' project.pk %}"
-    >
-        <div class="workspace-link-icon">
-            ✦
-        </div>
-
-        <div>
-            <span class="workspace-link-title">
-                Assistant
-            </span>
-
-            <span class="workspace-link-description">
-                Ask questions or update the project.
-            </span>
-        </div>
-    </a>
-
-
-    <!-- MEMBERS -->
-
-    <a
-        class="workspace-link"
-        href="{% url 'project_members' project.pk %}"
-    >
-        <div class="workspace-link-icon">
-            ◉
-        </div>
-
-        <div>
-            <span class="workspace-link-title">
-                Members
-            </span>
-
-            <span class="workspace-link-description">
-                Collaborators, roles, responsibilities, and permissions.
-            </span>
-        </div>
-    </a>
-
-</section>
-
-
-        
+    </section>
 
 
     <!-- =========================
@@ -845,12 +851,14 @@
             Review
         </a>
 
+
         <a
             class="workspace-tool"
             href="{% url 'project_activity' project.pk %}"
         >
             Activity
         </a>
+
 
         <a
             class="workspace-tool"
@@ -869,6 +877,7 @@
     <section class="dashboard-section">
 
         <div class="dashboard-heading">
+
             <h2>
                 Project snapshot
             </h2>
@@ -876,6 +885,7 @@
             <p>
                 Live statistics from this project.
             </p>
+
         </div>
 
 
@@ -897,11 +907,13 @@
             <article class="metric-card">
 
                 <div class="metric-value">
+
                     {% if health_score != None %}
                         {{ health_score }}%
                     {% else %}
                         —
                     {% endif %}
+
                 </div>
 
                 <div class="metric-label">
@@ -1031,7 +1043,6 @@
 
             <div class="health-top">
 
-
                 {% if health_score != None %}
 
                     <div class="health-score">
@@ -1061,6 +1072,7 @@
                         {% endif %}
                     </h3>
 
+
                     <p>
                         Based on your latest project review,
                         tasks, and detected conflicts.
@@ -1072,7 +1084,6 @@
 
 
             <div class="health-items">
-
 
                 {% if open_conflict_count %}
 
@@ -1155,7 +1166,6 @@
 
     <section class="dashboard-two-column">
 
-
         <!-- HIGH PRIORITY TASKS -->
 
         <article class="dashboard-card">
@@ -1172,6 +1182,7 @@
                     <li>
 
                         <div>
+
                             <span class="dashboard-list-title">
                                 {{ task.title }}
                             </span>
@@ -1179,16 +1190,20 @@
                             <span class="dashboard-list-meta">
                                 {{ task.get_status_display }}
                             </span>
+
                         </div>
 
                     </li>
 
+
                 {% empty %}
 
                     <li>
+
                         <p class="empty-dashboard-message">
                             No incomplete high-priority tasks.
                         </p>
+
                     </li>
 
                 {% endfor %}
@@ -1227,12 +1242,15 @@
 
                     </li>
 
+
                 {% empty %}
 
                     <li>
+
                         <p class="empty-dashboard-message">
                             No recent project activity.
                         </p>
+
                     </li>
 
                 {% endfor %}
@@ -1244,4 +1262,5 @@
     </section>
 
 </div>
+
 {% endblock %}
