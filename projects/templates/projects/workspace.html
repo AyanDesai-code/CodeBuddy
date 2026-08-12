@@ -11,9 +11,6 @@
         width: 100%;
         max-width: 1180px;
         margin: 0 auto;
-
-        display: grid;
-        gap: 28px;
     }
 
 
@@ -28,6 +25,8 @@
 
         gap: 20px;
         flex-wrap: wrap;
+
+        margin-bottom: 28px;
     }
 
     .workspace-header h1 {
@@ -60,6 +59,8 @@
     }
 
     .readonly-note {
+        margin-bottom: 24px;
+
         padding: 12px 14px;
 
         border: 1px solid var(--warning-border);
@@ -71,7 +72,7 @@
 
 
     /* =========================
-       WORKSPACE LINKS
+       TOP WORKSPACE LINKS
     ========================= */
 
     .workspace-links {
@@ -83,13 +84,7 @@
                 minmax(0, 1fr)
             );
 
-        column-gap: 12px;
-
-        /*
-         * Keeps row 1 and row 2
-         * close together.
-         */
-        row-gap: 6px;
+        gap: 12px;
     }
 
     .workspace-link {
@@ -154,6 +149,31 @@
 
 
     /* =========================
+       BOTTOM WORKSPACE LINKS
+    ========================= */
+
+    .workspace-bottom-links {
+        display: flex;
+
+        justify-content: center;
+        align-items: stretch;
+
+        gap: 12px;
+
+        margin-top: 12px;
+
+        width: 100%;
+    }
+
+    .workspace-bottom-links .workspace-link {
+        flex: 0 1 256px;
+
+        width: 256px;
+        max-width: 256px;
+    }
+
+
+    /* =========================
        SECONDARY TOOLS
     ========================= */
 
@@ -163,6 +183,8 @@
 
         gap: 12px;
         flex-wrap: wrap;
+
+        margin-top: 26px;
     }
 
     .workspace-tool {
@@ -200,6 +222,8 @@
         display: grid;
 
         gap: 14px;
+
+        margin-top: 34px;
     }
 
     .dashboard-heading {
@@ -441,6 +465,8 @@
             );
 
         gap: 14px;
+
+        margin-top: 34px;
     }
 
     .dashboard-card {
@@ -532,6 +558,10 @@
                 );
         }
 
+        .workspace-bottom-links {
+            flex-wrap: wrap;
+        }
+
         .dashboard-two-column {
             grid-template-columns: 1fr;
         }
@@ -542,6 +572,17 @@
         .workspace-links,
         .metrics-grid {
             grid-template-columns: 1fr;
+        }
+
+        .workspace-bottom-links {
+            display: grid;
+
+            grid-template-columns: 1fr;
+        }
+
+        .workspace-bottom-links .workspace-link {
+            width: 100%;
+            max-width: none;
         }
 
         .workspace-header-actions {
@@ -622,15 +663,13 @@
 
 
     <!-- =========================
-         EXACTLY 7 WORKSPACE LINKS
+         TOP WORKSPACE LINKS
     ========================== -->
 
     <section class="workspace-links">
 
 
-        <!-- =====================
-             1. TASKS
-        ====================== -->
+        <!-- TASKS -->
 
         {% for folder in folders %}
 
@@ -665,9 +704,7 @@
         {% endfor %}
 
 
-        <!-- =====================
-             2. TIMELINE
-        ====================== -->
+        <!-- TIMELINE -->
 
         <a
             class="workspace-link"
@@ -694,9 +731,7 @@
         </a>
 
 
-        <!-- =====================
-             3. BUDGET
-        ====================== -->
+        <!-- BUDGET -->
 
         {% for folder in folders %}
 
@@ -730,9 +765,7 @@
         {% endfor %}
 
 
-        <!-- =====================
-             4. RESOURCES
-        ====================== -->
+        <!-- RESOURCES -->
 
         {% for folder in folders %}
 
@@ -766,10 +799,17 @@
 
         {% endfor %}
 
+    </section>
 
-        <!-- =====================
-             5. DOCS
-        ====================== -->
+
+    <!-- =========================
+         BOTTOM WORKSPACE LINKS
+    ========================== -->
+
+    <section class="workspace-bottom-links">
+
+
+        <!-- DOCS -->
 
         {% for folder in folders %}
 
@@ -804,9 +844,7 @@
         {% endfor %}
 
 
-        <!-- =====================
-             6. ASSISTANT
-        ====================== -->
+        <!-- ASSISTANT -->
 
         <a
             class="workspace-link"
@@ -832,9 +870,7 @@
         </a>
 
 
-        <!-- =====================
-             7. MEMBERS
-        ====================== -->
+        <!-- MEMBERS -->
 
         <a
             class="workspace-link"
