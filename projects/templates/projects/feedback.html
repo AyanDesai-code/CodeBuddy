@@ -1,0 +1,280 @@
+{% extends "projects/base.html" %}
+
+{% block title %}
+    Feedback | Projivo
+{% endblock %}
+
+
+{% block extra_css %}
+<style>
+    .feedback-shell {
+        width: 100%;
+        max-width: 760px;
+
+        display: grid;
+        gap: 20px;
+
+        margin: 0 auto;
+    }
+
+
+    .feedback-header {
+        display: grid;
+        gap: 7px;
+    }
+
+
+    .feedback-header h1 {
+        margin: 0;
+    }
+
+
+    .feedback-header p {
+        margin: 0;
+
+        color: var(--text-muted);
+
+        line-height: 1.55;
+    }
+
+
+    .feedback-card {
+        padding: 22px;
+
+        border: 1px solid var(--border);
+        border-radius: 14px;
+
+        background: var(--surface);
+
+        box-shadow: var(--shadow);
+    }
+
+
+    .feedback-form {
+        display: grid;
+        gap: 17px;
+    }
+
+
+    .feedback-field {
+        display: grid;
+        gap: 7px;
+    }
+
+
+    .feedback-field label {
+        color: var(--text-muted);
+
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+
+    .feedback-field input,
+    .feedback-field select,
+    .feedback-field textarea {
+        width: 100%;
+
+        box-sizing: border-box;
+
+        padding: 11px 12px;
+
+        border: 1px solid var(--border-strong);
+        border-radius: 9px;
+
+        background: var(--surface-soft);
+        color: var(--text);
+
+        font: inherit;
+    }
+
+
+    .feedback-field textarea {
+        min-height: 160px;
+
+        resize: vertical;
+
+        line-height: 1.5;
+    }
+
+
+    .feedback-field input:focus,
+    .feedback-field select:focus,
+    .feedback-field textarea:focus {
+        outline: none;
+
+        border-color: var(--accent);
+
+        box-shadow:
+            0 0 0 3px
+            rgba(88, 166, 255, 0.13);
+    }
+
+
+    .feedback-errors {
+        color: var(--danger);
+
+        font-size: 12px;
+    }
+
+
+    .feedback-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+
+        margin-top: 4px;
+    }
+
+
+    .feedback-note {
+        padding: 13px;
+
+        border: 1px solid var(--border);
+        border-radius: 9px;
+
+        background: var(--surface-soft);
+
+        color: var(--text-muted);
+
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+
+    @media (max-width: 650px) {
+        .feedback-card {
+            padding: 16px;
+        }
+
+
+        .feedback-actions {
+            flex-direction: column;
+        }
+
+
+        .feedback-actions button,
+        .feedback-actions a {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+<div class="feedback-shell">
+
+    <header class="feedback-header">
+
+        <a href="{% url 'home' %}">
+            ← Back
+        </a>
+
+        <h1>
+            Feedback & Suggestions
+        </h1>
+
+        <p>
+            Have an idea, found something confusing,
+            or want a feature added?
+            Send it directly to the Projivo team.
+        </p>
+
+    </header>
+
+
+    <section class="feedback-card">
+
+        <form
+            method="POST"
+            class="feedback-form"
+        >
+            {% csrf_token %}
+
+
+            <input
+                type="hidden"
+                name="page_url"
+                id="feedback-page-url"
+            >
+
+
+            {% for field in form %}
+
+                <div class="feedback-field">
+
+                    <label
+                        for="{{ field.id_for_label }}"
+                    >
+                        {{ field.label }}
+                    </label>
+
+
+                    {{ field }}
+
+
+                    {% if field.help_text %}
+                        <small>
+                            {{ field.help_text }}
+                        </small>
+                    {% endif %}
+
+
+                    {% if field.errors %}
+                        <div class="feedback-errors">
+                            {{ field.errors }}
+                        </div>
+                    {% endif %}
+
+                </div>
+
+            {% endfor %}
+
+
+            <div class="feedback-note">
+                Feedback is reviewed manually.
+                Clear examples and specific suggestions
+                make it much easier to act on.
+            </div>
+
+
+            <div class="feedback-actions">
+
+                <a
+                    class="button"
+                    href="{% url 'home' %}"
+                >
+                    Cancel
+                </a>
+
+
+                <button type="submit">
+                    Submit Feedback
+                </button>
+
+            </div>
+
+        </form>
+
+    </section>
+
+</div>
+
+
+<script>
+    const pageUrlField =
+        document.getElementById(
+            "feedback-page-url"
+        );
+
+    if (pageUrlField) {
+        pageUrlField.value =
+            document.referrer
+            || window.location.href;
+    }
+</script>
+
+{% endblock %}

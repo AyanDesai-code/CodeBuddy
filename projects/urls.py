@@ -54,4 +54,5 @@ urlpatterns = [
     path("projects/<int:project_pk>/budget/new/",views.new_budget_item,name="new_budget_item",),
     path("projects/<int:project_pk>/budget/<int:item_pk>/edit/",views.edit_budget_item,name="edit_budget_item",),
     path("projects/<int:project_pk>/budget/<int:item_pk>/delete/",views.delete_budget_item,name="delete_budget_item",),
+    path("feedback/",views.feedback,name="feedback",),
 ]

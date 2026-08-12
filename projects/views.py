@@ -9804,3 +9804,105 @@ def get_task_list_ordering(sort_value):
         "order",
         "pk",
     ]
+from django import forms
+
+from .models import FeedbackSubmission
+
+
+class FeedbackSubmissionForm(
+    forms.ModelForm
+):
+    class Meta:
+        model = FeedbackSubmission
+
+        fields = [
+            "feedback_type",
+            "title",
+            "message",
+            "priority",
+            "contact_email",
+        ]
+
+        widgets = {
+            "title": forms.TextInput(
+                attrs={
+                    "placeholder":
+                        "Give your feedback a short title",
+                }
+            ),
+
+            "message": forms.Textarea(
+                attrs={
+                    "placeholder":
+                        (
+                            "Tell us what you would "
+                            "like changed, added, "
+                            "or fixed..."
+                        ),
+
+                    "rows": 7,
+                }
+            ),
+
+            "contact_email":
+                forms.EmailInput(
+                    attrs={
+                        "placeholder":
+                            (
+                                "Optional — for "
+                                "follow-up"
+                            ),
+                    }
+                ),
+        }
+@login_required
+def feedback(
+    request,
+):
+    if request.method == "POST":
+        form = FeedbackSubmissionForm(
+            request.POST
+        )
+
+        if form.is_valid():
+            submission = (
+                form.save(
+                    commit=False
+                )
+            )
+
+            submission.user = (
+                request.user
+            )
+
+            submission.page_url = (
+                request.POST.get(
+                    "page_url",
+                    "",
+                )
+            )
+
+            submission.save()
+
+            messages.success(
+                request,
+                (
+                    "Thanks — your feedback "
+                    "was submitted."
+                ),
+            )
+
+            return redirect(
+                "feedback"
+            )
+
+    else:
+        form = FeedbackSubmissionForm()
+
+    return render(
+        request,
+        "projects/feedback.html",
+        {
+            "form": form,
+        },
+    )

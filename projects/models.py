@@ -977,3 +977,83 @@ class GitHubIssueLink(models.Model):
             f"{self.repository} "
             f"#{self.issue_number}"
         )
+class FeedbackSubmission(models.Model):
+    class FeedbackType(models.TextChoices):
+        SUGGESTION = (
+            "suggestion",
+            "Suggestion",
+        )
+        BUG = (
+            "bug",
+            "Bug Report",
+        )
+        FEATURE = (
+            "feature",
+            "Feature Request",
+        )
+        OTHER = (
+            "other",
+            "Other",
+        )
+
+    class Priority(models.TextChoices):
+        LOW = (
+            "low",
+            "Nice to have",
+        )
+        MEDIUM = (
+            "medium",
+            "Important",
+        )
+        HIGH = (
+            "high",
+            "Very important",
+        )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="feedback_submissions",
+    )
+
+    feedback_type = models.CharField(
+        max_length=20,
+        choices=FeedbackType.choices,
+        default=FeedbackType.SUGGESTION,
+    )
+
+    title = models.CharField(
+        max_length=180,
+    )
+
+    message = models.TextField()
+
+    priority = models.CharField(
+        max_length=20,
+        choices=Priority.choices,
+        default=Priority.MEDIUM,
+    )
+
+    contact_email = models.EmailField(
+        blank=True,
+    )
+
+    page_url = models.URLField(
+        blank=True,
+    )
+
+    is_resolved = models.BooleanField(
+        default=False,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    def __str__(self):
+        return (
+            f"{self.get_feedback_type_display()}: "
+            f"{self.title}"
+        )
