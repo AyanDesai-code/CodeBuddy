@@ -5686,14 +5686,18 @@ def project_timeline(
     project_pk,
 ):
     try:
-        print("TIMELINE 1: Loading project")
+        print(
+            "TIMELINE 1: Loading project"
+        )
 
         project = get_project_for_user(
             project_pk=project_pk,
             user=request.user,
         )
 
-        print("TIMELINE 2: Loading milestones")
+        print(
+            "TIMELINE 2: Loading milestones"
+        )
 
         milestones = (
             project.milestones
@@ -5709,7 +5713,10 @@ def project_timeline(
             )
         )
 
-        print("TIMELINE 3: Loading unscheduled tasks")
+        print(
+            "TIMELINE 3: Loading "
+            "unscheduled tasks"
+        )
 
         unscheduled_tasks = (
             project.tasks
@@ -5727,7 +5734,9 @@ def project_timeline(
             )
         )
 
-        print("TIMELINE 4: Loading all tasks")
+        print(
+            "TIMELINE 4: Loading all tasks"
+        )
 
         all_tasks = list(
             project.tasks
@@ -5745,7 +5754,8 @@ def project_timeline(
         )
 
         print(
-            "TIMELINE 5: Checking blocked tasks"
+            "TIMELINE 5: Checking "
+            "blocked tasks"
         )
 
         blocked_tasks = [
@@ -5755,7 +5765,8 @@ def project_timeline(
         ]
 
         print(
-            "TIMELINE 6: Checking overdue tasks"
+            "TIMELINE 6: Checking "
+            "overdue tasks"
         )
 
         overdue_tasks = [
@@ -5792,9 +5803,9 @@ def project_timeline(
             .strip()
         )
 
-        search_query = (
+        task_filter = (
             request.GET.get(
-                "q",
+                "task",
                 "",
             )
             .strip()
@@ -5870,30 +5881,27 @@ def project_timeline(
                 )
             )
 
-        else:
-            if status_filter:
-                status_filter = ""
+        elif status_filter:
+            status_filter = ""
 
         # ---------------------------------
-        # SEARCH FILTER
+        # TASK FILTER
         # ---------------------------------
 
-        if search_query:
-            flow_tasks = (
-                flow_tasks.filter(
-                    Q(
-                        title__icontains=(
-                            search_query
-                        )
-                    )
-                    |
-                    Q(
-                        description__icontains=(
-                            search_query
-                        )
+        if task_filter:
+            try:
+                task_id = int(
+                    task_filter
+                )
+
+                flow_tasks = (
+                    flow_tasks.filter(
+                        pk=task_id,
                     )
                 )
-            )
+
+            except ValueError:
+                task_filter = ""
 
         # ---------------------------------
         # SPECIAL FLOW FILTER
@@ -5913,9 +5921,9 @@ def project_timeline(
         }:
             flow_filter = "all"
 
-        # Convert to list after database
-        # filtering so Python-only properties
-        # can be checked.
+        # Convert to list after queryset
+        # filtering so Python properties
+        # such as is_blocked can be checked.
         flow_tasks = list(
             flow_tasks
         )
@@ -5928,7 +5936,8 @@ def project_timeline(
             ]
 
         print(
-            "TIMELINE 8: Flowchart task count:",
+            "TIMELINE 8: Flowchart "
+            "task count:",
             len(flow_tasks),
         )
 
@@ -5944,7 +5953,8 @@ def project_timeline(
         )
 
         print(
-            "TIMELINE 10: Flowchart built:",
+            "TIMELINE 10: "
+            "Flowchart built:",
             len(task_flowchart),
             "characters",
         )
@@ -5971,7 +5981,8 @@ def project_timeline(
         )
 
         print(
-            "TIMELINE 11: Rendering template"
+            "TIMELINE 11: "
+            "Rendering template"
         )
 
         return render(
@@ -5980,7 +5991,13 @@ def project_timeline(
             {
                 "project": project,
 
-                "milestones": milestones,
+                "milestones": (
+                    milestones
+                ),
+
+                "all_tasks": (
+                    all_tasks
+                ),
 
                 "unscheduled_tasks": (
                     unscheduled_tasks
@@ -6022,8 +6039,8 @@ def project_timeline(
                     flow_filter
                 ),
 
-                "search_query": (
-                    search_query
+                "task_filter": (
+                    task_filter
                 ),
 
                 "status_choices": (

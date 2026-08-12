@@ -721,23 +721,35 @@
 
 
         <div
-            class="
-                flow-filter-field
-                flow-filter-search
-            "
-        >
-            <label for="flow-search">
-                Search
-            </label>
+    class="
+        flow-filter-field
+        flow-filter-search
+    "
+>
+    <label for="flow-search">
+        Task
+    </label>
 
-            <input
-                type="search"
-                name="q"
-                id="flow-search"
-                value="{{ search_query }}"
-                placeholder="Search tasks..."
+    <select
+        name="task"
+        id="flow-search"
+    >
+        <option value="">
+            All tasks
+        </option>
+
+        {% for task in all_tasks %}
+            <option
+                value="{{ task.pk }}"
+                {% if task_filter == task.pk|stringformat:"s" %}
+                    selected
+                {% endif %}
             >
-        </div>
+                {{ task.title }}
+            </option>
+        {% endfor %}
+    </select>
+</div>
 
 
         <div class="flow-filter-field">
