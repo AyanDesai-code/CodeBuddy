@@ -381,6 +381,20 @@
 
             line-height: 1;
         }
+        .project-title-inline {
+    margin-right: 8px;
+
+    max-width: 300px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    color: var(--text);
+    font-weight: 650;
+
+    flex-shrink: 0;
+}
 
 
         /* =====================================
@@ -397,21 +411,29 @@
 
 
         .project-nav-inner {
-            max-width: 1400px;
+    width: 100%;
+    max-width: none;
 
-            margin: 0 auto;
+    margin: 0;
 
-            padding: 10px 20px;
+    padding: 10px 20px;
 
-            display: flex;
+    display: flex;
+    align-items: center;
 
-            gap: 8px;
+    gap: 8px;
 
-            align-items: center;
+    flex-wrap: nowrap;
 
-            flex-wrap: wrap;
+    overflow-x: auto;
+}
+        .project-nav-inner > a,
+        .project-title-inline,
+        .role-badge,
+        .readonly-badge {
+            flex-shrink: 0;
         }
-
+        
 
         .project-nav a {
             padding: 7px 10px;
@@ -433,16 +455,7 @@
         }
 
 
-        .project-title-inline {
-            margin-right: 8px;
-
-            color: var(--text);
-
-            font-weight: 650;
-
-            overflow-wrap:
-                anywhere;
-        }
+        
 
 
         .role-badge,
@@ -738,48 +751,33 @@
         ===================================== */
 
         .support-button {
-            display:
-                inline-flex;
+    display: inline-flex;
+    align-items: center;
 
-            align-items:
-                center;
+    gap: 5px;
 
-            gap:
-                5px;
+    padding: 6px 9px;
 
-            padding:
-                6px 9px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
 
-            border:
-                1px solid
-                var(--border);
+    background: transparent;
+    color: var(--text-muted);
 
-            border-radius:
-                7px;
+    font-size: 12px;
+    font-weight: 500;
 
-            background:
-                transparent;
+    text-decoration: none;
+    white-space: nowrap;
 
-            color:
-                var(--text-muted);
+    margin-left: auto;
+    flex-shrink: 0;
 
-            font-size:
-                12px;
-
-            font-weight:
-                500;
-
-            text-decoration:
-                none;
-
-            white-space:
-                nowrap;
-
-            transition:
-                background 0.15s ease,
-                color 0.15s ease,
-                border-color 0.15s ease;
-        }
+    transition:
+        background 0.15s ease,
+        color 0.15s ease,
+        border-color 0.15s ease;
+}
 
 
         .support-button:hover {
@@ -997,6 +995,16 @@
         /* =====================================
            MOBILE
         ===================================== */
+        @media (max-width: 900px) {
+    .project-nav-inner {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+    }
+
+    .support-button {
+        margin-left: 8px;
+    }
+}
 
         @media (max-width: 760px) {
             .site-header-inner {
