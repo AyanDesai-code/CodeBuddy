@@ -9471,6 +9471,12 @@ def edit_budget_item(
         project=project,
     )
 
+    budget_folder = get_object_or_404(
+        WorkspaceFolder,
+        project=project,
+        folder_type="budget",
+    )
+
     if request.method == "POST":
         form = BudgetItemForm(
             request.POST,
@@ -9485,24 +9491,10 @@ def edit_budget_item(
                 "Budget item updated.",
             )
 
-            budget_folder = (
-                project.workspace_folders
-                .filter(
-                    folder_type="budget",
-                )
-                .first()
-            )
-
-            if budget_folder:
-                return redirect(
-                    "workspace_folder",
-                    project_pk=project.pk,
-                    folder_pk=budget_folder.pk,
-                )
-
             return redirect(
-                "workspace",
+                "workspace_folder",
                 project_pk=project.pk,
+                folder_pk=budget_folder.pk,
             )
 
     else:
@@ -9517,6 +9509,7 @@ def edit_budget_item(
             "project": project,
             "item": item,
             "form": form,
+            "budget_folder": budget_folder,
         },
     )
 @login_required
@@ -9527,6 +9520,12 @@ def new_budget_item(
     project = get_editable_project_for_user(
         project_pk=project_pk,
         user=request.user,
+    )
+
+    budget_folder = get_object_or_404(
+        WorkspaceFolder,
+        project=project,
+        folder_type="budget",
     )
 
     if request.method == "POST":
@@ -9540,6 +9539,19 @@ def new_budget_item(
             )
 
             item.project = project
+
+            last_item = (
+                project.budget_items
+                .order_by("-order")
+                .first()
+            )
+
+            item.order = (
+                last_item.order + 1
+                if last_item
+                else 1
+            )
+
             item.save()
 
             messages.success(
@@ -9547,24 +9559,10 @@ def new_budget_item(
                 "Budget item added.",
             )
 
-            budget_folder = (
-                project.workspace_folders
-                .filter(
-                    folder_type="budget",
-                )
-                .first()
-            )
-
-            if budget_folder:
-                return redirect(
-                    "workspace_folder",
-                    project_pk=project.pk,
-                    folder_pk=budget_folder.pk,
-                )
-
             return redirect(
-                "workspace",
+                "workspace_folder",
                 project_pk=project.pk,
+                folder_pk=budget_folder.pk,
             )
 
     else:
@@ -9577,6 +9575,7 @@ def new_budget_item(
             "project": project,
             "item": None,
             "form": form,
+            "budget_folder": budget_folder,
         },
     )
 @login_required
@@ -9591,43 +9590,32 @@ def delete_budget_item(
         user=request.user,
     )
 
+    budget_folder = get_object_or_404(
+        WorkspaceFolder,
+        project=project,
+        folder_type="budget",
+    )
+
     item = get_object_or_404(
         BudgetItem,
         pk=item_pk,
         project=project,
     )
 
+    item_name = item.name
+
     item.delete()
 
     messages.success(
         request,
-        "Budget item deleted.",
+        f'"{item_name}" was deleted.',
     )
-
-    budget_folder = (
-        project.workspace_folders
-        .filter(
-            folder_type="budget",
-        )
-        .first()
-    )
-
-    if budget_folder:
-        return redirect(
-            "workspace_folder",
-            project_pk=project.pk,
-            folder_pk=budget_folder.pk,
-        )
 
     return redirect(
-        "workspace",
+        "workspace_folder",
         project_pk=project.pk,
+        folder_pk=budget_folder.pk,
     )
-from django.db import transaction
-
-from .models import BudgetItem
-
-
 @transaction.atomic
 def apply_budget_actions(
     *,
