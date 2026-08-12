@@ -10,6 +10,7 @@
     .setup-layout {
         width: 100%;
         max-width: 880px;
+
         display: grid;
         gap: 20px;
     }
@@ -30,8 +31,10 @@
 
     .message {
         padding: 15px;
+
         border: 1px solid var(--border);
         border-radius: 11px;
+
         background: var(--surface);
     }
 
@@ -51,9 +54,12 @@
     .setup-card,
     .generation-card {
         padding: 19px;
+
         border: 1px solid var(--border);
         border-radius: 12px;
+
         background: var(--surface);
+
         box-shadow: var(--shadow);
     }
 
@@ -68,8 +74,10 @@
 
     textarea {
         display: block;
+
         width: 100%;
         min-height: 160px;
+
         padding: 12px;
 
         resize: vertical;
@@ -86,7 +94,9 @@
 
     textarea:focus {
         outline: none;
+
         border-color: var(--accent);
+
         box-shadow:
             0 0 0 3px
             rgba(88, 166, 255, 0.14);
@@ -110,6 +120,11 @@
         cursor: wait;
     }
 
+
+    /* =====================================
+       LOADING OVERLAY
+    ===================================== */
+
     .loading-overlay[hidden] {
         display: none;
     }
@@ -117,6 +132,7 @@
     .loading-overlay {
         position: fixed;
         inset: 0;
+
         z-index: 99999;
 
         display: flex;
@@ -124,15 +140,19 @@
         justify-content: center;
 
         padding: 20px;
+
         overflow-y: auto;
 
         background: rgba(15, 23, 42, 0.86);
+
         backdrop-filter: blur(7px);
     }
 
     .workspace-loading-card {
         width: min(560px, 100%);
+
         max-height: calc(100vh - 40px);
+
         overflow-y: auto;
 
         padding: 30px 28px;
@@ -141,6 +161,7 @@
         border-radius: 18px;
 
         background: var(--surface);
+
         text-align: center;
 
         box-shadow:
@@ -151,6 +172,7 @@
     .loading-spinner {
         width: 56px;
         height: 56px;
+
         margin: 0 auto 20px;
 
         border: 5px solid var(--surface-soft);
@@ -170,15 +192,19 @@
 
     .loading-main {
         margin: 14px 0 0;
+
         color: var(--text-muted);
+
         line-height: 1.55;
     }
 
     .loading-status {
         min-height: 28px;
+
         margin: 18px 0 0;
 
         color: var(--text);
+
         font-weight: 700;
 
         transition:
@@ -188,15 +214,19 @@
 
     .loading-status.is-changing {
         opacity: 0;
+
         transform: translateY(5px);
     }
 
     .loading-progress {
         height: 8px;
+
         margin-top: 18px;
+
         overflow: hidden;
 
         border-radius: 999px;
+
         background: var(--surface-soft);
     }
 
@@ -205,6 +235,7 @@
         height: 100%;
 
         border-radius: inherit;
+
         background: var(--accent);
 
         animation:
@@ -214,14 +245,21 @@
             infinite;
     }
 
+
+    /* =====================================
+       SNAKE GAME
+    ===================================== */
+
     .snake-panel {
         margin-top: 24px;
+
         padding: 16px;
 
         border: 1px solid var(--border);
         border-radius: 14px;
 
         background: var(--surface-soft);
+
         text-align: left;
     }
 
@@ -229,6 +267,7 @@
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
+
         gap: 16px;
 
         margin-bottom: 12px;
@@ -243,6 +282,7 @@
         margin-top: 3px;
 
         color: var(--text-muted);
+
         font-size: 13px;
     }
 
@@ -255,6 +295,7 @@
         border-radius: 999px;
 
         color: var(--text-muted);
+
         font-size: 13px;
     }
 
@@ -263,16 +304,20 @@
 
         width: 100%;
         max-width: 420px;
+
         height: auto;
+
         margin: 0 auto;
 
         border: 1px solid var(--border-strong);
         border-radius: 10px;
 
         background: #0d1117;
+
         image-rendering: pixelated;
 
         touch-action: none;
+
         user-select: none;
         -webkit-user-select: none;
     }
@@ -280,24 +325,138 @@
     .snake-legend {
         display: flex;
         justify-content: center;
+
         gap: 12px;
+
         flex-wrap: wrap;
 
         margin-top: 12px;
 
         color: var(--text-muted);
+
         font-size: 12px;
     }
 
     .snake-restart-button {
         display: block;
+
         margin: 14px auto 0;
     }
+
+
+    /* =====================================
+       MOBILE SNAKE CONTROLS
+    ===================================== */
+
+    .snake-mobile-controls {
+        display: none;
+
+        margin-top: 16px;
+
+        text-align: center;
+    }
+
+    .snake-mobile-controls-grid {
+        display: grid;
+
+        grid-template-columns:
+            repeat(
+                3,
+                54px
+            );
+
+        grid-template-rows:
+            repeat(
+                2,
+                48px
+            );
+
+        gap: 8px;
+
+        justify-content: center;
+    }
+
+    .snake-mobile-control {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        width: 54px;
+        height: 48px;
+
+        padding: 0;
+
+        border: 1px solid var(--border-strong);
+        border-radius: 10px;
+
+        background: var(--surface);
+
+        color: var(--text);
+
+        font-size: 22px;
+        font-weight: 700;
+
+        cursor: pointer;
+
+        touch-action: manipulation;
+
+        user-select: none;
+        -webkit-user-select: none;
+
+        transition:
+            transform 0.06s ease,
+            background 0.06s ease,
+            border-color 0.06s ease;
+    }
+
+    .snake-mobile-control:hover {
+        border-color: var(--accent);
+    }
+
+    .snake-mobile-control:active {
+        transform: scale(0.94);
+
+        background: var(--surface-raised);
+
+        border-color: var(--accent);
+    }
+
+    .snake-control-up {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .snake-control-left {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .snake-control-down {
+        grid-column: 2;
+        grid-row: 2;
+    }
+
+    .snake-control-right {
+        grid-column: 3;
+        grid-row: 2;
+    }
+
+    .snake-mobile-hint {
+        margin: 10px 0 0;
+
+        color: var(--text-muted);
+
+        font-size: 12px;
+
+        text-align: center;
+    }
+
 
     .loading-sub {
         margin: 16px 0 0;
 
         color: var(--text-muted);
+
         line-height: 1.55;
     }
 
@@ -305,8 +464,10 @@
         margin: 14px 0 0;
 
         color: var(--text-muted);
+
         font-size: 13px;
     }
+
 
     @keyframes workspace-spin {
         to {
@@ -327,6 +488,14 @@
             transform: translateX(380%);
         }
     }
+
+
+    @media (max-width: 700px) {
+        .snake-mobile-controls {
+            display: block;
+        }
+    }
+
 
     @media (max-width: 600px) {
         .workspace-loading-card {
@@ -351,6 +520,7 @@
 <div class="setup-layout">
 
     <header class="setup-intro">
+
         <h1 class="page-heading">
             What would you like to build today?
         </h1>
@@ -359,6 +529,7 @@
             Describe your idea. Projivo will ask questions until
             it has enough information to generate the workspace.
         </p>
+
     </header>
 
 
@@ -379,6 +550,7 @@
                     {% endif %}
                 "
             >
+
                 <strong>
                     {{ project_message.get_role_display }}
                 </strong>
@@ -386,6 +558,7 @@
                 <div>
                     {{ project_message.content|linebreaks }}
                 </div>
+
             </article>
 
         {% empty %}
@@ -432,6 +605,7 @@
 
         </section>
 
+
     {% else %}
 
         <section class="setup-card">
@@ -443,9 +617,11 @@
                 {% csrf_token %}
 
                 <label for="setup-message">
+
                     <strong>
                         Describe your idea
                     </strong>
+
                 </label>
 
                 <textarea
@@ -456,12 +632,14 @@
                 ></textarea>
 
                 <div class="setup-actions">
+
                     <button
                         type="submit"
                         id="setup-submit-button"
                     >
                         Send
                     </button>
+
                 </div>
 
             </form>
@@ -518,7 +696,9 @@
             class="loading-progress"
             aria-hidden="true"
         >
-            <div class="loading-progress-bar"></div>
+            <div
+                class="loading-progress-bar"
+            ></div>
         </div>
 
 
@@ -527,18 +707,22 @@
             <div class="snake-header">
 
                 <div>
+
                     <strong>
                         Collect project pieces
                     </strong>
 
                     <span>
-                        Use arrow keys or WASD
-                        (swipe on mobile)
+                        Use arrow keys or WASD.
+                        Swipe or use the controls on mobile.
                     </span>
+
                 </div>
+
 
                 <div class="snake-score">
                     Score:
+
                     <span id="snake-score">
                         0
                     </span>
@@ -563,6 +747,74 @@
                 <span>💰 Budget</span>
                 <span>🔧 Tool</span>
                 <span>📚 Resource</span>
+            </div>
+
+
+            <!-- MOBILE D-PAD -->
+
+            <div class="snake-mobile-controls">
+
+                <div
+                    class="snake-mobile-controls-grid"
+                >
+
+                    <button
+                        type="button"
+                        class="
+                            snake-mobile-control
+                            snake-control-up
+                        "
+                        data-snake-direction="up"
+                        aria-label="Move up"
+                    >
+                        ↑
+                    </button>
+
+
+                    <button
+                        type="button"
+                        class="
+                            snake-mobile-control
+                            snake-control-left
+                        "
+                        data-snake-direction="left"
+                        aria-label="Move left"
+                    >
+                        ←
+                    </button>
+
+
+                    <button
+                        type="button"
+                        class="
+                            snake-mobile-control
+                            snake-control-down
+                        "
+                        data-snake-direction="down"
+                        aria-label="Move down"
+                    >
+                        ↓
+                    </button>
+
+
+                    <button
+                        type="button"
+                        class="
+                            snake-mobile-control
+                            snake-control-right
+                        "
+                        data-snake-direction="right"
+                        aria-label="Move right"
+                    >
+                        →
+                    </button>
+
+                </div>
+
+                <p class="snake-mobile-hint">
+                    Tap a direction or swipe on the game board.
+                </p>
+
             </div>
 
 
@@ -653,6 +905,11 @@
             "snake-restart-button"
         );
 
+    const snakeMobileButtons =
+        document.querySelectorAll(
+            "[data-snake-direction]"
+        );
+
 
     const loadingMessages = [
         "Understanding your project idea...",
@@ -676,31 +933,60 @@
             emoji: "💡",
             label: "Idea",
         },
+
         {
             emoji: "⚙️",
             label: "Component",
         },
+
         {
             emoji: "🧪",
             label: "Test",
         },
+
         {
             emoji: "📄",
             label: "Documentation",
         },
+
         {
             emoji: "💰",
             label: "Budget",
         },
+
         {
             emoji: "🔧",
             label: "Tool",
         },
+
         {
             emoji: "📚",
             label: "Resource",
         },
     ];
+
+
+    const snakeDirections = {
+        up: {
+            x: 0,
+            y: -1,
+        },
+
+        down: {
+            x: 0,
+            y: 1,
+        },
+
+        left: {
+            x: -1,
+            y: 0,
+        },
+
+        right: {
+            x: 1,
+            y: 0,
+        },
+    };
 
 
     let loadingMessageIndex = 0;
@@ -723,10 +1009,11 @@
     };
 
     /*
-     * Prevent multiple turns from being
-     * queued before the snake actually moves.
+     * Prevent several direction changes
+     * from being queued before one game tick.
      */
-    let snakeDirectionChangedThisTick = false;
+    let snakeDirectionChangedThisTick =
+        false;
 
     let snakeFood = null;
     let snakeScore = 0;
@@ -814,6 +1101,7 @@
 
             window.scrollTo(
                 0,
+
                 startPosition
                 + distance
                 * easedProgress
@@ -857,6 +1145,7 @@
         const duration =
             Math.min(
                 1400,
+
                 Math.max(
                     650,
                     distance * 0.45
@@ -894,6 +1183,7 @@
                     "is-changing"
                 );
             },
+
             200
         );
     }
@@ -966,11 +1256,13 @@
                     return (
                         segment.x
                             === newFood.x
+
                         && segment.y
                             === newFood.y
                     );
                 }
             )
+
             && attempts < 100
         );
 
@@ -991,6 +1283,7 @@
 
         snakeContext.lineWidth = 1;
 
+
         for (
             let x = 0;
             x <= snakeCanvas.width;
@@ -1010,6 +1303,7 @@
 
             snakeContext.stroke();
         }
+
 
         for (
             let y = 0;
@@ -1067,6 +1361,7 @@
         snakeContext.clearRect(
             0,
             0,
+
             snakeCanvas.width,
             snakeCanvas.height
         );
@@ -1077,6 +1372,7 @@
         snakeContext.fillRect(
             0,
             0,
+
             snakeCanvas.width,
             snakeCanvas.height
         );
@@ -1106,6 +1402,7 @@
                     ) + 2,
 
                     snakeGridSize - 4,
+
                     5
                 );
             }
@@ -1154,15 +1451,18 @@
                 x: 7,
                 y: 6,
             },
+
             {
                 x: 6,
                 y: 6,
             },
+
             {
                 x: 5,
                 y: 6,
             },
         ];
+
 
         snakeDirection = {
             x: 1,
@@ -1174,24 +1474,24 @@
             y: 0,
         };
 
-        /*
-         * Important:
-         * reset the direction lock.
-         */
         snakeDirectionChangedThisTick =
             false;
+
 
         snakeScore = 0;
 
         snakeScoreElement.textContent =
             "0";
 
+
         if (snakeRestartButton) {
             snakeRestartButton.hidden =
                 true;
         }
 
+
         placeSnakeFood();
+
         drawSnakeGame();
     }
 
@@ -1212,10 +1512,12 @@
     function endSnakeGame() {
         stopSnakeGame();
 
+
         if (snakeRestartButton) {
             snakeRestartButton.hidden =
                 false;
         }
+
 
         if (
             !snakeContext
@@ -1224,15 +1526,18 @@
             return;
         }
 
+
         snakeContext.fillStyle =
             "rgba(13, 17, 23, 0.84)";
 
         snakeContext.fillRect(
             0,
             0,
+
             snakeCanvas.width,
             snakeCanvas.height
         );
+
 
         snakeContext.fillStyle =
             "#f0f6fc";
@@ -1246,11 +1551,14 @@
         snakeContext.textBaseline =
             "middle";
 
+
         snakeContext.fillText(
             "Project stalled!",
+
             snakeCanvas.width / 2,
             snakeCanvas.height / 2 - 14
         );
+
 
         snakeContext.fillStyle =
             "#8b949e";
@@ -1258,8 +1566,10 @@
         snakeContext.font =
             "14px sans-serif";
 
+
         snakeContext.fillText(
             "Play again while Projivo keeps building.",
+
             snakeCanvas.width / 2,
             snakeCanvas.height / 2 + 18
         );
@@ -1275,23 +1585,22 @@
             return;
         }
 
-        /*
-         * Apply the queued direction.
-         */
+
         snakeDirection = {
             ...pendingSnakeDirection,
         };
 
+
         /*
-         * The snake has now actually performed
-         * the queued turn, so another turn may
-         * be queued for the next game tick.
+         * The queued turn has now actually
+         * happened. Allow the next turn.
          */
         snakeDirectionChangedThisTick =
             false;
 
 
         const head = snake[0];
+
 
         const newHead = {
             x:
@@ -1326,8 +1635,10 @@
 
         const collectedPiece =
             snakeFood
+
             && newHead.x
                 === snakeFood.x
+
             && newHead.y
                 === snakeFood.y;
 
@@ -1347,6 +1658,7 @@
                     return (
                         segment.x
                             === newHead.x
+
                         && segment.y
                             === newHead.y
                     );
@@ -1359,6 +1671,7 @@
             || hitSelf
         ) {
             endSnakeGame();
+
             return;
         }
 
@@ -1404,9 +1717,11 @@
         }
 
         stopSnakeGame();
+
         resetSnakeGame();
 
         snakeRunning = true;
+
 
         snakeTimer =
             window.setInterval(
@@ -1423,6 +1738,7 @@
         ) {
             return;
         }
+
 
         loadingMessageIndex = 0;
 
@@ -1454,6 +1770,72 @@
     }
 
 
+    function changeSnakeDirection(
+        nextDirection
+    ) {
+        if (
+            !snakeRunning
+            || !nextDirection
+        ) {
+            return;
+        }
+
+
+        /*
+         * Only one direction change
+         * may be accepted per game tick.
+         */
+        if (
+            snakeDirectionChangedThisTick
+        ) {
+            return;
+        }
+
+
+        /*
+         * Never reverse directly into
+         * the snake's body.
+         */
+        const reversing =
+            nextDirection.x
+                === -snakeDirection.x
+
+            && nextDirection.y
+                === -snakeDirection.y;
+
+
+        if (reversing) {
+            return;
+        }
+
+
+        const sameDirection =
+            nextDirection.x
+                === snakeDirection.x
+
+            && nextDirection.y
+                === snakeDirection.y;
+
+
+        if (sameDirection) {
+            return;
+        }
+
+
+        pendingSnakeDirection = {
+            ...nextDirection,
+        };
+
+
+        snakeDirectionChangedThisTick =
+            true;
+    }
+
+
+    /* =====================================
+       SETUP FORM
+    ===================================== */
+
     if (
         setupForm
         && setupButton
@@ -1466,8 +1848,10 @@
                     setupButton.disabled
                 ) {
                     event.preventDefault();
+
                     return;
                 }
+
 
                 if (
                     !setupTextarea
@@ -1481,10 +1865,12 @@
                     return;
                 }
 
+
                 sessionStorage.setItem(
                     "builderosSetupMessageSubmitted",
                     "true"
                 );
+
 
                 setupButton.disabled =
                     true;
@@ -1499,6 +1885,10 @@
     }
 
 
+    /* =====================================
+       WORKSPACE GENERATION
+    ===================================== */
+
     if (
         generateForm
         && generateButton
@@ -1511,19 +1901,24 @@
                     generateButton.disabled
                 ) {
                     event.preventDefault();
+
                     return;
                 }
 
+
                 generateButton.disabled =
                     true;
+
 
                 generateButton.textContent =
                     (
                         generateButton
                         .dataset
                         .loadingText
+
                         || "Generating Workspace..."
                     );
+
 
                 showWorkspaceLoadingOverlay();
             }
@@ -1531,78 +1926,9 @@
     }
 
 
-    /*
-     * =====================================
-     * FIXED SNAKE DIRECTION HANDLING
-     * =====================================
-     */
-
-    function changeSnakeDirection(
-        nextDirection
-    ) {
-        if (
-            !snakeRunning
-            || !nextDirection
-        ) {
-            return;
-        }
-
-        /*
-         * Only allow one turn before the next
-         * movement tick.
-         *
-         * Example:
-         *
-         * RIGHT -> UP -> LEFT
-         *
-         * The LEFT press is ignored until the
-         * snake actually moves UP.
-         */
-        if (
-            snakeDirectionChangedThisTick
-        ) {
-            return;
-        }
-
-
-        /*
-         * Compare against the direction the
-         * snake is actually travelling.
-         */
-        const reversing =
-            nextDirection.x
-                === -snakeDirection.x
-            && nextDirection.y
-                === -snakeDirection.y;
-
-        if (reversing) {
-            return;
-        }
-
-
-        /*
-         * Pressing the same direction doesn't
-         * consume the turn lock.
-         */
-        const sameDirection =
-            nextDirection.x
-                === snakeDirection.x
-            && nextDirection.y
-                === snakeDirection.y;
-
-        if (sameDirection) {
-            return;
-        }
-
-
-        pendingSnakeDirection = {
-            ...nextDirection,
-        };
-
-        snakeDirectionChangedThisTick =
-            true;
-    }
-
+    /* =====================================
+       KEYBOARD CONTROLS
+    ===================================== */
 
     document.addEventListener(
         "keydown",
@@ -1611,61 +1937,51 @@
                 return;
             }
 
+
             const key =
                 event.key.toLowerCase();
 
 
-            const directions = {
-                arrowup: {
-                    x: 0,
-                    y: -1,
-                },
+            const keyboardDirections = {
+                arrowup:
+                    snakeDirections.up,
 
-                w: {
-                    x: 0,
-                    y: -1,
-                },
+                w:
+                    snakeDirections.up,
 
-                arrowdown: {
-                    x: 0,
-                    y: 1,
-                },
+                arrowdown:
+                    snakeDirections.down,
 
-                s: {
-                    x: 0,
-                    y: 1,
-                },
+                s:
+                    snakeDirections.down,
 
-                arrowleft: {
-                    x: -1,
-                    y: 0,
-                },
+                arrowleft:
+                    snakeDirections.left,
 
-                a: {
-                    x: -1,
-                    y: 0,
-                },
+                a:
+                    snakeDirections.left,
 
-                arrowright: {
-                    x: 1,
-                    y: 0,
-                },
+                arrowright:
+                    snakeDirections.right,
 
-                d: {
-                    x: 1,
-                    y: 0,
-                },
+                d:
+                    snakeDirections.right,
             };
 
 
             const nextDirection =
-                directions[key];
+                keyboardDirections[
+                    key
+                ];
+
 
             if (!nextDirection) {
                 return;
             }
 
+
             event.preventDefault();
+
 
             changeSnakeDirection(
                 nextDirection
@@ -1673,6 +1989,44 @@
         }
     );
 
+
+    /* =====================================
+       MOBILE D-PAD CONTROLS
+    ===================================== */
+
+    snakeMobileButtons.forEach(
+        function (button) {
+
+            button.addEventListener(
+                "pointerdown",
+                function (event) {
+                    event.preventDefault();
+
+
+                    const directionName =
+                        button.dataset
+                        .snakeDirection;
+
+
+                    const direction =
+                        snakeDirections[
+                            directionName
+                        ];
+
+
+                    changeSnakeDirection(
+                        direction
+                    );
+                }
+            );
+
+        }
+    );
+
+
+    /* =====================================
+       MOBILE SWIPE CONTROLS
+    ===================================== */
 
     if (snakeCanvas) {
 
@@ -1686,8 +2040,10 @@
                     return;
                 }
 
+
                 const touch =
                     event.touches[0];
+
 
                 snakeTouchStartX =
                     touch.clientX;
@@ -1695,6 +2051,7 @@
                 snakeTouchStartY =
                     touch.clientY;
             },
+
             {
                 passive: true,
             }
@@ -1708,8 +2065,14 @@
                     return;
                 }
 
+
+                /*
+                 * Prevent the loading panel from
+                 * scrolling while the player swipes.
+                 */
                 event.preventDefault();
             },
+
             {
                 passive: false,
             }
@@ -1726,26 +2089,32 @@
                     return;
                 }
 
+
                 const touch =
                     event.changedTouches[0];
+
 
                 const deltaX =
                     touch.clientX
                     - snakeTouchStartX;
 
+
                 const deltaY =
                     touch.clientY
                     - snakeTouchStartY;
+
 
                 const horizontalDistance =
                     Math.abs(
                         deltaX
                     );
 
+
                 const verticalDistance =
                     Math.abs(
                         deltaY
                     );
+
 
                 const swipeDistance =
                     Math.max(
@@ -1766,34 +2135,33 @@
                     horizontalDistance
                     > verticalDistance
                 ) {
-                    changeSnakeDirection(
-                        deltaX > 0
-                            ? {
-                                x: 1,
-                                y: 0,
-                            }
-                            : {
-                                x: -1,
-                                y: 0,
-                            }
-                    );
+                    if (deltaX > 0) {
+                        changeSnakeDirection(
+                            snakeDirections.right
+                        );
+
+                    } else {
+                        changeSnakeDirection(
+                            snakeDirections.left
+                        );
+                    }
 
                     return;
                 }
 
 
-                changeSnakeDirection(
-                    deltaY > 0
-                        ? {
-                            x: 0,
-                            y: 1,
-                        }
-                        : {
-                            x: 0,
-                            y: -1,
-                        }
-                );
+                if (deltaY > 0) {
+                    changeSnakeDirection(
+                        snakeDirections.down
+                    );
+
+                } else {
+                    changeSnakeDirection(
+                        snakeDirections.up
+                    );
+                }
             },
+
             {
                 passive: true,
             }
@@ -1804,14 +2172,20 @@
             "touchcancel",
             function () {
                 snakeTouchStartX = 0;
+
                 snakeTouchStartY = 0;
             },
+
             {
                 passive: true,
             }
         );
     }
 
+
+    /* =====================================
+       RESTART
+    ===================================== */
 
     if (snakeRestartButton) {
         snakeRestartButton.addEventListener(
@@ -1821,13 +2195,19 @@
     }
 
 
+    /* =====================================
+       SCROLL AFTER SETUP MESSAGE
+    ===================================== */
+
     window.addEventListener(
         "load",
         function () {
+
             const messageWasSubmitted =
                 sessionStorage.getItem(
                     "builderosSetupMessageSubmitted"
                 );
+
 
             if (
                 messageWasSubmitted
@@ -1836,9 +2216,11 @@
                 return;
             }
 
+
             sessionStorage.removeItem(
                 "builderosSetupMessageSubmitted"
             );
+
 
             window.setTimeout(
                 scrollToNewestSetupMessage,
@@ -1848,12 +2230,17 @@
     );
 
 
+    /* =====================================
+       BACK/FORWARD CACHE RESET
+    ===================================== */
+
     window.addEventListener(
         "pageshow",
         function (event) {
             if (!event.persisted) {
                 return;
             }
+
 
             sessionStorage.removeItem(
                 "builderosSetupMessageSubmitted"

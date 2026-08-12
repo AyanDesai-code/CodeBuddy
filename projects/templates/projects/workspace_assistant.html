@@ -4,6 +4,7 @@
     Assistant | {{ project.name }}
 {% endblock %}
 
+
 {% block extra_css %}
 <style>
     /* ---------------------------------
@@ -80,7 +81,7 @@
 
 
     /* ---------------------------------
-       Assistant input card and form
+       Assistant input
     --------------------------------- */
 
     .assistant-input-card {
@@ -90,7 +91,10 @@
 
     #assistant-form {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns:
+            minmax(0, 1fr)
+            auto;
+
         gap: 10px;
         align-items: end;
 
@@ -109,12 +113,15 @@
         grid-column: 1;
 
         display: block;
+
         width: 100%;
         min-width: 0;
         min-height: 110px;
+
         box-sizing: border-box;
 
         padding: 12px;
+
         resize: vertical;
 
         border: 1px solid var(--border-strong);
@@ -129,6 +136,7 @@
 
     #assistant-message:focus {
         outline: none;
+
         border-color: var(--accent);
 
         box-shadow:
@@ -154,63 +162,16 @@
 
     #assistant-button {
         width: auto;
-        height: auto;
         min-width: 90px;
 
         padding: 10px 18px;
+
         white-space: nowrap;
     }
 
-    /* ---------------------------------
-       Example prompt buttons
-    --------------------------------- */
-
-    .assistant-examples {
-        grid-column: 1 / -1;
-
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 8px;
-
-        margin-top: 2px;
-    }
-
-    .assistant-examples-label {
-        color: var(--text-muted);
-        font-size: 13px;
-        font-weight: 600;
-    }
-
-    .assistant-example {
-        padding: 6px 10px;
-
-        border: 1px solid var(--border);
-        border-radius: 999px;
-
-        background: var(--surface-soft);
-        color: var(--text-muted);
-
-        font: inherit;
-        font-size: 12px;
-
-        cursor: pointer;
-    }
-
-    .assistant-example:hover {
-        border-color: var(--accent);
-        background: var(--surface);
-        color: var(--text);
-    }
-
-    .assistant-example:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 2px;
-    }
-
 
     /* ---------------------------------
-       Read-only notice
+       Read-only
     --------------------------------- */
 
     .readonly-note {
@@ -278,6 +239,7 @@
 
     .update-summary-block {
         padding-top: 16px;
+
         border-top: 1px solid var(--border);
     }
 
@@ -360,7 +322,7 @@
 
 
     /* ---------------------------------
-       Task and health summary
+       Task / health summary
     --------------------------------- */
 
     .task-change-counts {
@@ -428,15 +390,19 @@
         justify-content: center;
 
         padding: 20px;
+
         overflow-y: auto;
 
         background: rgba(13, 17, 23, 0.88);
+
         backdrop-filter: blur(8px);
     }
 
     .assistant-loading-card {
         width: min(520px, 100%);
+
         max-height: calc(100vh - 40px);
+
         box-sizing: border-box;
 
         overflow-y: auto;
@@ -485,9 +451,11 @@
 
     .assistant-loading-status {
         min-height: 28px;
+
         margin: 20px 0 0;
 
         color: var(--text);
+
         font-weight: 700;
 
         transition:
@@ -497,15 +465,19 @@
 
     .assistant-loading-status.is-changing {
         opacity: 0;
+
         transform: translateY(5px);
     }
 
     .assistant-loading-progress {
         height: 8px;
+
         margin-top: 20px;
+
         overflow: hidden;
 
         border-radius: 999px;
+
         background: var(--surface-soft);
     }
 
@@ -514,6 +486,7 @@
         height: 100%;
 
         border-radius: inherit;
+
         background: var(--accent);
 
         animation:
@@ -527,6 +500,7 @@
         margin: 22px 0 0;
 
         color: var(--text-muted);
+
         line-height: 1.55;
     }
 
@@ -534,12 +508,13 @@
         margin: 14px 0 0;
 
         color: var(--text-muted);
+
         font-size: 13px;
     }
 
 
     /* ---------------------------------
-       Build Stack game
+       Build Stack
     --------------------------------- */
 
     .build-stack-section {
@@ -597,6 +572,7 @@
         background: #0d1117;
 
         touch-action: none;
+
         user-select: none;
         -webkit-user-select: none;
     }
@@ -605,7 +581,79 @@
         margin: 0;
 
         color: var(--text-muted);
+
         font-size: 12px;
+        text-align: center;
+    }
+
+
+    /* ---------------------------------
+       Mobile game controls
+    --------------------------------- */
+
+    .build-stack-mobile-controls {
+        display: none;
+
+        grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 1fr);
+
+        gap: 10px;
+
+        margin-top: 4px;
+    }
+
+    .build-stack-mobile-button {
+        min-height: 52px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        padding: 8px 14px;
+
+        border: 1px solid var(--border-strong);
+        border-radius: 10px;
+
+        background: var(--surface);
+
+        color: var(--text);
+
+        font: inherit;
+        font-size: 23px;
+        font-weight: 700;
+
+        cursor: pointer;
+
+        touch-action: none;
+
+        user-select: none;
+        -webkit-user-select: none;
+
+        transition:
+            transform 0.06s ease,
+            background 0.06s ease,
+            border-color 0.06s ease;
+    }
+
+    .build-stack-mobile-button:active,
+    .build-stack-mobile-button.is-active {
+        transform: scale(0.97);
+
+        background: var(--surface-raised);
+
+        border-color: var(--accent);
+    }
+
+    .build-stack-mobile-hint {
+        display: none;
+
+        margin: 0;
+
+        color: var(--text-muted);
+
+        font-size: 11px;
+
         text-align: center;
     }
 
@@ -639,32 +687,38 @@
        Mobile
     --------------------------------- */
 
+    @media (max-width: 700px) {
+        #assistant-form {
+            grid-template-columns: 1fr;
+        }
+
+        #assistant-form > label,
+        #assistant-message,
+        .assistant-form-actions {
+            grid-column: 1;
+        }
+
+        #assistant-button {
+            width: 100%;
+            min-height: 44px;
+        }
+
+        .build-stack-mobile-controls {
+            display: grid;
+        }
+
+        .build-stack-mobile-hint {
+            display: block;
+        }
+    }
+
+
     @media (max-width: 600px) {
         .assistant-layout {
             gap: 14px;
         }
 
-        .assistant-form {
-            grid-template-columns: 1fr;
-        }
-
-        .assistant-form label,
-        .assistant-examples {
-            grid-column: auto;
-        }
-
-        .assistant-form-actions {
-            width: 100%;
-        }
-
-        .assistant-form-actions button,
-        .assistant-form > button {
-            width: 100%;
-            min-height: 44px;
-            padding: 10px 16px;
-        }
-
-        .assistant-form textarea {
+        #assistant-message {
             min-height: 120px;
         }
 
@@ -682,15 +736,56 @@
 
         .task-change-counts {
             display: grid;
+
             grid-template-columns: 1fr;
         }
 
+        .assistant-loading-overlay {
+            align-items: flex-start;
+
+            padding: 10px;
+        }
+
         .assistant-loading-card {
-            padding: 28px 20px;
+            width: 100%;
+
+            max-height:
+                calc(
+                    100dvh - 20px
+                );
+
+            padding: 22px 14px;
+
+            border-radius: 14px;
+        }
+
+        .assistant-loading-spinner {
+            width: 44px;
+            height: 44px;
+
+            margin-bottom: 14px;
         }
 
         .assistant-loading-card h2 {
-            font-size: 1.45rem;
+            font-size: 1.35rem;
+        }
+
+        .assistant-loading-main {
+            margin-top: 9px;
+        }
+
+        .assistant-loading-status {
+            margin-top: 13px;
+        }
+
+        .assistant-loading-progress {
+            margin-top: 13px;
+        }
+
+        .build-stack-section {
+            margin-top: 16px;
+
+            padding: 11px;
         }
 
         .build-stack-header {
@@ -698,30 +793,30 @@
         }
 
         .build-stack-header span {
-            max-width: 180px;
-        }
-    }
-    @media (max-width: 600px) {
-        #assistant-form {
-            grid-template-columns: 1fr;
+            max-width: 200px;
         }
 
-        #assistant-form > label,
-        #assistant-message,
-        .assistant-form-actions {
-            grid-column: 1;
+        #build-stack-game {
+            max-height: 240px;
         }
 
-        #assistant-button {
-            width: 100%;
+        .assistant-loading-note {
+            margin-top: 14px;
+        }
+
+        .assistant-loading-warning {
+            margin-top: 9px;
         }
     }
 </style>
 {% endblock %}
 
+
 {% block content %}
 <div class="assistant-layout">
+
     <header class="assistant-header">
+
         <a href="{% url 'workspace' project.pk %}">
             ← Back to Workspace
         </a>
@@ -733,256 +828,332 @@
         <p>
             Ask Projivo to change, explain, or improve the project.
         </p>
+
     </header>
 
+
     {% if update_summary %}
-    <section class="update-summary">
-        <div class="update-summary-header">
-            <div
-                class="update-success-icon"
-                aria-hidden="true"
-            >
-                ✓
+        <section class="update-summary">
+
+            <div class="update-summary-header">
+
+                <div
+                    class="update-success-icon"
+                    aria-hidden="true"
+                >
+                    ✓
+                </div>
+
+                <div>
+                    <h2>
+                        Project Updated Successfully
+                    </h2>
+
+                    <p>
+                        Projivo analyzed your request
+                        and applied the relevant changes.
+                    </p>
+                </div>
+
             </div>
 
-            <div>
-                <h2>
-                    Project Updated Successfully
-                </h2>
 
-                <p>
-                    Projivo analyzed your request
-                    and applied the relevant changes.
-                </p>
-            </div>
-        </div>
+            {% if update_summary.assistant_summary %}
+                <div class="update-summary-block">
 
-        {% if update_summary.assistant_summary %}
+                    <h3>
+                        ✨ Summary
+                    </h3>
+
+                    <p>
+                        {{ update_summary.assistant_summary }}
+                    </p>
+
+                </div>
+            {% endif %}
+
+
+            {% if update_summary.change_summary_items %}
+                <div class="update-summary-block">
+
+                    <h3>
+                        🔧 Changes Applied
+                    </h3>
+
+                    <ul class="update-detail-list">
+                        {% for item in update_summary.change_summary_items %}
+                            <li>
+                                {{ item }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+
+                </div>
+            {% endif %}
+
+
+            {% if update_summary.sections %}
+                <div class="update-summary-block">
+
+                    <h3>
+                        📝 Updated Sections
+                    </h3>
+
+                    <ul class="update-check-list">
+
+                        {% for section in update_summary.sections %}
+
+                            <li>
+                                <span aria-hidden="true">
+                                    ✓
+                                </span>
+
+                                {{ section }}
+                            </li>
+
+                        {% endfor %}
+
+                    </ul>
+
+                </div>
+            {% endif %}
+
+
+            {% if update_summary.fact_changes %}
+                <div class="update-summary-block">
+
+                    <h3>
+                        ⚙️ Project Facts
+                    </h3>
+
+                    <div class="fact-change-list">
+
+                        {% for fact in update_summary.fact_changes %}
+
+                            <article class="fact-change-card">
+
+                                <strong>
+                                    {{ fact.label }}
+                                </strong>
+
+                                <div class="fact-change-values">
+
+                                    <span class="fact-before">
+                                        {% if fact.before != None and fact.before != "" %}
+                                            {{ fact.before }}
+                                        {% else %}
+                                            Not set
+                                        {% endif %}
+                                    </span>
+
+                                    <span
+                                        class="fact-arrow"
+                                        aria-hidden="true"
+                                    >
+                                        →
+                                    </span>
+
+                                    <span class="fact-after">
+                                        {% if fact.after != None and fact.after != "" %}
+                                            {{ fact.after }}
+                                        {% else %}
+                                            Removed
+                                        {% endif %}
+                                    </span>
+
+                                </div>
+
+                            </article>
+
+                        {% endfor %}
+
+                    </div>
+
+                </div>
+            {% endif %}
+
+
             <div class="update-summary-block">
+
                 <h3>
-                    ✨ Summary
+                    📋 Task Changes
                 </h3>
 
-                <p>
-                    {{ update_summary.assistant_summary }}
-                </p>
-            </div>
-        {% endif %}
+                {% if update_summary.task_changes.total %}
 
-        {% if update_summary.change_summary_items %}
-            <div class="update-summary-block">
-                <h3>
-                    🔧 Changes Applied
-                </h3>
+                    <div class="task-change-counts">
 
-                <ul class="update-detail-list">
-                    {% for item in update_summary.change_summary_items %}
-                        <li>
-                            {{ item }}
-                        </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        {% endif %}
-
-        {% if update_summary.sections %}
-            <div class="update-summary-block">
-                <h3>
-                    📝 Updated Sections
-                </h3>
-
-                <ul class="update-check-list">
-                    {% for section in update_summary.sections %}
-                        <li>
-                            <span aria-hidden="true">
-                                ✓
-                            </span>
-
-                            {{ section }}
-                        </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        {% endif %}
-
-        {% if update_summary.fact_changes %}
-            <div class="update-summary-block">
-                <h3>
-                    ⚙️ Project Facts
-                </h3>
-
-                <div class="fact-change-list">
-                    {% for fact in update_summary.fact_changes %}
-                        <article class="fact-change-card">
+                        <span>
                             <strong>
-                                {{ fact.label }}
+                                {{ update_summary.task_changes.added }}
                             </strong>
 
-                            <div class="fact-change-values">
-                                <span class="fact-before">
-                                    {% if fact.before != None and fact.before != "" %}
-                                        {{ fact.before }}
-                                    {% else %}
-                                        Not set
-                                    {% endif %}
-                                </span>
+                            added
+                        </span>
 
-                                <span
-                                    class="fact-arrow"
-                                    aria-hidden="true"
-                                >
-                                    →
-                                </span>
+                        <span>
+                            <strong>
+                                {{ update_summary.task_changes.updated }}
+                            </strong>
 
-                                <span class="fact-after">
-                                    {% if fact.after != None and fact.after != "" %}
-                                        {{ fact.after }}
-                                    {% else %}
-                                        Removed
-                                    {% endif %}
-                                </span>
-                            </div>
-                        </article>
-                    {% endfor %}
-                </div>
+                            updated
+                        </span>
+
+                        <span>
+                            <strong>
+                                {{ update_summary.task_changes.removed }}
+                            </strong>
+
+                            removed
+                        </span>
+
+                    </div>
+
+
+                    {% if update_summary.task_changes.added_titles %}
+
+                        <h4>
+                            Tasks Added
+                        </h4>
+
+                        <ul class="update-check-list">
+
+                            {% for title in update_summary.task_changes.added_titles %}
+                                <li>
+                                    <span aria-hidden="true">
+                                        +
+                                    </span>
+
+                                    {{ title }}
+                                </li>
+                            {% endfor %}
+
+                        </ul>
+
+                    {% endif %}
+
+
+                    {% if update_summary.task_changes.updated_titles %}
+
+                        <h4>
+                            Tasks Updated
+                        </h4>
+
+                        <ul class="update-check-list">
+
+                            {% for title in update_summary.task_changes.updated_titles %}
+                                <li>
+                                    <span aria-hidden="true">
+                                        ↻
+                                    </span>
+
+                                    {{ title }}
+                                </li>
+                            {% endfor %}
+
+                        </ul>
+
+                    {% endif %}
+
+
+                    {% if update_summary.task_changes.removed_titles %}
+
+                        <h4>
+                            Tasks Removed
+                        </h4>
+
+                        <ul class="update-check-list">
+
+                            {% for title in update_summary.task_changes.removed_titles %}
+                                <li>
+                                    <span aria-hidden="true">
+                                        −
+                                    </span>
+
+                                    {{ title }}
+                                </li>
+                            {% endfor %}
+
+                        </ul>
+
+                    {% endif %}
+
+                {% else %}
+
+                    <p class="no-task-changes">
+                        No task changes were necessary.
+                        The existing task list was already
+                        compatible with this update.
+                    </p>
+
+                {% endif %}
+
             </div>
-        {% endif %}
 
-        <div class="update-summary-block">
-            <h3>
-                📋 Task Changes
-            </h3>
 
-            {% if update_summary.task_changes.total %}
-                <div class="task-change-counts">
-                    <span>
+            {% if update_summary.health_score != None %}
+
+                <div class="update-summary-block">
+
+                    <h3>
+                        ❤️ Health Score
+                    </h3>
+
+                    <div class="health-score-summary">
+
                         <strong>
-                            {{ update_summary.task_changes.added }}
+                            {{ update_summary.health_score }}%
                         </strong>
-                        added
-                    </span>
 
-                    <span>
-                        <strong>
-                            {{ update_summary.task_changes.updated }}
-                        </strong>
-                        updated
-                    </span>
 
-                    <span>
-                        <strong>
-                            {{ update_summary.task_changes.removed }}
-                        </strong>
-                        removed
-                    </span>
-                </div>
+                        {% if update_summary.health_score_change != None %}
 
-                {% if update_summary.task_changes.added_titles %}
-                    <h4>
-                        Tasks Added
-                    </h4>
+                            {% if update_summary.health_score_change > 0 %}
 
-                    <ul class="update-check-list">
-                        {% for title in update_summary.task_changes.added_titles %}
-                            <li>
-                                <span aria-hidden="true">
-                                    +
+                                <span class="health-improved">
+                                    ↑
+                                    +{{ update_summary.health_score_change }}
+                                    from the previous review
                                 </span>
 
-                                {{ title }}
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% endif %}
+                            {% elif update_summary.health_score_change < 0 %}
 
-                {% if update_summary.task_changes.updated_titles %}
-                    <h4>
-                        Tasks Updated
-                    </h4>
-
-                    <ul class="update-check-list">
-                        {% for title in update_summary.task_changes.updated_titles %}
-                            <li>
-                                <span aria-hidden="true">
-                                    ↻
+                                <span class="health-declined">
+                                    ↓
+                                    {{ update_summary.health_score_change }}
+                                    from the previous review
                                 </span>
 
-                                {{ title }}
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% endif %}
+                            {% else %}
 
-                {% if update_summary.task_changes.removed_titles %}
-                    <h4>
-                        Tasks Removed
-                    </h4>
-
-                    <ul class="update-check-list">
-                        {% for title in update_summary.task_changes.removed_titles %}
-                            <li>
-                                <span aria-hidden="true">
-                                    −
+                                <span class="health-unchanged">
+                                    No change from the previous review
                                 </span>
 
-                                {{ title }}
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% endif %}
-            {% else %}
-                <p class="no-task-changes">
-                    No task changes were necessary.
-                    The existing task list was already
-                    compatible with this update.
-                </p>
-            {% endif %}
-        </div>
-
-        {% if update_summary.health_score != None %}
-            <div class="update-summary-block">
-                <h3>
-                    ❤️ Health Score
-                </h3>
-
-                <div class="health-score-summary">
-                    <strong>
-                        {{ update_summary.health_score }}%
-                    </strong>
-
-                    {% if update_summary.health_score_change != None %}
-                        {% if update_summary.health_score_change > 0 %}
-                            <span class="health-improved">
-                                ↑
-                                +{{ update_summary.health_score_change }}
-                                from the previous review
-                            </span>
-
-                        {% elif update_summary.health_score_change < 0 %}
-                            <span class="health-declined">
-                                ↓
-                                {{ update_summary.health_score_change }}
-                                from the previous review
-                            </span>
+                            {% endif %}
 
                         {% else %}
+
                             <span class="health-unchanged">
-                                No change from the previous review
+                                Latest saved project-health score
                             </span>
+
                         {% endif %}
-                    {% else %}
-                        <span class="health-unchanged">
-                            Latest saved project-health score
-                        </span>
-                    {% endif %}
+
+                    </div>
+
                 </div>
-            </div>
-        {% endif %}
-    </section>
-{% endif %}
+
+            {% endif %}
+
+        </section>
+    {% endif %}
+
 
     <div class="message-list">
+
         {% for message in messages %}
+
             <article
                 class="
                     assistant-message
@@ -993,6 +1164,7 @@
                     {% endif %}
                 "
             >
+
                 <strong>
                     {{ message.get_role_display }}
                 </strong>
@@ -1004,15 +1176,22 @@
                 <div class="timestamp">
                     {{ message.created_at|date:"F j, Y, g:i A" }}
                 </div>
+
             </article>
+
         {% empty %}
+
             <div class="card">
                 No assistant messages yet.
             </div>
+
         {% endfor %}
+
     </div>
 
+
     <section class="card assistant-input-card">
+
         <form
             id="assistant-form"
             method="POST"
@@ -1020,6 +1199,7 @@
             {% csrf_token %}
 
             <label for="assistant-message">
+
                 <strong>
                     {% if can_edit %}
                         Ask a question or update your project
@@ -1027,7 +1207,9 @@
                         Ask about this project
                     {% endif %}
                 </strong>
+
             </label>
+
 
             <textarea
                 id="assistant-message"
@@ -1040,7 +1222,9 @@
                 {% endif %}
             ></textarea>
 
+
             <div class="assistant-form-actions">
+
                 <button
                     id="assistant-button"
                     type="submit"
@@ -1051,25 +1235,38 @@
                         Ask
                     {% endif %}
                 </button>
+
             </div>
+
         </form>
 
+
         {% if not can_edit %}
+
             <div class="readonly-note">
                 You can ask questions about this project,
                 but only owners and editors can make changes.
             </div>
+
         {% endif %}
 
-        <div id="update-status" hidden>
+
+        <div
+            id="update-status"
+            hidden
+        >
             <p id="update-status-text">
                 Projivo is processing your request.
             </p>
         </div>
+
     </section>
+
 </div>
 
+
 {% if can_edit %}
+
     <div
         id="assistant-loading-overlay"
         class="assistant-loading-overlay"
@@ -1079,15 +1276,19 @@
         aria-describedby="assistant-loading-description"
         hidden
     >
+
         <div class="assistant-loading-card">
+
             <div
                 class="assistant-loading-spinner"
                 aria-hidden="true"
             ></div>
 
+
             <h2 id="assistant-loading-title">
                 Updating your project...
             </h2>
+
 
             <p
                 id="assistant-loading-description"
@@ -1098,6 +1299,7 @@
                 <strong>1–2 minutes.</strong>
             </p>
 
+
             <p
                 id="assistant-loading-status"
                 class="assistant-loading-status"
@@ -1105,6 +1307,7 @@
             >
                 Understanding your requested change...
             </p>
+
 
             <div
                 class="assistant-loading-progress"
@@ -1114,56 +1317,110 @@
                     class="assistant-loading-progress-bar"
                 ></div>
             </div>
+
+
             <div class="build-stack-section">
-            <div class="build-stack-header">
-                <div>
-                    <strong>
-                        Build Stack
-                    </strong>
 
-                    <span>
-                        Catch and stack project blocks
-                    </span>
+                <div class="build-stack-header">
+
+                    <div>
+
+                        <strong>
+                            Build Stack
+                        </strong>
+
+                        <span>
+                            Catch and stack project blocks
+                        </span>
+
+                    </div>
+
+
+                    <div class="build-stack-score">
+                        Score:
+
+                        <strong id="build-stack-score">
+                            0
+                        </strong>
+                    </div>
+
                 </div>
 
-                <div class="build-stack-score">
-                    Score:
-                    <strong id="build-stack-score">
-                        0
-                    </strong>
+
+                <canvas
+                    id="build-stack-game"
+                    width="420"
+                    height="260"
+                    aria-label="Build Stack loading game"
+                ></canvas>
+
+
+                <p class="build-stack-controls">
+                    Desktop: ← → or A/D ·
+                    Mobile: drag, swipe, or use the buttons
+                </p>
+
+
+                <!-- MOBILE CONTROLS -->
+
+                <div class="build-stack-mobile-controls">
+
+                    <button
+                        type="button"
+                        id="build-stack-left"
+                        class="build-stack-mobile-button"
+                        aria-label="Move stack left"
+                    >
+                        ←
+                    </button>
+
+                    <button
+                        type="button"
+                        id="build-stack-right"
+                        class="build-stack-mobile-button"
+                        aria-label="Move stack right"
+                    >
+                        →
+                    </button>
+
                 </div>
+
+
+                <p class="build-stack-mobile-hint">
+                    Hold a button to move continuously.
+                </p>
+
             </div>
 
-            <canvas
-                id="build-stack-game"
-                width="420"
-                height="260"
-                aria-label="Build Stack loading game"
-            ></canvas>
 
-            <p class="build-stack-controls">
-                Use ← →, A/D, drag, or swipe
-            </p>
-        </div>
             <p class="assistant-loading-note">
-                Projivo may update project facts, workspace sections,
-                tasks, dependencies, and planning information.
+                Projivo may update project facts,
+                workspace sections, tasks,
+                dependencies, and planning information.
             </p>
+
 
             <p class="assistant-loading-warning">
                 Keep this page open while the update finishes.
             </p>
+
         </div>
+
     </div>
+
 {% endif %}
+
 {% endblock %}
 
+
 {% block extra_js %}
+
 {% if can_edit %}
+
 <script>
-    /*
-     * Workspace Assistant loading state
-     */
+    /* ---------------------------------
+       Assistant loading state
+    --------------------------------- */
 
     const assistantForm =
         document.getElementById(
@@ -1190,6 +1447,7 @@
             "assistant-loading-status"
         );
 
+
     const assistantLoadingMessages = [
         "Understanding your requested change...",
         "Reviewing the current project workspace...",
@@ -1202,13 +1460,14 @@
         "Finalizing your project changes...",
     ];
 
+
     let assistantLoadingIndex = 0;
     let assistantLoadingTimer = null;
 
 
-    /*
-     * Build Stack elements and state
-     */
+    /* ---------------------------------
+       Build Stack elements
+    --------------------------------- */
 
     const buildStackCanvas =
         document.getElementById(
@@ -1220,12 +1479,24 @@
             "build-stack-score"
         );
 
+    const buildStackLeftButton =
+        document.getElementById(
+            "build-stack-left"
+        );
+
+    const buildStackRightButton =
+        document.getElementById(
+            "build-stack-right"
+        );
+
+
     const buildStackContext =
         buildStackCanvas
             ? buildStackCanvas.getContext(
                 "2d"
             )
             : null;
+
 
     const buildStackLabels = [
         "Task",
@@ -1238,24 +1509,29 @@
         "Deploy",
     ];
 
+
     const buildStackColors = [
         {
             fill: "#1f6feb",
             stroke: "#79c0ff",
         },
+
         {
             fill: "#8957e5",
             stroke: "#d2a8ff",
         },
+
         {
             fill: "#d29922",
             stroke: "#e3b341",
         },
+
         {
             fill: "#db6d28",
             stroke: "#ffa657",
         },
     ];
+
 
     let buildStackRunning = false;
 
@@ -1265,7 +1541,8 @@
     let buildStackRestartTimer =
         null;
 
-    let buildStackPlatform = null;
+    let buildStackPlatform =
+        null;
 
     let buildStackBlocks = [];
 
@@ -1288,9 +1565,9 @@
         false;
 
 
-    /*
-     * Loading-message functions
-     */
+    /* ---------------------------------
+       Loading messages
+    --------------------------------- */
 
     function rotateAssistantLoadingMessage() {
         if (!assistantLoadingStatus) {
@@ -1321,9 +1598,9 @@
     }
 
 
-    /*
-     * Build Stack score and setup
-     */
+    /* ---------------------------------
+       Score
+    --------------------------------- */
 
     function updateBuildStackScore() {
         if (!buildStackScoreElement) {
@@ -1337,6 +1614,10 @@
     }
 
 
+    /* ---------------------------------
+       Reset
+    --------------------------------- */
+
     function resetBuildStackGame() {
         if (
             !buildStackCanvas
@@ -1346,19 +1627,22 @@
         }
 
         buildStackPlatform = {
-            x: (
+            x:
                 buildStackCanvas.width
                 / 2
-                - 48
-            ),
-            y: (
+                - 48,
+
+            y:
                 buildStackCanvas.height
-                - 28
-            ),
+                - 28,
+
             width: 96,
+
             height: 14,
+
             speed: 270,
         };
+
 
         buildStackBlocks = [];
 
@@ -1378,22 +1662,43 @@
         buildStackPointerActive =
             false;
 
+
+        buildStackLeftButton
+            ?.classList
+            .remove(
+                "is-active"
+            );
+
+        buildStackRightButton
+            ?.classList
+            .remove(
+                "is-active"
+            );
+
+
         updateBuildStackScore();
 
         drawBuildStackGame();
     }
 
 
+    /* ---------------------------------
+       Create falling block
+    --------------------------------- */
+
     function createBuildStackBlock() {
         if (!buildStackCanvas) {
             return;
         }
 
+
         const blockWidth =
             68
             + Math.floor(
-                Math.random() * 29
+                Math.random()
+                * 29
             );
+
 
         const label =
             buildStackLabels[
@@ -1403,59 +1708,81 @@
                 )
             ];
 
+
         const colorIndex =
             Math.floor(
                 Math.random()
                 * buildStackColors.length
             );
 
+
         buildStackFallingBlock = {
-            x: (
+            x:
                 Math.random()
                 * (
                     buildStackCanvas.width
                     - blockWidth
-                )
-            ),
+                ),
+
             y: -30,
+
             width: blockWidth,
+
             height: 26,
-            speed: (
+
+            speed:
                 82
                 + Math.min(
                     buildStackScore * 6,
                     110
-                )
-            ),
+                ),
+
             label: label,
+
             colorIndex: colorIndex,
         };
     }
 
+
+    /* ---------------------------------
+       Stack surface
+    --------------------------------- */
 
     function getBuildStackTopSurface() {
         if (!buildStackPlatform) {
             return null;
         }
 
+
         if (!buildStackBlocks.length) {
             return {
-                x: buildStackPlatform.x,
-                y: buildStackPlatform.y,
+                x:
+                    buildStackPlatform.x,
+
+                y:
+                    buildStackPlatform.y,
+
                 width:
                     buildStackPlatform.width,
             };
         }
+
 
         const topBlock =
             buildStackBlocks[
                 buildStackBlocks.length - 1
             ];
 
+
         return {
-            x: topBlock.x,
-            y: topBlock.y,
-            width: topBlock.width,
+            x:
+                topBlock.x,
+
+            y:
+                topBlock.y,
+
+            width:
+                topBlock.width,
         };
     }
 
@@ -1470,6 +1797,7 @@
                     secondRectangle.x
                     + secondRectangle.width
                 )
+
             && (
                 firstRectangle.x
                 + firstRectangle.width
@@ -1478,9 +1806,14 @@
     }
 
 
+    /* ---------------------------------
+       Place block
+    --------------------------------- */
+
     function placeBuildStackBlock() {
         const surface =
             getBuildStackTopSurface();
+
 
         if (
             !surface
@@ -1489,70 +1822,75 @@
             return false;
         }
 
+
         const overlapLeft =
             Math.max(
                 buildStackFallingBlock.x,
                 surface.x
             );
 
+
         const overlapRight =
             Math.min(
-                (
-                    buildStackFallingBlock.x
-                    + buildStackFallingBlock.width
-                ),
-                (
-                    surface.x
+                buildStackFallingBlock.x
+                    + buildStackFallingBlock.width,
+
+                surface.x
                     + surface.width
-                )
             );
+
 
         const overlapWidth =
             overlapRight
             - overlapLeft;
 
+
         if (overlapWidth < 18) {
             return false;
         }
 
+
         buildStackBlocks.push(
             {
-                x: overlapLeft,
-                y: (
+                x:
+                    overlapLeft,
+
+                y:
                     surface.y
-                    - buildStackFallingBlock.height
-                ),
-                width: overlapWidth,
-                height: (
-                    buildStackFallingBlock.height
-                ),
-                label: (
-                    buildStackFallingBlock.label
-                ),
-                colorIndex: (
+                    - buildStackFallingBlock.height,
+
+                width:
+                    overlapWidth,
+
+                height:
+                    buildStackFallingBlock.height,
+
+                label:
+                    buildStackFallingBlock.label,
+
+                colorIndex:
                     buildStackFallingBlock
-                    .colorIndex
-                ),
+                    .colorIndex,
             }
         );
+
 
         buildStackScore += 1;
 
         updateBuildStackScore();
+
 
         buildStackFallingBlock =
             null;
 
         buildStackSpawnTimer = 0;
 
-        /*
-         * Prevent the stack from growing outside
-         * the visible game area.
-         */
+
         if (
             buildStackBlocks.length > 7
         ) {
             buildStackBlocks.shift();
+
 
             for (
                 const block
@@ -1562,19 +1900,26 @@
             }
         }
 
+
         return true;
     }
 
 
+    /* ---------------------------------
+       Lose / reset
+    --------------------------------- */
+
     function loseBuildStackGame() {
         buildStackFallingBlock =
             null;
+
 
         if (buildStackRestartTimer) {
             window.clearTimeout(
                 buildStackRestartTimer
             );
         }
+
 
         buildStackRestartTimer =
             window.setTimeout(
@@ -1590,9 +1935,9 @@
     }
 
 
-    /*
-     * Build Stack movement and collision logic
-     */
+    /* ---------------------------------
+       Update game
+    --------------------------------- */
 
     function updateBuildStackGame(
         deltaSeconds
@@ -1604,8 +1949,10 @@
             return;
         }
 
+
         const previousPlatformX =
             buildStackPlatform.x;
+
 
         if (buildStackMoveLeft) {
             buildStackPlatform.x -=
@@ -1613,31 +1960,32 @@
                 * deltaSeconds;
         }
 
+
         if (buildStackMoveRight) {
             buildStackPlatform.x +=
                 buildStackPlatform.speed
                 * deltaSeconds;
         }
 
+
         buildStackPlatform.x =
             Math.max(
                 0,
+
                 Math.min(
-                    (
-                        buildStackCanvas.width
-                        - buildStackPlatform.width
-                    ),
+                    buildStackCanvas.width
+                        - buildStackPlatform.width,
+
                     buildStackPlatform.x
                 )
             );
+
 
         const platformMovement =
             buildStackPlatform.x
             - previousPlatformX;
 
-        /*
-         * Move the completed stack with the platform.
-         */
+
         if (
             platformMovement !== 0
         ) {
@@ -1650,9 +1998,11 @@
             }
         }
 
+
         if (!buildStackFallingBlock) {
             buildStackSpawnTimer +=
                 deltaSeconds * 1000;
+
 
             if (
                 buildStackSpawnTimer
@@ -1663,31 +2013,34 @@
                 buildStackSpawnTimer = 0;
             }
 
+
             return;
         }
 
+
         const previousBottom =
-            (
-                buildStackFallingBlock.y
-                + buildStackFallingBlock.height
-            );
+            buildStackFallingBlock.y
+            + buildStackFallingBlock.height;
+
 
         buildStackFallingBlock.y +=
             buildStackFallingBlock.speed
             * deltaSeconds;
 
+
         const currentBottom =
-            (
-                buildStackFallingBlock.y
-                + buildStackFallingBlock.height
-            );
+            buildStackFallingBlock.y
+            + buildStackFallingBlock.height;
+
 
         const surface =
             getBuildStackTopSurface();
 
+
         if (!surface) {
             return;
         }
+
 
         const crossedSurface =
             (
@@ -1699,6 +2052,7 @@
                 >= surface.y
             );
 
+
         if (crossedSurface) {
             if (
                 rectanglesOverlapHorizontally(
@@ -1709,13 +2063,16 @@
                 const placed =
                     placeBuildStackBlock();
 
+
                 if (!placed) {
                     loseBuildStackGame();
                 }
 
+
                 return;
             }
         }
+
 
         if (
             buildStackFallingBlock.y
@@ -1726,9 +2083,9 @@
     }
 
 
-    /*
-     * Build Stack drawing functions
-     */
+    /* ---------------------------------
+       Drawing
+    --------------------------------- */
 
     function drawBuildStackBackground() {
         if (
@@ -1738,8 +2095,10 @@
             return;
         }
 
+
         buildStackContext.fillStyle =
             "#0d1117";
+
 
         buildStackContext.fillRect(
             0,
@@ -1748,10 +2107,13 @@
             buildStackCanvas.height
         );
 
+
         buildStackContext.strokeStyle =
             "rgba(255, 255, 255, 0.05)";
 
+
         buildStackContext.lineWidth = 1;
+
 
         for (
             let x = 0;
@@ -1772,6 +2134,7 @@
 
             buildStackContext.stroke();
         }
+
 
         for (
             let y = 0;
@@ -1810,60 +2173,80 @@
                 height / 2
             );
 
+
         context.beginPath();
+
 
         context.moveTo(
             x + safeRadius,
             y
         );
 
+
         context.lineTo(
             x + width - safeRadius,
             y
         );
 
+
         context.quadraticCurveTo(
             x + width,
             y,
+
             x + width,
             y + safeRadius
         );
 
+
         context.lineTo(
             x + width,
-            y + height - safeRadius
+
+            y + height
+                - safeRadius
         );
+
 
         context.quadraticCurveTo(
             x + width,
             y + height,
-            x + width - safeRadius,
+
+            x + width
+                - safeRadius,
+
             y + height
         );
+
 
         context.lineTo(
             x + safeRadius,
             y + height
         );
 
+
         context.quadraticCurveTo(
             x,
             y + height,
+
             x,
-            y + height - safeRadius
+            y + height
+                - safeRadius
         );
+
 
         context.lineTo(
             x,
             y + safeRadius
         );
 
+
         context.quadraticCurveTo(
             x,
             y,
+
             x + safeRadius,
             y
         );
+
 
         context.closePath();
     }
@@ -1878,22 +2261,29 @@
             return;
         }
 
+
         buildStackContext.fillStyle =
             fillStyle;
+
 
         buildStackContext.strokeStyle =
             strokeStyle;
 
+
         buildStackContext.lineWidth = 2;
+
 
         drawRoundedRectangle(
             buildStackContext,
+
             block.x,
             block.y,
             block.width,
             block.height,
+
             5
         );
+
 
         buildStackContext.fill();
 
@@ -1908,9 +2298,12 @@
             return;
         }
 
+
         buildStackContext.save();
 
+
         buildStackContext.beginPath();
+
 
         buildStackContext.rect(
             block.x,
@@ -1919,31 +2312,36 @@
             block.height
         );
 
+
         buildStackContext.clip();
+
 
         buildStackContext.fillStyle =
             "#ffffff";
 
+
         buildStackContext.font =
             "bold 12px sans-serif";
+
 
         buildStackContext.textAlign =
             "center";
 
+
         buildStackContext.textBaseline =
             "middle";
 
+
         buildStackContext.fillText(
             block.label,
-            (
-                block.x
-                + block.width / 2
-            ),
-            (
-                block.y
+
+            block.x
+                + block.width / 2,
+
+            block.y
                 + block.height / 2
-            )
         );
+
 
         buildStackContext.restore();
     }
@@ -1958,7 +2356,9 @@
             return;
         }
 
+
         drawBuildStackBackground();
+
 
         drawBuildStackRectangle(
             buildStackPlatform,
@@ -1966,29 +2366,33 @@
             "#3fb950"
         );
 
+
         buildStackContext.fillStyle =
             "#ffffff";
+
 
         buildStackContext.font =
             "bold 11px sans-serif";
 
+
         buildStackContext.textAlign =
             "center";
+
 
         buildStackContext.textBaseline =
             "middle";
 
+
         buildStackContext.fillText(
             "PROJIVO",
-            (
-                buildStackPlatform.x
-                + buildStackPlatform.width / 2
-            ),
-            (
-                buildStackPlatform.y
+
+            buildStackPlatform.x
+                + buildStackPlatform.width / 2,
+
+            buildStackPlatform.y
                 + buildStackPlatform.height / 2
-            )
         );
+
 
         for (
             const block
@@ -2000,16 +2404,19 @@
                     % buildStackColors.length
                 ];
 
+
             drawBuildStackRectangle(
                 block,
                 color.fill,
                 color.stroke
             );
 
+
             drawBuildStackLabel(
                 block
             );
         }
+
 
         if (buildStackFallingBlock) {
             const fallingColor =
@@ -2019,11 +2426,13 @@
                     % buildStackColors.length
                 ];
 
+
             drawBuildStackRectangle(
                 buildStackFallingBlock,
                 fallingColor.fill,
                 fallingColor.stroke
             );
+
 
             drawBuildStackLabel(
                 buildStackFallingBlock
@@ -2032,9 +2441,9 @@
     }
 
 
-    /*
-     * Build Stack animation lifecycle
-     */
+    /* ---------------------------------
+       Animation lifecycle
+    --------------------------------- */
 
     function buildStackGameLoop(
         timestamp
@@ -2043,29 +2452,35 @@
             return;
         }
 
+
         if (!buildStackLastTime) {
             buildStackLastTime =
                 timestamp;
         }
+
 
         const deltaSeconds =
             Math.min(
                 (
                     timestamp
                     - buildStackLastTime
-                )
-                / 1000,
+                ) / 1000,
+
                 0.05
             );
 
+
         buildStackLastTime =
             timestamp;
+
 
         updateBuildStackGame(
             deltaSeconds
         );
 
+
         drawBuildStackGame();
+
 
         buildStackAnimationFrame =
             window.requestAnimationFrame(
@@ -2082,24 +2497,30 @@
             return;
         }
 
+
         if (buildStackAnimationFrame) {
             window.cancelAnimationFrame(
                 buildStackAnimationFrame
             );
         }
 
+
         if (buildStackRestartTimer) {
             window.clearTimeout(
                 buildStackRestartTimer
             );
 
+
             buildStackRestartTimer =
                 null;
         }
 
+
         resetBuildStackGame();
 
+
         buildStackRunning = true;
+
 
         buildStackAnimationFrame =
             window.requestAnimationFrame(
@@ -2118,19 +2539,36 @@
         buildStackPointerActive =
             false;
 
+
+        buildStackLeftButton
+            ?.classList
+            .remove(
+                "is-active"
+            );
+
+        buildStackRightButton
+            ?.classList
+            .remove(
+                "is-active"
+            );
+
+
         if (buildStackAnimationFrame) {
             window.cancelAnimationFrame(
                 buildStackAnimationFrame
             );
 
+
             buildStackAnimationFrame =
                 null;
         }
+
 
         if (buildStackRestartTimer) {
             window.clearTimeout(
                 buildStackRestartTimer
             );
+
 
             buildStackRestartTimer =
                 null;
@@ -2138,9 +2576,9 @@
     }
 
 
-    /*
-     * Pointer and touch movement
-     */
+    /* ---------------------------------
+       Canvas pointer / drag control
+    --------------------------------- */
 
     function setBuildStackPlatformFromPointer(
         clientX
@@ -2152,17 +2590,21 @@
             return;
         }
 
+
         const bounds =
             buildStackCanvas
-                .getBoundingClientRect();
+            .getBoundingClientRect();
+
 
         if (!bounds.width) {
             return;
         }
 
+
         const scaleX =
             buildStackCanvas.width
             / bounds.width;
+
 
         const canvasX =
             (
@@ -2171,30 +2613,33 @@
             )
             * scaleX;
 
+
         const previousPlatformX =
             buildStackPlatform.x;
 
+
         buildStackPlatform.x =
-            (
-                canvasX
-                - buildStackPlatform.width / 2
-            );
+            canvasX
+            - buildStackPlatform.width / 2;
+
 
         buildStackPlatform.x =
             Math.max(
                 0,
+
                 Math.min(
-                    (
-                        buildStackCanvas.width
-                        - buildStackPlatform.width
-                    ),
+                    buildStackCanvas.width
+                        - buildStackPlatform.width,
+
                     buildStackPlatform.x
                 )
             );
 
+
         const platformMovement =
             buildStackPlatform.x
             - previousPlatformX;
+
 
         if (
             platformMovement !== 0
@@ -2210,86 +2655,263 @@
     }
 
 
-    /*
-     * Loading overlay lifecycle
-     */
+    if (buildStackCanvas) {
 
-    function showAssistantLoadingState() {
-        if (!assistantLoadingOverlay) {
+        buildStackCanvas.addEventListener(
+            "pointerdown",
+            function (event) {
+                if (!buildStackRunning) {
+                    return;
+                }
+
+
+                event.preventDefault();
+
+
+                buildStackPointerActive =
+                    true;
+
+
+                try {
+                    buildStackCanvas
+                        .setPointerCapture(
+                            event.pointerId
+                        );
+                } catch (error) {
+                    // Pointer capture is optional.
+                }
+
+
+                setBuildStackPlatformFromPointer(
+                    event.clientX
+                );
+            }
+        );
+
+
+        buildStackCanvas.addEventListener(
+            "pointermove",
+            function (event) {
+                if (
+                    !buildStackRunning
+                    || !buildStackPointerActive
+                ) {
+                    return;
+                }
+
+
+                event.preventDefault();
+
+
+                setBuildStackPlatformFromPointer(
+                    event.clientX
+                );
+            }
+        );
+
+
+        function endBuildStackPointer(
+            event
+        ) {
+            buildStackPointerActive =
+                false;
+
+
+            try {
+                if (
+                    buildStackCanvas
+                    .hasPointerCapture(
+                        event.pointerId
+                    )
+                ) {
+                    buildStackCanvas
+                        .releasePointerCapture(
+                            event.pointerId
+                        );
+                }
+            } catch (error) {
+                // Ignore unsupported pointer capture.
+            }
+        }
+
+
+        buildStackCanvas.addEventListener(
+            "pointerup",
+            endBuildStackPointer
+        );
+
+
+        buildStackCanvas.addEventListener(
+            "pointercancel",
+            endBuildStackPointer
+        );
+
+
+        buildStackCanvas.addEventListener(
+            "pointerleave",
+            function (event) {
+                if (
+                    event.pointerType
+                    === "mouse"
+                ) {
+                    buildStackPointerActive =
+                        false;
+                }
+            }
+        );
+    }
+
+
+    /* ---------------------------------
+       Mobile hold buttons
+    --------------------------------- */
+
+    function startBuildStackButtonMove(
+        direction,
+        button
+    ) {
+        if (!buildStackRunning) {
             return;
         }
 
-        assistantLoadingIndex = 0;
 
-        if (assistantLoadingStatus) {
-            assistantLoadingStatus.textContent =
-                assistantLoadingMessages[0];
-
-            assistantLoadingStatus.classList.remove(
-                "is-changing"
-            );
+        if (direction === "left") {
+            buildStackMoveLeft = true;
+            buildStackMoveRight = false;
         }
 
-        assistantLoadingOverlay.hidden =
-            false;
 
-        document.body.style.overflow =
-            "hidden";
-
-        if (assistantLoadingTimer) {
-            window.clearInterval(
-                assistantLoadingTimer
-            );
+        if (direction === "right") {
+            buildStackMoveRight = true;
+            buildStackMoveLeft = false;
         }
 
-        assistantLoadingTimer =
-            window.setInterval(
-                rotateAssistantLoadingMessage,
-                4500
-            );
 
-        startBuildStackGame();
+        button?.classList.add(
+            "is-active"
+        );
     }
 
 
-    function resetAssistantLoadingState() {
-        stopBuildStackGame();
-
-        if (assistantLoadingTimer) {
-            window.clearInterval(
-                assistantLoadingTimer
-            );
-
-            assistantLoadingTimer =
-                null;
+    function stopBuildStackButtonMove(
+        direction,
+        button
+    ) {
+        if (direction === "left") {
+            buildStackMoveLeft = false;
         }
 
-        if (assistantLoadingOverlay) {
-            assistantLoadingOverlay.hidden =
-                true;
+
+        if (direction === "right") {
+            buildStackMoveRight = false;
         }
 
-        document.body.style.overflow =
-            "";
 
-        if (assistantButton) {
-            assistantButton.disabled =
-                false;
-
-            assistantButton.textContent =
-                "Send";
-        }
-
-        if (assistantTextarea) {
-            assistantTextarea.readOnly =
-                false;
-        }
+        button?.classList.remove(
+            "is-active"
+        );
     }
 
 
-    /*
-     * Keyboard controls
-     */
+    function attachBuildStackMobileButton(
+        button,
+        direction
+    ) {
+        if (!button) {
+            return;
+        }
+
+
+        button.addEventListener(
+            "pointerdown",
+            function (event) {
+                event.preventDefault();
+
+
+                try {
+                    button.setPointerCapture(
+                        event.pointerId
+                    );
+                } catch (error) {
+                    // Optional.
+                }
+
+
+                startBuildStackButtonMove(
+                    direction,
+                    button
+                );
+            }
+        );
+
+
+        button.addEventListener(
+            "pointerup",
+            function (event) {
+                event.preventDefault();
+
+
+                stopBuildStackButtonMove(
+                    direction,
+                    button
+                );
+
+
+                try {
+                    if (
+                        button.hasPointerCapture(
+                            event.pointerId
+                        )
+                    ) {
+                        button.releasePointerCapture(
+                            event.pointerId
+                        );
+                    }
+                } catch (error) {
+                    // Optional.
+                }
+            }
+        );
+
+
+        button.addEventListener(
+            "pointercancel",
+            function () {
+                stopBuildStackButtonMove(
+                    direction,
+                    button
+                );
+            }
+        );
+
+
+        button.addEventListener(
+            "lostpointercapture",
+            function () {
+                stopBuildStackButtonMove(
+                    direction,
+                    button
+                );
+            }
+        );
+    }
+
+
+    attachBuildStackMobileButton(
+        buildStackLeftButton,
+        "left"
+    );
+
+
+    attachBuildStackMobileButton(
+        buildStackRightButton,
+        "right"
+    );
+
+
+    /* ---------------------------------
+       Keyboard controls
+    --------------------------------- */
 
     document.addEventListener(
         "keydown",
@@ -2298,8 +2920,10 @@
                 return;
             }
 
+
             const key =
                 event.key.toLowerCase();
+
 
             if (
                 key === "arrowleft"
@@ -2310,6 +2934,7 @@
                 buildStackMoveLeft =
                     true;
             }
+
 
             if (
                 key === "arrowright"
@@ -2330,6 +2955,7 @@
             const key =
                 event.key.toLowerCase();
 
+
             if (
                 key === "arrowleft"
                 || key === "a"
@@ -2337,6 +2963,7 @@
                 buildStackMoveLeft =
                     false;
             }
+
 
             if (
                 key === "arrowright"
@@ -2349,116 +2976,101 @@
     );
 
 
-    /*
-     * Touch, mouse, and stylus controls
-     */
+    /* ---------------------------------
+       Loading overlay
+    --------------------------------- */
 
-    if (buildStackCanvas) {
-        buildStackCanvas.addEventListener(
-            "pointerdown",
-            function (event) {
-                if (!buildStackRunning) {
-                    return;
-                }
-
-                event.preventDefault();
-
-                buildStackPointerActive =
-                    true;
-
-                try {
-                    buildStackCanvas
-                        .setPointerCapture(
-                            event.pointerId
-                        );
-                } catch (error) {
-                    /*
-                     * Some browsers may not support
-                     * pointer capture.
-                     */
-                }
-
-                setBuildStackPlatformFromPointer(
-                    event.clientX
-                );
-            }
-        );
-
-
-        buildStackCanvas.addEventListener(
-            "pointermove",
-            function (event) {
-                if (
-                    !buildStackRunning
-                    || !buildStackPointerActive
-                ) {
-                    return;
-                }
-
-                event.preventDefault();
-
-                setBuildStackPlatformFromPointer(
-                    event.clientX
-                );
-            }
-        );
-
-
-        function endBuildStackPointer(
-            event
-        ) {
-            buildStackPointerActive =
-                false;
-
-            try {
-                if (
-                    buildStackCanvas
-                        .hasPointerCapture(
-                            event.pointerId
-                        )
-                ) {
-                    buildStackCanvas
-                        .releasePointerCapture(
-                            event.pointerId
-                        );
-                }
-            } catch (error) {
-                /*
-                 * Ignore unsupported pointer-capture
-                 * behavior.
-                 */
-            }
+    function showAssistantLoadingState() {
+        if (!assistantLoadingOverlay) {
+            return;
         }
 
 
-        buildStackCanvas.addEventListener(
-            "pointerup",
-            endBuildStackPointer
-        );
+        assistantLoadingIndex = 0;
 
-        buildStackCanvas.addEventListener(
-            "pointercancel",
-            endBuildStackPointer
-        );
 
-        buildStackCanvas.addEventListener(
-            "pointerleave",
-            function (event) {
-                if (
-                    event.pointerType
-                    === "mouse"
-                ) {
-                    buildStackPointerActive =
-                        false;
-                }
-            }
-        );
+        if (assistantLoadingStatus) {
+            assistantLoadingStatus.textContent =
+                assistantLoadingMessages[0];
+
+
+            assistantLoadingStatus.classList.remove(
+                "is-changing"
+            );
+        }
+
+
+        assistantLoadingOverlay.hidden =
+            false;
+
+
+        document.body.style.overflow =
+            "hidden";
+
+
+        if (assistantLoadingTimer) {
+            window.clearInterval(
+                assistantLoadingTimer
+            );
+        }
+
+
+        assistantLoadingTimer =
+            window.setInterval(
+                rotateAssistantLoadingMessage,
+                4500
+            );
+
+
+        startBuildStackGame();
     }
 
 
-    /*
-     * Assistant form submission
-     */
+    function resetAssistantLoadingState() {
+        stopBuildStackGame();
+
+
+        if (assistantLoadingTimer) {
+            window.clearInterval(
+                assistantLoadingTimer
+            );
+
+
+            assistantLoadingTimer =
+                null;
+        }
+
+
+        if (assistantLoadingOverlay) {
+            assistantLoadingOverlay.hidden =
+                true;
+        }
+
+
+        document.body.style.overflow =
+            "";
+
+
+        if (assistantButton) {
+            assistantButton.disabled =
+                false;
+
+
+            assistantButton.textContent =
+                "Send";
+        }
+
+
+        if (assistantTextarea) {
+            assistantTextarea.readOnly =
+                false;
+        }
+    }
+
+
+    /* ---------------------------------
+       Assistant form
+    --------------------------------- */
 
     if (
         assistantForm
@@ -2468,15 +3080,20 @@
         assistantForm.addEventListener(
             "submit",
             function (event) {
-                if (assistantButton.disabled) {
+                if (
+                    assistantButton.disabled
+                ) {
                     event.preventDefault();
+
                     return;
                 }
 
+
                 const message =
                     assistantTextarea
-                        .value
-                        .trim();
+                    .value
+                    .trim();
+
 
                 if (!message) {
                     event.preventDefault();
@@ -2486,19 +3103,24 @@
                     return;
                 }
 
+
                 assistantButton.disabled =
                     true;
+
 
                 assistantButton.textContent =
                     (
                         assistantButton
-                            .dataset
-                            .loadingText
+                        .dataset
+                        .loadingText
+
                         || "Applying Changes..."
                     );
 
+
                 assistantTextarea.readOnly =
                     true;
+
 
                 showAssistantLoadingState();
             }
@@ -2506,10 +3128,9 @@
     }
 
 
-    /*
-     * Reset when returning through the browser's
-     * back-forward cache.
-     */
+    /* ---------------------------------
+       BFCache reset
+    --------------------------------- */
 
     window.addEventListener(
         "pageshow",
@@ -2518,29 +3139,56 @@
                 return;
             }
 
+
             resetAssistantLoadingState();
         }
     );
 
 
-    /*
-     * Prevent movement from remaining active when
-     * the browser tab loses focus.
-     */
+    /* ---------------------------------
+       Safety cleanup
+    --------------------------------- */
+
+    function clearBuildStackMovement() {
+        buildStackMoveLeft = false;
+
+        buildStackMoveRight = false;
+
+        buildStackPointerActive =
+            false;
+
+
+        buildStackLeftButton
+            ?.classList
+            .remove(
+                "is-active"
+            );
+
+
+        buildStackRightButton
+            ?.classList
+            .remove(
+                "is-active"
+            );
+    }
+
 
     window.addEventListener(
         "blur",
+        clearBuildStackMovement
+    );
+
+
+    document.addEventListener(
+        "visibilitychange",
         function () {
-            buildStackMoveLeft =
-                false;
-
-            buildStackMoveRight =
-                false;
-
-            buildStackPointerActive =
-                false;
+            if (document.hidden) {
+                clearBuildStackMovement();
+            }
         }
     );
 </script>
+
 {% endif %}
+
 {% endblock %}
