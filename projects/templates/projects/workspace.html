@@ -54,6 +54,7 @@
 
     .workspace-header-actions {
         display: flex;
+
         gap: 9px;
         flex-wrap: wrap;
     }
@@ -70,7 +71,7 @@
 
 
     /* =========================
-       MAIN NAVIGATION CARDS
+       WORKSPACE LINKS
     ========================= */
 
     .workspace-links {
@@ -82,13 +83,13 @@
                 minmax(0, 1fr)
             );
 
+        column-gap: 12px;
+
         /*
-         * IMPORTANT:
-         * This controls BOTH horizontal
-         * and vertical distance between
-         * the two card rows.
+         * Keeps row 1 and row 2
+         * close together.
          */
-        gap: 12px;
+        row-gap: 6px;
     }
 
     .workspace-link {
@@ -126,6 +127,7 @@
 
     .workspace-link-icon {
         font-size: 24px;
+
         line-height: 1;
     }
 
@@ -146,23 +148,8 @@
         color: var(--text-muted);
 
         font-size: 12px;
+
         line-height: 1.5;
-    }
-
-    .workspace-link-disabled {
-        opacity: 0.55;
-
-        cursor: default;
-    }
-
-    .workspace-link-disabled:hover {
-        transform: none;
-
-        border-color: var(--border);
-
-        background: var(--surface);
-
-        color: var(--text);
     }
 
 
@@ -200,6 +187,7 @@
         border-color: var(--border-strong);
 
         background: var(--surface-raised);
+
         color: var(--text);
     }
 
@@ -210,6 +198,7 @@
 
     .dashboard-section {
         display: grid;
+
         gap: 14px;
     }
 
@@ -403,6 +392,7 @@
 
     .health-items {
         display: grid;
+
         gap: 9px;
 
         margin-top: 18px;
@@ -438,7 +428,7 @@
 
 
     /* =========================
-       BOTTOM DASHBOARD CARDS
+       BOTTOM DASHBOARD
     ========================= */
 
     .dashboard-two-column {
@@ -470,6 +460,7 @@
 
     .dashboard-list {
         display: grid;
+
         gap: 0;
 
         margin: 0;
@@ -504,6 +495,7 @@
 
     .dashboard-list-title {
         font-size: 13px;
+
         font-weight: 650;
     }
 
@@ -545,6 +537,7 @@
         }
     }
 
+
     @media (max-width: 600px) {
         .workspace-links,
         .metrics-grid {
@@ -577,6 +570,7 @@
 
 <div class="workspace-dashboard">
 
+
     <!-- =========================
          PROJECT HEADER
     ========================== -->
@@ -590,9 +584,11 @@
             </h1>
 
             {% if project.description %}
+
                 <p>
                     {{ project.description }}
                 </p>
+
             {% endif %}
 
         </div>
@@ -626,14 +622,18 @@
 
 
     <!-- =========================
-         WORKSPACE LINKS
+         EXACTLY 7 WORKSPACE LINKS
     ========================== -->
 
     <section class="workspace-links">
 
-        <!-- TASKS -->
+
+        <!-- =====================
+             1. TASKS
+        ====================== -->
 
         {% for folder in folders %}
+
             {% if folder.folder_type == "tasks" %}
 
                 <a
@@ -652,7 +652,8 @@
                         </span>
 
                         <span class="workspace-link-description">
-                            Plan, assign, and complete project work.
+                            Plan, assign, and complete
+                            project work.
                         </span>
 
                     </div>
@@ -660,10 +661,13 @@
                 </a>
 
             {% endif %}
+
         {% endfor %}
 
 
-        <!-- TIMELINE -->
+        <!-- =====================
+             2. TIMELINE
+        ====================== -->
 
         <a
             class="workspace-link"
@@ -681,7 +685,8 @@
                 </span>
 
                 <span class="workspace-link-description">
-                    Deadlines, milestones, and task dependencies.
+                    Deadlines, milestones,
+                    and task dependencies.
                 </span>
 
             </div>
@@ -689,9 +694,12 @@
         </a>
 
 
-        <!-- BUDGET -->
+        <!-- =====================
+             3. BUDGET
+        ====================== -->
 
         {% for folder in folders %}
+
             {% if folder.folder_type == "budget" %}
 
                 <a
@@ -718,14 +726,17 @@
                 </a>
 
             {% endif %}
+
         {% endfor %}
 
 
-        <!-- RESOURCES -->
+        <!-- =====================
+             4. RESOURCES
+        ====================== -->
 
         {% for folder in folders %}
 
-            {% if folder.folder_type == "learning" or folder.folder_type == "resources" %}
+            {% if folder.folder_type == "learning" %}
 
                 <a
                     class="workspace-link"
@@ -743,8 +754,8 @@
                         </span>
 
                         <span class="workspace-link-description">
-                            References, tutorials, links,
-                            and learning material.
+                            References, tutorials,
+                            links, and learning material.
                         </span>
 
                     </div>
@@ -756,9 +767,12 @@
         {% endfor %}
 
 
-        <!-- DOCS -->
+        <!-- =====================
+             5. DOCS
+        ====================== -->
 
         {% for folder in folders %}
+
             {% if folder.folder_type == "documentation" %}
 
                 <a
@@ -786,10 +800,13 @@
                 </a>
 
             {% endif %}
+
         {% endfor %}
 
 
-        <!-- ASSISTANT -->
+        <!-- =====================
+             6. ASSISTANT
+        ====================== -->
 
         <a
             class="workspace-link"
@@ -815,7 +832,9 @@
         </a>
 
 
-        <!-- MEMBERS -->
+        <!-- =====================
+             7. MEMBERS
+        ====================== -->
 
         <a
             class="workspace-link"
@@ -960,7 +979,7 @@
 
 
     <!-- =========================
-         TASK PROGRESS
+         PROGRESS
     ========================== -->
 
     <section class="dashboard-section">
@@ -973,6 +992,7 @@
 
 
             {% for folder in folders %}
+
                 {% if folder.folder_type == "tasks" %}
 
                     <a
@@ -982,6 +1002,7 @@
                     </a>
 
                 {% endif %}
+
             {% endfor %}
 
         </div>
@@ -1049,6 +1070,7 @@
 
             <div class="health-top">
 
+
                 {% if health_score != None %}
 
                     <div class="health-score">
@@ -1067,15 +1089,25 @@
                 <div class="health-copy">
 
                     <h3>
+
                         {% if health_score == None %}
+
                             No review yet
+
                         {% elif health_score >= 80 %}
+
                             Project looks healthy
+
                         {% elif health_score >= 60 %}
+
                             Project needs attention
+
                         {% else %}
+
                             Project is at risk
+
                         {% endif %}
+
                     </h3>
 
 
@@ -1090,6 +1122,7 @@
 
 
             <div class="health-items">
+
 
                 {% if open_conflict_count %}
 
@@ -1172,7 +1205,8 @@
 
     <section class="dashboard-two-column">
 
-        <!-- HIGH PRIORITY TASKS -->
+
+        <!-- HIGH PRIORITY -->
 
         <article class="dashboard-card">
 
