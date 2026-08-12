@@ -623,7 +623,34 @@
             margin-top: 0;
         }
 
+        /* =====================================
+   AI LOADING SPINNER
+===================================== */
 
+.loading-spinner {
+    width: 15px;
+    height: 15px;
+
+    flex: 0 0 15px;
+
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+
+    border-radius: 50%;
+
+    animation: projivo-spin 0.7s linear infinite;
+}
+
+@keyframes projivo-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.loading-form button:disabled {
+    cursor: wait;
+    opacity: 0.75;
+}
         /* =====================================
            FLASH MESSAGES
         ===================================== */
@@ -1802,7 +1829,89 @@
 </script>
 
 {% endif %}
+<!-- =====================================
+     GLOBAL AI LOADING BUTTONS
+===================================== -->
 
+<script>
+    document.addEventListener(
+        "DOMContentLoaded",
+        function () {
+            const loadingForms =
+                document.querySelectorAll(
+                    ".loading-form"
+                );
+
+            loadingForms.forEach(
+                function (form) {
+                    form.addEventListener(
+                        "submit",
+                        function () {
+                            const button =
+                                form.querySelector(
+                                    'button[type="submit"]'
+                                );
+
+                            if (!button) {
+                                return;
+                            }
+
+                            /*
+                             * Prevent the global spinner from
+                             * interfering with forms that use
+                             * a loading game.
+                             */
+                            if (
+                                form.classList.contains(
+                                    "loading-game-form"
+                                )
+                            ) {
+                                return;
+                            }
+
+                            const loadingText =
+                                button.dataset.loadingText
+                                || "Generating...";
+
+                            button.disabled = true;
+
+                            button.innerHTML = "";
+
+                            const spinner =
+                                document.createElement(
+                                    "span"
+                                );
+
+                            spinner.className =
+                                "loading-spinner";
+
+                            spinner.setAttribute(
+                                "aria-hidden",
+                                "true"
+                            );
+
+                            const text =
+                                document.createElement(
+                                    "span"
+                                );
+
+                            text.textContent =
+                                loadingText;
+
+                            button.appendChild(
+                                spinner
+                            );
+
+                            button.appendChild(
+                                text
+                            );
+                        }
+                    );
+                }
+            );
+        }
+    );
+</script>
 
 {% block extra_js %}
 {% endblock %}
