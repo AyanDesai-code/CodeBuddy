@@ -9421,7 +9421,6 @@ def github_webhook(
         status=204,
     )
 
-
 class BudgetItemForm(forms.ModelForm):
     class Meta:
         model = BudgetItem
@@ -9433,7 +9432,6 @@ class BudgetItemForm(forms.ModelForm):
             "requirement_level",
             "quantity",
             "unit_cost",
-            "actual_cost",
             "is_recurring",
             "is_physical_part",
             "source_name",
