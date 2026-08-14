@@ -1515,14 +1515,15 @@ def generate_workspace(
                             description=description,
                             priority=(
                                 normalize_task_priority(
-                                    generated_task
-                                    .priority
+                                    generated_task.priority
                                 )
                             ),
                             status=status,
                             completed=(
-                                status
-                                == Task.Status.DONE
+                                status == Task.Status.DONE
+                            ),
+                            estimated_hours=(
+                                generated_task.estimated_hours
                             ),
                             order=index,
                         )
@@ -1763,6 +1764,78 @@ def generate_workspace(
             print(
                 "15. Workspace event recorded."
             )
+
+        # ---------------------------------
+        # GENERATE INITIAL AI SCHEDULE
+        # ---------------------------------
+
+        print(
+            "16. Generating initial "
+            "project schedule."
+        )
+
+        schedule_started_at = (
+            time.monotonic()
+        )
+
+        schedule = generate_project_schedule(
+            project
+        )
+
+        schedule_result = (
+            apply_project_schedule(
+                project=project,
+                schedule=schedule,
+            )
+        )
+
+        project.schedule_needs_refresh = False
+        project.schedule_refresh_reason = ""
+        project.schedule_last_generated_at = (
+            timezone.now()
+        )
+
+        project.save(
+            update_fields=[
+                "schedule_needs_refresh",
+                "schedule_refresh_reason",
+                "schedule_last_generated_at",
+                "updated_at",
+            ]
+        )
+
+        record_project_event(
+            project=project,
+            event_type=(
+                ProjectEvent.EventType
+                .SCHEDULE_GENERATED
+            ),
+            title="AI schedule generated",
+            description=(
+                schedule_result["summary"]
+            ),
+            metadata={
+                "milestones_created_or_updated": (
+                    schedule_result[
+                        "milestones_created_or_updated"
+                    ]
+                ),
+                "tasks_scheduled": (
+                    schedule_result[
+                        "tasks_scheduled"
+                    ]
+                ),
+            },
+        )
+
+        print(
+            "17. Initial schedule generated "
+            "in "
+            f"{time.monotonic() - schedule_started_at:.2f} "
+            "seconds. Scheduled "
+            f"{schedule_result['tasks_scheduled']} "
+            "tasks."
+        )
 
         generation_seconds = (
             time.monotonic()

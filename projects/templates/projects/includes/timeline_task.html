@@ -36,9 +36,19 @@
         </span>
 
         <span>
+            <strong>Duration:</strong>
+            {% if task.duration_display %}
+                {{ task.duration_display }}
+            {% else %}
+                Not scheduled
+            {% endif %}
+        </span>
+
+        <span>
             <strong>Estimate:</strong>
             {% if task.estimated_hours != None %}
-                {{ task.estimated_hours }} hours
+                {{ task.estimated_hours }}
+                hour{{ task.estimated_hours|pluralize }}
             {% else %}
                 Not estimated
             {% endif %}
@@ -48,6 +58,7 @@
     {% if task.dependencies.exists %}
         <div class="dependency-box">
             <strong>Depends on:</strong>
+
             <ul>
                 {% for dependency in task.dependencies.all %}
                     <li>

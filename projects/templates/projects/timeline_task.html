@@ -1,23 +1,15 @@
 <li class="task-card">
     <div class="task-heading">
-        <div>
-            <h3>
-                {% if task.completed %}
-                    <s>{{ task.title }}</s>
-                {% else %}
-                    {{ task.title }}
-                {% endif %}
-            </h3>
-
-            {% if task.description %}
-                <p>{{ task.description }}</p>
-            {% endif %}
-        </div>
+        <h3>{{ task.title }}</h3>
 
         <span class="status">
             {{ task.get_status_display }}
         </span>
     </div>
+
+    {% if task.description %}
+        <p>{{ task.description }}</p>
+    {% endif %}
 
     <div class="task-details">
         <span>
@@ -25,57 +17,69 @@
             {{ task.get_priority_display }}
         </span>
 
-        {% if task.start_date %}
-            <span>
-                <strong>Start:</strong>
+        <span>
+            <strong>Start:</strong>
+            {% if task.start_date %}
                 {{ task.start_date|date:"M j, Y" }}
-            </span>
-        {% endif %}
+            {% else %}
+                Not scheduled
+            {% endif %}
+        </span>
 
-        {% if task.due_date %}
-            <span>
-                <strong>Due:</strong>
+        <span>
+            <strong>Due:</strong>
+            {% if task.due_date %}
                 {{ task.due_date|date:"M j, Y" }}
-            </span>
-        {% endif %}
+            {% else %}
+                Not scheduled
+            {% endif %}
+        </span>
 
-        {% if task.duration_display %}
-            <span>
-                <strong>Duration:</strong>
+        <span>
+            <strong>Duration:</strong>
+            {% if task.duration_display %}
                 {{ task.duration_display }}
-            </span>
-        {% endif %}
+            {% else %}
+                Not scheduled
+            {% endif %}
+        </span>
 
-        {% if task.estimated_hours %}
-            <span>
-                <strong>Estimate:</strong>
+        <span>
+            <strong>Estimate:</strong>
+            {% if task.estimated_hours != None %}
                 {{ task.estimated_hours }}
                 hour{{ task.estimated_hours|pluralize }}
-            </span>
-        {% endif %}
+            {% else %}
+                Not estimated
+            {% endif %}
+        </span>
     </div>
 
     {% if task.dependencies.exists %}
         <div class="dependency-box">
             <strong>Depends on:</strong>
 
-            {% for dependency in task.dependencies.all %}
-                {{ dependency.title }}
-                {% if not forloop.last %}, {% endif %}
-            {% endfor %}
+            <ul>
+                {% for dependency in task.dependencies.all %}
+                    <li>
+                        {{ dependency.title }}
+                        — {{ dependency.get_status_display }}
+                    </li>
+                {% endfor %}
+            </ul>
         </div>
     {% endif %}
 
     {% if task.is_blocked %}
         <div class="dependency-box">
-            <strong>Blocked:</strong>
-            One or more required tasks are incomplete.
+            <strong>Blocked</strong>
         </div>
     {% endif %}
 
     {% if can_edit %}
         <div class="task-actions">
             <a
+                class="button"
                 href="{% url 'edit_task_dependencies' project.pk task.pk %}"
             >
                 Edit dependencies
