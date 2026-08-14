@@ -2750,8 +2750,8 @@ Task rules:
 - Prefer direct dependencies rather than listing every indirect dependency.
 - start_date must not be after due_date.
 - estimated_hours must be realistic for one clear task.
-- If there is not enough information for a confident estimate, make a
-  clearly reasonable estimate rather than leaving everything empty.
+- If there is not enough information for a confident estimate,
+  make a clearly reasonable estimate rather than leaving everything empty.
 - milestone_name must either match one returned milestone name or be null.
 
 Status meanings:
@@ -2769,6 +2769,162 @@ Scheduling guidance:
 - Use today's date as the earliest normal start date for unfinished work.
 - Do not move completed tasks back into the future.
 - Allow reasonable overlap only where tasks can truly happen in parallel.
+
+TASK DURATION RULES
+
+Assign a realistic start_date and due_date to every unfinished task.
+
+The span from start_date through due_date represents the realistic
+calendar duration of the task.
+
+Estimate task duration using:
+
+- task complexity
+- estimated_hours
+- task priority
+- dependencies
+- milestone deadlines
+- the overall project timeline
+- whether work can happen in parallel
+- whether the project appears to be part-time or full-time
+
+Do not give every task the same duration.
+
+Typical duration guidance:
+
+Very small task:
+1-2 calendar days
+
+Small task:
+2-4 calendar days
+
+Medium task:
+4-7 calendar days
+
+Large task:
+1-2 weeks
+
+Very large task:
+2-3 weeks
+
+These are guidelines, not strict limits.
+
+The calendar duration and estimated_hours are different concepts.
+
+For example:
+
+A task may require 4 hours of focused work but span 2 or 3 calendar
+days because the user is working on the project part-time.
+
+Do not make due_date equal start_date for every task simply because
+the estimated hours are low.
+
+Likewise, do not stretch a small task across multiple weeks unless
+the project context justifies it.
+
+DEPENDENCY SCHEDULING
+
+An unfinished task should normally begin only after all unfinished
+required dependencies are complete.
+
+Example:
+
+Task A:
+start_date = 2026-08-15
+due_date = 2026-08-18
+
+Task B depends on Task A.
+
+Task B should normally begin on or after:
+
+2026-08-19
+
+Do not schedule Task B during Task A unless the dependency only requires
+partial completion and the project context clearly supports overlap.
+
+Preserve logical dependency order.
+
+PARALLEL WORK
+
+Independent tasks may overlap.
+
+Do not unnecessarily schedule every task one after another.
+
+Use parallel scheduling when:
+
+- tasks do not depend on each other
+- different project areas can progress independently
+- multiple team members could perform the work simultaneously
+
+For a single-person project, avoid scheduling an unrealistic number
+of large tasks at the same time.
+
+Smaller independent tasks may reasonably overlap.
+
+MILESTONE SCHEDULING
+
+Tasks assigned to a milestone should normally finish on or before that
+milestone's target date.
+
+Do not place most milestone work on the final day.
+
+Leave reasonable time for:
+
+- integration
+- validation
+- debugging
+- review
+- rework
+
+Place prerequisite work early enough that downstream tasks have time
+to finish.
+
+PROJECT DEADLINES
+
+Respect any overall project deadline found in the supplied project data.
+
+When the timeline is tight:
+
+1. Schedule independent tasks in parallel where realistic.
+2. Prioritize required and high-priority work.
+3. Reduce optional scheduling slack.
+4. Only shorten task durations when the resulting estimate is still realistic.
+
+Do not create impossible schedules merely to satisfy a requested
+deadline.
+
+COMPLETED AND ACTIVE TASKS
+
+For completed tasks:
+
+- preserve reasonable existing dates when available
+- do not move them into the future
+
+For in-progress tasks:
+
+- do not normally place their start date in the future
+- use today or an existing earlier start date when appropriate
+- assign a realistic remaining due date
+
+For todo tasks:
+
+- schedule them according to priority, dependencies, milestones,
+  and available project time
+
+SCHEDULE QUALITY
+
+The final schedule should look like a plausible real project plan.
+
+Avoid patterns such as:
+
+- every task lasting exactly one day
+- every task lasting exactly one week
+- every task starting on the same date
+- every task being completely sequential
+- dependent tasks beginning before prerequisites finish
+- dozens of large tasks running simultaneously
+
+Use varied, realistic durations.
 
 Return only the structured response required by ProjectSchedule.
 """

@@ -39,10 +39,18 @@
             </span>
         {% endif %}
 
+        {% if task.duration_display %}
+            <span>
+                <strong>Duration:</strong>
+                {{ task.duration_display }}
+            </span>
+        {% endif %}
+
         {% if task.estimated_hours %}
             <span>
                 <strong>Estimate:</strong>
-                {{ task.estimated_hours }} hours
+                {{ task.estimated_hours }}
+                hour{{ task.estimated_hours|pluralize }}
             </span>
         {% endif %}
     </div>

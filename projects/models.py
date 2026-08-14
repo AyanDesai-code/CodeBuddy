@@ -217,6 +217,55 @@ class Task(models.Model):
             return False
 
         return self.due_date < timezone.localdate()
+    @property
+    def duration_days(self):
+        if (
+            self.start_date is None
+            or self.due_date is None
+        ):
+            return None
+
+        days = (
+            self.due_date
+            - self.start_date
+        ).days + 1
+
+        if days < 1:
+            return None
+
+        return days
+
+
+    @property
+    def duration_display(self):
+        days = self.duration_days
+
+        if days is None:
+            return ""
+
+        if days == 1:
+            return "1 day"
+
+        if days < 7:
+            return f"{days} days"
+
+        weeks = days // 7
+        remaining_days = days % 7
+
+        if weeks == 1:
+            week_text = "1 week"
+        else:
+            week_text = f"{weeks} weeks"
+
+        if remaining_days == 0:
+            return week_text
+
+        if remaining_days == 1:
+            day_text = "1 day"
+        else:
+            day_text = f"{remaining_days} days"
+
+        return f"{week_text}, {day_text}"
 
     def __str__(self):
         return self.title
