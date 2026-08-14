@@ -40,10 +40,34 @@
         resize: vertical;
     }
 
+    .schedule-fields {
+        display: grid;
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 17px;
+    }
+
+    .schedule-fields .field {
+        margin-bottom: 0;
+    }
+
+    .schedule-note {
+        margin: -4px 0 18px;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
     .form-actions {
         display: flex;
         gap: 10px;
         flex-wrap: wrap;
+    }
+
+    @media (max-width: 700px) {
+        .schedule-fields {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 {% endblock %}
@@ -90,7 +114,10 @@
                     <strong>Priority</strong>
                 </label>
 
-                <select id="priority" name="priority">
+                <select
+                    id="priority"
+                    name="priority"
+                >
                     {% for value, label in priorities %}
                         <option
                             value="{{ value }}"
@@ -104,8 +131,62 @@
                 </select>
             </div>
 
+            <div class="schedule-fields">
+                <div class="field">
+                    <label for="start_date">
+                        <strong>Start Date</strong>
+                    </label>
+
+                    <input
+                        id="start_date"
+                        type="date"
+                        name="start_date"
+                        value="{% if task.start_date %}{{ task.start_date|date:'Y-m-d' }}{% endif %}"
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="due_date">
+                        <strong>Due Date</strong>
+                    </label>
+
+                    <input
+                        id="due_date"
+                        type="date"
+                        name="due_date"
+                        value="{% if task.due_date %}{{ task.due_date|date:'Y-m-d' }}{% endif %}"
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="estimated_hours">
+                        <strong>Estimated Hours</strong>
+                    </label>
+
+                    <input
+                        id="estimated_hours"
+                        type="number"
+                        name="estimated_hours"
+                        min="0"
+                        step="0.25"
+                        value="{% if task.estimated_hours != None %}{{ task.estimated_hours }}{% endif %}"
+                    >
+                </div>
+            </div>
+
+            {% if task.duration_display %}
+                <p class="schedule-note">
+                    Current scheduled duration:
+                    <strong>
+                        {{ task.duration_display }}
+                    </strong>
+                </p>
+            {% endif %}
+
             <div class="form-actions">
-                <button type="submit">Save Changes</button>
+                <button type="submit">
+                    Save Changes
+                </button>
 
                 <a
                     class="button"

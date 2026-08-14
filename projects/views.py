@@ -2863,8 +2863,145 @@ def edit_task(
             default=task.priority,
         )
 
+        new_start_date = request.POST.get(
+            "start_date",
+            "",
+        ).strip()
+
+        new_due_date = request.POST.get(
+            "due_date",
+            "",
+        ).strip()
+
+        new_estimated_hours = request.POST.get(
+            "estimated_hours",
+            "",
+        ).strip()
+
         if not new_title:
             new_title = task.title
+
+        # ---------------------------------
+        # PARSE START DATE
+        # ---------------------------------
+
+        parsed_start_date = None
+
+        if new_start_date:
+            try:
+                parsed_start_date = (
+                    date.fromisoformat(
+                        new_start_date
+                    )
+                )
+            except ValueError:
+                messages.error(
+                    request,
+                    "Start date is invalid.",
+                )
+
+                return redirect(
+                    "edit_task",
+                    project_pk=project.pk,
+                    task_pk=task.pk,
+                )
+
+        # ---------------------------------
+        # PARSE DUE DATE
+        # ---------------------------------
+
+        parsed_due_date = None
+
+        if new_due_date:
+            try:
+                parsed_due_date = (
+                    date.fromisoformat(
+                        new_due_date
+                    )
+                )
+            except ValueError:
+                messages.error(
+                    request,
+                    "Due date is invalid.",
+                )
+
+                return redirect(
+                    "edit_task",
+                    project_pk=project.pk,
+                    task_pk=task.pk,
+                )
+
+        # ---------------------------------
+        # VALIDATE DATE ORDER
+        # ---------------------------------
+
+        if (
+            parsed_start_date is not None
+            and parsed_due_date is not None
+            and parsed_start_date
+            > parsed_due_date
+        ):
+            messages.error(
+                request,
+                (
+                    "Start date cannot be "
+                    "after the due date."
+                ),
+            )
+
+            return redirect(
+                "edit_task",
+                project_pk=project.pk,
+                task_pk=task.pk,
+            )
+
+        # ---------------------------------
+        # PARSE ESTIMATED HOURS
+        # ---------------------------------
+
+        parsed_estimated_hours = None
+
+        if new_estimated_hours:
+            try:
+                parsed_estimated_hours = Decimal(
+                    new_estimated_hours
+                )
+            except (
+                InvalidOperation,
+                ValueError,
+            ):
+                messages.error(
+                    request,
+                    (
+                        "Estimated hours must "
+                        "be a valid number."
+                    ),
+                )
+
+                return redirect(
+                    "edit_task",
+                    project_pk=project.pk,
+                    task_pk=task.pk,
+                )
+
+            if parsed_estimated_hours < 0:
+                messages.error(
+                    request,
+                    (
+                        "Estimated hours cannot "
+                        "be negative."
+                    ),
+                )
+
+                return redirect(
+                    "edit_task",
+                    project_pk=project.pk,
+                    task_pk=task.pk,
+                )
+
+        # ---------------------------------
+        # CHECK FOR CHANGES
+        # ---------------------------------
 
         changed = any(
             [
@@ -2874,6 +3011,18 @@ def edit_task(
                     != new_description
                 ),
                 task.priority != new_priority,
+                (
+                    task.start_date
+                    != parsed_start_date
+                ),
+                (
+                    task.due_date
+                    != parsed_due_date
+                ),
+                (
+                    task.estimated_hours
+                    != parsed_estimated_hours
+                ),
             ]
         )
 
@@ -2882,11 +3031,26 @@ def edit_task(
             task.description = new_description
             task.priority = new_priority
 
+            task.start_date = (
+                parsed_start_date
+            )
+
+            task.due_date = (
+                parsed_due_date
+            )
+
+            task.estimated_hours = (
+                parsed_estimated_hours
+            )
+
             task.save(
                 update_fields=[
                     "title",
                     "description",
                     "priority",
+                    "start_date",
+                    "due_date",
+                    "estimated_hours",
                     "updated_at",
                 ]
             )
@@ -2894,14 +3058,19 @@ def edit_task(
             mark_schedule_for_refresh(
                 project=project,
                 reason=(
-                    f"Task updated: {task.title}."
+                    f"Task updated: "
+                    f"{task.title}."
                 ),
             )
 
             messages.success(
                 request,
-                f'Task "{task.title}" was updated.',
+                (
+                    f'Task "{task.title}" '
+                    "was updated."
+                ),
             )
+
         else:
             messages.info(
                 request,
@@ -2914,9 +3083,11 @@ def edit_task(
             folder_pk=tasks_folder.pk,
         )
 
-    permission_context = project_permission_context(
-        project=project,
-        user=request.user,
+    permission_context = (
+        project_permission_context(
+            project=project,
+            user=request.user,
+        )
     )
 
     return render(
@@ -2925,7 +3096,9 @@ def edit_task(
         {
             "project": project,
             "task": task,
-            "priorities": Task.Priority.choices,
+            "priorities": (
+                Task.Priority.choices
+            ),
             **permission_context,
         },
     )
