@@ -522,8 +522,12 @@
             width: 100%;
         }
     }
-    .timeline-view-section {
-    margin-top: 32px;
+/* =================================
+   GANTT
+================================= */
+
+.timeline-view-section {
+    margin: 32px 0 28px;
 }
 
 .timeline-section-heading {
@@ -535,7 +539,7 @@
 }
 
 .timeline-section-heading h2 {
-    margin: 4px 0 4px;
+    margin: 4px 0;
 }
 
 .timeline-section-heading p {
@@ -557,35 +561,62 @@
 }
 
 
-/* ================================
-   GANTT CONTAINER
-================================ */
+/* =================================
+   GANTT VARIABLES
+================================= */
 
 .gantt-card {
+    --gantt-day-width: 34px;
+    --gantt-task-width: 260px;
+    --gantt-row-height: 54px;
+
+    position: relative;
+
     border: 1px solid var(--border);
     border-radius: 12px;
+
     background: var(--surface);
+
     overflow: hidden;
 }
 
+
+/* =================================
+   SCROLL AREA
+================================= */
+
 .gantt-scroll {
     overflow-x: auto;
+    overflow-y: visible;
+
+    scrollbar-width: thin;
 }
 
 .gantt-chart {
-    min-width: 1000px;
+    position: relative;
+
+    width: max-content;
+
+    min-width: 100%;
 }
 
 
-/* ================================
-   ROW
-================================ */
+/* =================================
+   ROW STRUCTURE
+================================= */
 
 .gantt-row {
     display: grid;
-    grid-template-columns: 260px minmax(740px, 1fr);
-    min-height: 56px;
-    border-bottom: 1px solid var(--border);
+
+    grid-template-columns:
+        var(--gantt-task-width)
+        max-content;
+
+    min-height:
+        var(--gantt-row-height);
+
+    border-bottom:
+        1px solid var(--border);
 }
 
 .gantt-row:last-child {
@@ -593,115 +624,292 @@
 }
 
 
-/* ================================
-   TASK NAME COLUMN
-================================ */
+/* =================================
+   LEFT TASK COLUMN
+================================= */
 
 .gantt-task-column {
-    padding: 11px 14px;
-    border-right: 1px solid var(--border);
+    position: sticky;
+    left: 0;
+
+    z-index: 20;
+
+    width:
+        var(--gantt-task-width);
+
+    min-width:
+        var(--gantt-task-width);
+
+    padding: 10px 14px;
+
+    border-right:
+        1px solid var(--border);
+
+    background:
+        var(--surface);
 }
 
 .gantt-task-name {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    text-decoration: none;
+
     color: var(--text);
+
+    text-decoration: none;
 }
 
 .gantt-task-name:hover {
-    background: var(--surface-soft);
+    background:
+        var(--surface-soft);
 }
 
 .gantt-task-title {
+    overflow: hidden;
+
     font-size: 13px;
     font-weight: 600;
+
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .gantt-task-meta {
     margin-top: 3px;
+
     color: var(--text-muted);
+
     font-size: 11px;
 }
 
 
-/* ================================
-   TIME COLUMN
-================================ */
+/* =================================
+   CALENDAR AREA
+================================= */
 
-.gantt-time-column {
+.gantt-calendar {
     position: relative;
-    min-height: 56px;
 
-    background-image:
-        linear-gradient(
-            to right,
-            var(--border) 1px,
-            transparent 1px
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            var(--gantt-total-days),
+            var(--gantt-day-width)
         );
 
-    background-size:
-        calc(100% / 12) 100%;
+    width:
+        calc(
+            var(--gantt-total-days)
+            * var(--gantt-day-width)
+        );
+
+    min-width:
+        calc(
+            var(--gantt-total-days)
+            * var(--gantt-day-width)
+        );
 }
 
 
-/* ================================
-   HEADER
-================================ */
+/* =================================
+   MONTH HEADER
+================================= */
 
-.gantt-header-row {
-    min-height: 46px;
-    background: var(--surface-soft);
+.gantt-month-row {
+    min-height: 34px;
+
+    background:
+        var(--surface-soft);
+}
+
+.gantt-month-row
+.gantt-task-column {
+    background:
+        var(--surface-soft);
+
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
+
     color: var(--text-muted);
 }
 
-.gantt-header-row .gantt-task-column {
+.gantt-month {
     display: flex;
     align-items: center;
-}
 
-.gantt-range-label {
-    position: absolute;
-    inset: 0;
+    padding: 0 10px;
 
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    border-right:
+        1px solid var(--border);
 
-    padding: 0 14px;
+    color: var(--text);
+
     font-size: 12px;
+    font-weight: 600;
+
+    white-space: nowrap;
 }
 
 
-/* ================================
+/* =================================
+   DAY HEADER
+================================= */
+
+.gantt-day-header-row {
+    min-height: 48px;
+
+    background:
+        var(--surface-soft);
+}
+
+.gantt-day-header-row
+.gantt-task-column {
+    background:
+        var(--surface-soft);
+
+    display: flex;
+    align-items: center;
+
+    font-size: 12px;
+    font-weight: 700;
+
+    color: var(--text-muted);
+}
+
+.gantt-day-cell {
+    height: 48px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    border-right:
+        1px solid var(--border);
+
+    color: var(--text-muted);
+
+    font-size: 10px;
+}
+
+.gantt-day-cell strong {
+    color: var(--text);
+
+    font-size: 11px;
+}
+
+.gantt-day-cell.weekend {
+    background:
+        rgba(255, 255, 255, 0.025);
+}
+
+.gantt-day-cell.today {
+    background:
+        rgba(88, 166, 255, 0.12);
+}
+
+.gantt-weekday {
+    margin-bottom: 2px;
+
+    font-size: 9px;
+
+    text-transform: uppercase;
+}
+
+
+/* =================================
+   TASK CALENDAR ROW
+================================= */
+
+.gantt-task-calendar {
+    position: relative;
+
+    display: block;
+
+    width:
+        calc(
+            var(--gantt-total-days)
+            * var(--gantt-day-width)
+        );
+
+    min-width:
+        calc(
+            var(--gantt-total-days)
+            * var(--gantt-day-width)
+        );
+
+    min-height:
+        var(--gantt-row-height);
+
+    background-image:
+        repeating-linear-gradient(
+            to right,
+            transparent 0,
+            transparent
+                calc(
+                    var(--gantt-day-width)
+                    - 1px
+                ),
+            var(--border)
+                calc(
+                    var(--gantt-day-width)
+                    - 1px
+                ),
+            var(--border)
+                var(--gantt-day-width)
+        );
+}
+
+
+/* =================================
+   WEEKEND BACKGROUNDS
+================================= */
+
+.gantt-weekend-column {
+    position: absolute;
+
+    top: 0;
+    bottom: 0;
+
+    width:
+        var(--gantt-day-width);
+
+    background:
+        rgba(255, 255, 255, 0.018);
+
+    pointer-events: none;
+
+    z-index: 0;
+}
+
+
+/* =================================
    TASK BAR
-================================ */
+================================= */
 
 .gantt-bar {
     position: absolute;
 
-    top: 13px;
+    top: 12px;
+
     height: 30px;
-
-    min-width: 8px;
-
-    border-radius: 6px;
 
     display: flex;
     align-items: center;
 
-    padding: 0 9px;
+    padding: 0 8px;
 
     overflow: hidden;
 
+    border:
+        1px solid transparent;
+
+    border-radius: 6px;
+
     text-decoration: none;
 
-    z-index: 3;
-
-    border: 1px solid transparent;
+    z-index: 5;
 
     transition:
         transform 0.12s ease,
@@ -709,14 +917,20 @@
 }
 
 .gantt-bar:hover {
-    transform: translateY(-1px);
-    filter: brightness(1.12);
-    z-index: 6;
+    transform:
+        translateY(-1px);
+
+    filter:
+        brightness(1.12);
+
+    z-index: 12;
 }
 
 .gantt-bar span {
     overflow: hidden;
+
     white-space: nowrap;
+
     text-overflow: ellipsis;
 
     font-size: 11px;
@@ -724,83 +938,225 @@
 }
 
 
-/* ================================
-   STATUS COLORS
-================================ */
+/* =================================
+   TASK STATUS
+================================= */
 
 .gantt-status-todo {
-    background: var(--surface-raised);
-    border-color: var(--border-strong);
-    color: var(--text);
+    background:
+        var(--surface-raised);
+
+    border-color:
+        var(--border-strong);
+
+    color:
+        var(--text);
 }
 
 .gantt-status-in_progress {
-    background: var(--info-background);
-    border-color: var(--accent);
-    color: var(--accent-hover);
+    background:
+        var(--info-background);
+
+    border-color:
+        var(--accent);
+
+    color:
+        var(--accent-hover);
 }
 
 .gantt-status-review {
-    background: var(--warning-background);
-    border-color: var(--warning);
-    color: var(--warning);
+    background:
+        var(--warning-background);
+
+    border-color:
+        var(--warning);
+
+    color:
+        var(--warning);
 }
 
 .gantt-status-done {
-    background: var(--success-background);
-    border-color: var(--success);
-    color: var(--success);
+    background:
+        var(--success-background);
+
+    border-color:
+        var(--success);
+
+    color:
+        var(--success);
 }
 
 
-/* ================================
-   MILESTONES
-================================ */
+/* =================================
+   BLOCKED / OVERDUE
+================================= */
+
+.gantt-bar.is-blocked {
+    border-color:
+        var(--danger);
+
+    border-width: 2px;
+
+    border-style: dashed;
+}
+
+.gantt-bar.is-overdue {
+    box-shadow:
+        0 0 0 1px
+        var(--danger);
+}
+
+
+/* =================================
+   MILESTONE LINES
+================================= */
 
 .gantt-milestone-line {
     position: absolute;
+
     top: 0;
     bottom: 0;
 
-    width: 1px;
+    width: 2px;
 
-    background: var(--warning);
+    background:
+        var(--warning);
 
-    opacity: 0.4;
+    opacity: 0.38;
 
-    z-index: 1;
+    pointer-events: none;
+
+    z-index: 3;
 }
 
+
+/* =================================
+   TODAY LINE
+================================= */
+
+.gantt-today-line {
+    position: absolute;
+
+    top: 0;
+    bottom: 0;
+
+    width: 2px;
+
+    background:
+        var(--accent);
+
+    pointer-events: none;
+
+    z-index: 4;
+}
+
+.gantt-today-label {
+    position: absolute;
+
+    top: 4px;
+
+    transform:
+        translateX(-50%);
+
+    padding:
+        2px 6px;
+
+    border-radius: 999px;
+
+    background:
+        var(--accent);
+
+    color: #ffffff;
+
+    font-size: 9px;
+    font-weight: 700;
+
+    z-index: 10;
+}
+
+
+/* =================================
+   MILESTONE ROW
+================================= */
+
 .gantt-milestone-row {
-    min-height: 64px;
-    background: var(--surface-soft);
+    min-height: 72px;
+
+    background:
+        var(--surface-soft);
+}
+
+.gantt-milestone-row
+.gantt-task-column {
+    background:
+        var(--surface-soft);
+
+    display: flex;
+    align-items: center;
+
+    color: var(--text-muted);
+
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.gantt-milestone-calendar {
+    position: relative;
+
+    width:
+        calc(
+            var(--gantt-total-days)
+            * var(--gantt-day-width)
+        );
+
+    min-width:
+        calc(
+            var(--gantt-total-days)
+            * var(--gantt-day-width)
+        );
+
+    min-height: 72px;
 }
 
 .gantt-milestone {
     position: absolute;
-    top: 9px;
 
-    transform: translateX(-7px);
+    top: 10px;
 
-    z-index: 5;
+    transform:
+        translateX(-50%);
+
+    z-index: 8;
 }
 
 .gantt-milestone-diamond {
     display: block;
-    color: var(--warning);
-    font-size: 15px;
+
+    color:
+        var(--warning);
+
+    font-size: 16px;
+
+    text-align: center;
 }
 
 .gantt-milestone-name {
     position: absolute;
+
     top: 22px;
-    left: 0;
+    left: 50%;
 
-    max-width: 140px;
+    transform:
+        translateX(-50%);
 
-    color: var(--text-muted);
+    width: 130px;
+
+    color:
+        var(--text-muted);
 
     font-size: 10px;
+
+    text-align: center;
 
     white-space: nowrap;
     overflow: hidden;
@@ -808,25 +1164,29 @@
 }
 
 
-/* ================================
+/* =================================
    LEGEND
-================================ */
+================================= */
 
 .gantt-legend {
     display: flex;
     flex-wrap: wrap;
+
     gap: 9px 18px;
 
     margin-top: 12px;
 
-    color: var(--text-muted);
+    color:
+        var(--text-muted);
 
     font-size: 12px;
 }
 
 .gantt-legend > span {
     display: flex;
+
     align-items: center;
+
     gap: 6px;
 }
 
@@ -842,24 +1202,40 @@
     border-style: solid;
 }
 
+.gantt-today-legend {
+    display: inline-block;
 
-/* ================================
+    width: 2px;
+    height: 14px;
+
+    background:
+        var(--accent);
+}
+
+
+/* =================================
    EMPTY STATE
-================================ */
+================================= */
 
 .gantt-empty {
     padding: 24px;
 
-    border: 1px dashed var(--border);
+    border:
+        1px dashed
+        var(--border);
+
     border-radius: 12px;
 
-    background: var(--surface);
+    background:
+        var(--surface);
 
-    color: var(--text-muted);
+    color:
+        var(--text-muted);
 }
 
 .gantt-empty strong {
-    color: var(--text);
+    color:
+        var(--text);
 }
 
 .gantt-empty p {
@@ -867,23 +1243,26 @@
 }
 
 
-/* ================================
+/* =================================
    MOBILE
-================================ */
+================================= */
 
 @media (max-width: 700px) {
-
     .timeline-section-heading {
-        align-items: flex-start;
-        flex-direction: column;
+        align-items:
+            flex-start;
+
+        flex-direction:
+            column;
     }
 
-    .gantt-row {
-        grid-template-columns:
-            210px
-            minmax(740px, 1fr);
-    }
+    .gantt-card {
+        --gantt-task-width:
+            190px;
 
+        --gantt-day-width:
+            30px;
+    }
 }
 </style>
 {% endblock %}
@@ -981,10 +1360,10 @@
         overdue
     </div>
 </div>
-
 <section class="timeline-view-section">
 
     <div class="timeline-section-heading">
+
         <div>
             <div class="timeline-eyebrow">
                 PROJECT SCHEDULE
@@ -995,88 +1374,231 @@
             </h2>
 
             <p>
-                See when work happens and
-                where tasks overlap.
+                See when work happens,
+                how tasks overlap, and
+                where milestones land.
             </p>
         </div>
 
+
         {% if gantt_data.has_schedule %}
+
             <div class="gantt-date-range">
-                {{ gantt_data.start_date|date:"M j" }}
+                {{ gantt_data.start_date|date:"M j, Y" }}
                 →
                 {{ gantt_data.end_date|date:"M j, Y" }}
             </div>
+
         {% endif %}
+
     </div>
 
 
     {% if gantt_data.has_schedule %}
 
-        <div class="gantt-card">
+        <div
+            class="gantt-card"
+            style="
+                --gantt-total-days:
+                {{ gantt_data.total_days }};
+            "
+        >
 
             <div class="gantt-scroll">
 
                 <div class="gantt-chart">
 
-                    <!-- HEADER -->
 
-                    <div class="gantt-row gantt-header-row">
+                    <!-- =====================
+                         MONTH HEADER
+                    ====================== -->
+
+                    <div
+                        class="
+                            gantt-row
+                            gantt-month-row
+                        "
+                    >
 
                         <div class="gantt-task-column">
-                            Task
+                            Project Schedule
                         </div>
 
-                        <div class="gantt-time-column">
 
-                            <div class="gantt-range-label">
-                                {{ gantt_data.start_date|date:"F j, Y" }}
-                                <span>
-                                    →
-                                </span>
-                                {{ gantt_data.end_date|date:"F j, Y" }}
-                            </div>
+                        <div class="gantt-calendar">
+
+                            {% for month in gantt_data.months %}
+
+                                <div
+                                    class="gantt-month"
+                                    style="
+                                        grid-column:
+                                        {{ month.start_offset|add:1 }}
+                                        /
+                                        span
+                                        {{ month.day_count }};
+                                    "
+                                >
+                                    {{ month.name }}
+                                </div>
+
+                            {% endfor %}
 
                         </div>
 
                     </div>
 
 
-                    <!-- TASKS -->
+                    <!-- =====================
+                         DAY HEADER
+                    ====================== -->
+
+                    <div
+                        class="
+                            gantt-row
+                            gantt-day-header-row
+                        "
+                    >
+
+                        <div class="gantt-task-column">
+                            Task
+                        </div>
+
+
+                        <div class="gantt-calendar">
+
+                            {% for day in gantt_data.days %}
+
+                                <div
+                                    class="
+                                        gantt-day-cell
+
+                                        {% if day.is_weekend %}
+                                            weekend
+                                        {% endif %}
+
+                                        {% if day.is_today %}
+                                            today
+                                        {% endif %}
+                                    "
+                                >
+
+                                    <span class="gantt-weekday">
+                                        {{ day.weekday }}
+                                    </span>
+
+                                    <strong>
+                                        {{ day.day_number }}
+                                    </strong>
+
+                                </div>
+
+                            {% endfor %}
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =====================
+                         TASK ROWS
+                    ====================== -->
 
                     {% for task in gantt_data.tasks %}
 
                         <div class="gantt-row">
 
+
+                            <!-- TASK INFO -->
+
                             <a
                                 href="{% url 'edit_task' project.pk task.id %}"
-                                class="gantt-task-column gantt-task-name"
+                                class="
+                                    gantt-task-column
+                                    gantt-task-name
+                                "
+                                title="{{ task.title }}"
                             >
+
                                 <span class="gantt-task-title">
                                     {{ task.title }}
                                 </span>
 
+
                                 <span class="gantt-task-meta">
+
                                     {{ task.start_date|date:"M j" }}
+
                                     –
+
                                     {{ task.due_date|date:"M j" }}
+
+                                    {% if task.estimated_hours %}
+
+                                        ·
+
+                                        {{ task.estimated_hours }}h
+
+                                    {% endif %}
+
                                 </span>
+
                             </a>
 
 
-                            <div class="gantt-time-column">
+                            <!-- CALENDAR -->
+
+                            <div class="gantt-task-calendar">
+
+
+                                <!-- WEEKENDS -->
+
+                                {% for day in gantt_data.days %}
+
+                                    {% if day.is_weekend %}
+
+                                        <div
+                                            class="
+                                                gantt-weekend-column
+                                            "
+                                            style="
+                                                left:
+                                                calc(
+                                                    {{ day.offset }}
+                                                    *
+                                                    var(--gantt-day-width)
+                                                );
+                                            "
+                                        ></div>
+
+                                    {% endif %}
+
+                                {% endfor %}
+
 
                                 <!-- MILESTONE LINES -->
 
                                 {% for milestone in gantt_data.milestones %}
 
                                     <div
-                                        class="gantt-milestone-line"
+                                        class="
+                                            gantt-milestone-line
+                                        "
                                         style="
                                             left:
-                                            {{ milestone.left_percent }}%;
+                                            calc(
+                                                (
+                                                    {{ milestone.offset }}
+                                                    +
+                                                    0.5
+                                                )
+                                                *
+                                                var(--gantt-day-width)
+                                            );
                                         "
                                         title="
-                                            {{ milestone.name }} —
+                                            {{ milestone.name }}
+                                            —
                                             {{ milestone.target_date|date:'M j, Y' }}
                                         "
                                     ></div>
@@ -1084,30 +1606,79 @@
                                 {% endfor %}
 
 
+                                <!-- TODAY LINE -->
+
+                                {% if gantt_data.today_in_range %}
+
+                                    <div
+                                        class="gantt-today-line"
+                                        style="
+                                            left:
+                                            calc(
+                                                (
+                                                    {{ gantt_data.today_offset }}
+                                                    +
+                                                    0.5
+                                                )
+                                                *
+                                                var(--gantt-day-width)
+                                            );
+                                        "
+                                    ></div>
+
+                                {% endif %}
+
+
                                 <!-- TASK BAR -->
 
                                 <a
                                     href="{% url 'edit_task' project.pk task.id %}"
+
                                     class="
                                         gantt-bar
+
                                         gantt-status-{{ task.status }}
+
+                                        {% if task.is_blocked %}
+                                            is-blocked
+                                        {% endif %}
+
+                                        {% if task.is_overdue %}
+                                            is-overdue
+                                        {% endif %}
                                     "
+
                                     style="
                                         left:
-                                        {{ task.left_percent }}%;
+                                        calc(
+                                            {{ task.start_offset }}
+                                            *
+                                            var(--gantt-day-width)
+                                        );
 
                                         width:
-                                        {{ task.width_percent }}%;
+                                        calc(
+                                            {{ task.duration_days }}
+                                            *
+                                            var(--gantt-day-width)
+                                            -
+                                            4px
+                                        );
                                     "
+
                                     title="
                                         {{ task.title }}
-                                        — {{ task.start_date|date:'M j' }}
-                                        to {{ task.due_date|date:'M j' }}
+                                        —
+                                        {{ task.start_date|date:'M j, Y' }}
+                                        to
+                                        {{ task.due_date|date:'M j, Y' }}
                                     "
                                 >
+
                                     <span>
                                         {{ task.title }}
                                     </span>
+
                                 </a>
 
                             </div>
@@ -1117,43 +1688,77 @@
                     {% endfor %}
 
 
-                    <!-- MILESTONE LABELS -->
+                    <!-- =====================
+                         MILESTONE ROW
+                    ====================== -->
 
-                    <div class="gantt-row gantt-milestone-row">
+                    {% if gantt_data.milestones %}
 
-                        <div class="gantt-task-column">
-                            Milestones
+                        <div
+                            class="
+                                gantt-row
+                                gantt-milestone-row
+                            "
+                        >
+
+                            <div class="gantt-task-column">
+                                Milestones
+                            </div>
+
+
+                            <div class="gantt-milestone-calendar">
+
+                                {% for milestone in gantt_data.milestones %}
+
+                                    <div
+                                        class="gantt-milestone"
+
+                                        style="
+                                            left:
+                                            calc(
+                                                (
+                                                    {{ milestone.offset }}
+                                                    +
+                                                    0.5
+                                                )
+                                                *
+                                                var(--gantt-day-width)
+                                            );
+                                        "
+
+                                        title="
+                                            {{ milestone.name }}
+                                            —
+                                            {{ milestone.target_date|date:'F j, Y' }}
+                                        "
+                                    >
+
+                                        <span
+                                            class="
+                                                gantt-milestone-diamond
+                                            "
+                                        >
+                                            ◆
+                                        </span>
+
+
+                                        <span
+                                            class="
+                                                gantt-milestone-name
+                                            "
+                                        >
+                                            {{ milestone.name }}
+                                        </span>
+
+                                    </div>
+
+                                {% endfor %}
+
+                            </div>
+
                         </div>
 
-                        <div class="gantt-time-column">
-
-                            {% for milestone in gantt_data.milestones %}
-
-                                <div
-                                    class="gantt-milestone"
-                                    style="
-                                        left:
-                                        {{ milestone.left_percent }}%;
-                                    "
-                                    title="
-                                        {{ milestone.name }} —
-                                        {{ milestone.target_date|date:'F j, Y' }}
-                                    "
-                                >
-                                    <span class="gantt-milestone-diamond">
-                                        ◆
-                                    </span>
-
-                                    <span class="gantt-milestone-name">
-                                        {{ milestone.name }}
-                                    </span>
-                                </div>
-
-                            {% endfor %}
-
-                        </div>
-
-                    </div>
+                    {% endif %}
 
                 </div>
 
@@ -1161,6 +1766,10 @@
 
         </div>
 
+
+        <!-- =========================
+             LEGEND
+        ========================== -->
 
         <div class="gantt-legend">
 
@@ -1171,8 +1780,10 @@
                         gantt-status-todo
                     "
                 ></span>
+
                 To do
             </span>
+
 
             <span>
                 <span
@@ -1181,8 +1792,10 @@
                         gantt-status-in_progress
                     "
                 ></span>
+
                 In progress
             </span>
+
 
             <span>
                 <span
@@ -1191,8 +1804,10 @@
                         gantt-status-review
                     "
                 ></span>
+
                 Review
             </span>
+
 
             <span>
                 <span
@@ -1201,27 +1816,45 @@
                         gantt-status-done
                     "
                 ></span>
+
                 Done
             </span>
+
 
             <span>
                 ◆ Milestone
             </span>
 
+
+            {% if gantt_data.today_in_range %}
+
+                <span>
+                    <span
+                        class="gantt-today-legend"
+                    ></span>
+
+                    Today
+                </span>
+
+            {% endif %}
+
         </div>
+
 
     {% else %}
 
         <div class="gantt-empty">
+
             <strong>
                 No scheduled tasks yet.
             </strong>
 
             <p>
-                Generate the AI schedule to
-                assign task dates and build
-                the project timeline.
+                Generate the AI schedule
+                to assign task dates and
+                build the project timeline.
             </p>
+
         </div>
 
     {% endif %}

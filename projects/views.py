@@ -9959,6 +9959,7 @@ def build_gantt_data(
         all_dates.append(
             task.start_date
         )
+
         all_dates.append(
             task.due_date
         )
@@ -9974,9 +9975,17 @@ def build_gantt_data(
             "start_date": None,
             "end_date": None,
             "total_days": 0,
+            "days": [],
+            "months": [],
             "tasks": [],
             "milestones": [],
+            "today_offset": None,
+            "today_in_range": False,
         }
+
+    # =================================
+    # RANGE
+    # =================================
 
     timeline_start = min(
         all_dates
@@ -9991,6 +10000,128 @@ def build_gantt_data(
         - timeline_start
     ).days + 1
 
+    total_days = max(
+        total_days,
+        1,
+    )
+
+    today = timezone.localdate()
+
+    # =================================
+    # DAILY CALENDAR COLUMNS
+    # =================================
+
+    days = []
+
+    for offset in range(
+        total_days
+    ):
+        current_date = (
+            timeline_start
+            + timedelta(
+                days=offset
+            )
+        )
+
+        days.append(
+            {
+                "date": (
+                    current_date
+                ),
+
+                "day_number": (
+                    current_date.day
+                ),
+
+                "weekday": (
+                    current_date.strftime(
+                        "%a"
+                    )
+                ),
+
+                "month_short": (
+                    current_date.strftime(
+                        "%b"
+                    )
+                ),
+
+                "month_name": (
+                    current_date.strftime(
+                        "%B"
+                    )
+                ),
+
+                "is_today": (
+                    current_date == today
+                ),
+
+                "is_weekend": (
+                    current_date.weekday()
+                    >= 5
+                ),
+
+                "offset": (
+                    offset
+                ),
+            }
+        )
+
+    # =================================
+    # MONTH HEADER GROUPS
+    # =================================
+
+    months = []
+
+    current_month_key = None
+    current_month = None
+
+    for day in days:
+        month_key = (
+            day["date"].year,
+            day["date"].month,
+        )
+
+        if (
+            month_key
+            != current_month_key
+        ):
+            if current_month:
+                months.append(
+                    current_month
+                )
+
+            current_month_key = (
+                month_key
+            )
+
+            current_month = {
+                "name": (
+                    day["date"].strftime(
+                        "%B %Y"
+                    )
+                ),
+
+                "start_offset": (
+                    day["offset"]
+                ),
+
+                "day_count": 1,
+            }
+
+        else:
+            current_month[
+                "day_count"
+            ] += 1
+
+    if current_month:
+        months.append(
+            current_month
+        )
+
+    # =================================
+    # TASK BARS
+    # =================================
+
     gantt_tasks = []
 
     for task in dated_tasks:
@@ -10004,49 +10135,88 @@ def build_gantt_data(
             - task.start_date
         ).days + 1
 
-        left_percent = (
-            start_offset
-            / total_days
-            * 100
-        )
-
-        width_percent = (
-            duration_days
-            / total_days
-            * 100
+        duration_days = max(
+            duration_days,
+            1,
         )
 
         gantt_tasks.append(
             {
-                "id": task.pk,
-                "title": task.title,
-                "status": task.status,
+                "id": (
+                    task.pk
+                ),
+
+                "title": (
+                    task.title
+                ),
+
+                "status": (
+                    task.status
+                ),
+
                 "status_label": (
                     task.get_status_display()
                 ),
-                "priority": task.priority,
+
+                "priority": (
+                    task.priority
+                ),
+
+                "priority_label": (
+                    task.get_priority_display()
+                ),
+
                 "start_date": (
                     task.start_date
                 ),
+
                 "due_date": (
                     task.due_date
                 ),
-                "left_percent": (
-                    left_percent
+
+                "start_offset": (
+                    start_offset
                 ),
-                "width_percent": (
-                    max(
-                        width_percent,
-                        0.8,
-                    )
+
+                "duration_days": (
+                    duration_days
                 ),
+
                 "milestone": (
                     task.milestone.name
                     if task.milestone
                     else ""
                 ),
+
+                "milestone_id": (
+                    task.milestone_id
+                ),
+
+                "is_blocked": (
+                    task.is_blocked
+                ),
+
+                "is_overdue": (
+                    task.is_overdue
+                ),
+
+                "estimated_hours": (
+                    task.estimated_hours
+                ),
             }
         )
+
+    gantt_tasks.sort(
+        key=lambda item: (
+            item["start_date"],
+            item["due_date"],
+            item["id"],
+        )
+    )
+
+    # =================================
+    # MILESTONES
+    # =================================
 
     gantt_milestones = []
 
@@ -10058,26 +10228,91 @@ def build_gantt_data(
 
         gantt_milestones.append(
             {
-                "id": milestone.pk,
-                "name": milestone.name,
+                "id": (
+                    milestone.pk
+                ),
+
+                "name": (
+                    milestone.name
+                ),
+
                 "target_date": (
                     milestone.target_date
                 ),
-                "left_percent": (
+
+                "offset": (
                     offset
-                    / total_days
-                    * 100
                 ),
             }
         )
 
+    gantt_milestones.sort(
+        key=lambda item: (
+            item["target_date"],
+            item["id"],
+        )
+    )
+
+    # =================================
+    # TODAY
+    # =================================
+
+    today_in_range = (
+        timeline_start
+        <= today
+        <= timeline_end
+    )
+
+    today_offset = None
+
+    if today_in_range:
+        today_offset = (
+            today
+            - timeline_start
+        ).days
+
+    # =================================
+    # RESULT
+    # =================================
+
     return {
         "has_schedule": True,
-        "start_date": timeline_start,
-        "end_date": timeline_end,
-        "total_days": total_days,
-        "tasks": gantt_tasks,
-        "milestones": gantt_milestones,
+
+        "start_date": (
+            timeline_start
+        ),
+
+        "end_date": (
+            timeline_end
+        ),
+
+        "total_days": (
+            total_days
+        ),
+
+        "days": (
+            days
+        ),
+
+        "months": (
+            months
+        ),
+
+        "tasks": (
+            gantt_tasks
+        ),
+
+        "milestones": (
+            gantt_milestones
+        ),
+
+        "today_offset": (
+            today_offset
+        ),
+
+        "today_in_range": (
+            today_in_range
+        ),
     }
 def build_task_flowchart(
     project,
