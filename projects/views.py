@@ -2477,14 +2477,25 @@ def edit_workspace_folder(
     )
 
     if request.method == "POST":
-        new_description = request.POST.get(
-            "description",
-            "",
+        new_description = (
+            request.POST.get(
+                "description",
+                "",
+            )
         )
-        old_description = folder.description
 
-        if old_description != new_description:
-            folder.description = new_description
+        old_description = (
+            folder.description
+        )
+
+        if (
+            old_description
+            != new_description
+        ):
+            folder.description = (
+                new_description
+            )
+
             folder.save(
                 update_fields=[
                     "description",
@@ -2492,45 +2503,78 @@ def edit_workspace_folder(
                 ]
             )
 
-            schedule_relevant_sections = {
-                "requirements",
-                "roadmap",
-                "tasks",
-                "resources",
-                "budget",
-                "testing",
-            }
-
-            if folder.folder_type in schedule_relevant_sections:
-                mark_schedule_for_refresh(
+            cascade = (
+                apply_manual_project_cascade(
                     project=project,
-                    reason=(
-                        "Workspace section edited: "
-                        f"{folder.name}."
+                    source=(
+                        folder.folder_type
                     ),
+                    description=(
+                        f'Workspace section '
+                        f'"{folder.name}" was '
+                        "manually edited. "
+                        "Its new content is already "
+                        "saved. Analyze whether this "
+                        "changes requirements, tasks, "
+                        "resources, budget, roadmap, "
+                        "testing, documentation, or "
+                        "the project timeline."
+                    ),
+                    excluded_areas=[
+                        folder.folder_type,
+                    ],
                 )
+            )
 
             record_project_event(
                 project=project,
                 event_type=(
-                    ProjectEvent.EventType.WORKSPACE_UPDATED
+                    ProjectEvent.EventType
+                    .WORKSPACE_UPDATED
                 ),
-                title="Workspace section edited",
+                title=(
+                    "Workspace section edited"
+                ),
                 description=folder.name,
                 metadata={
                     "folder_id": folder.pk,
-                    "folder_type": folder.folder_type,
+                    "folder_type": (
+                        folder.folder_type
+                    ),
+                    "cascade_success": (
+                        cascade["success"]
+                    ),
                 },
             )
 
-            messages.success(
-                request,
-                f'"{folder.name}" was updated.',
-            )
+            if cascade["success"]:
+                messages.success(
+                    request,
+                    (
+                        f'"{folder.name}" was '
+                        "updated and affected "
+                        "project areas were "
+                        "synchronized."
+                    ),
+                )
+            else:
+                messages.warning(
+                    request,
+                    (
+                        f'"{folder.name}" was '
+                        "updated, but automatic "
+                        "project synchronization "
+                        "could not be completed."
+                    ),
+                )
+
         else:
             messages.info(
                 request,
-                "No workspace changes were made.",
+                (
+                    "No workspace changes "
+                    "were made."
+                ),
             )
 
         return redirect(
@@ -2539,21 +2583,25 @@ def edit_workspace_folder(
             folder_pk=folder.pk,
         )
 
-    permission_context = project_permission_context(
-        project=project,
-        user=request.user,
+    permission_context = (
+        project_permission_context(
+            project=project,
+            user=request.user,
+        )
     )
 
     return render(
         request,
-        "projects/workspace_folder_edit.html",
+        (
+            "projects/"
+            "workspace_folder_edit.html"
+        ),
         {
             "project": project,
             "folder": folder,
             **permission_context,
         },
     )
-
 
 @login_required
 @require_POST
@@ -2574,15 +2622,29 @@ def regenerate_workspace_folder(
     )
 
     try:
-        previous_description = folder.description
-
-        result = regenerate_workspace_section(
-            project=project,
-            folder=folder,
+        previous_description = (
+            folder.description
         )
 
-        if result.content != previous_description:
-            folder.description = result.content
+        result = (
+            regenerate_workspace_section(
+                project=project,
+                folder=folder,
+            )
+        )
+
+        new_content = (
+            result.content
+            or ""
+        ).strip()
+
+        if (
+            new_content
+            != previous_description
+        ):
+            folder.description = (
+                new_content
+            )
 
             folder.save(
                 update_fields=[
@@ -2591,26 +2653,25 @@ def regenerate_workspace_folder(
                 ]
             )
 
-            schedule_relevant_sections = {
-                "requirements",
-                "roadmap",
-                "tasks",
-                "resources",
-                "budget",
-                "testing",
-            }
-
-            if (
-                folder.folder_type
-                in schedule_relevant_sections
-            ):
-                mark_schedule_for_refresh(
+            cascade = (
+                apply_manual_project_cascade(
                     project=project,
-                    reason=(
-                        "Workspace section "
-                        f"regenerated: {folder.name}."
+                    source=(
+                        folder.folder_type
                     ),
+                    description=(
+                        f'Workspace section '
+                        f'"{folder.name}" was '
+                        "regenerated and its new "
+                        "content is already saved. "
+                        "Propagate meaningful effects "
+                        "to other project areas."
+                    ),
+                    excluded_areas=[
+                        folder.folder_type,
+                    ],
                 )
+            )
 
             record_project_event(
                 project=project,
@@ -2618,34 +2679,74 @@ def regenerate_workspace_folder(
                     ProjectEvent.EventType
                     .WORKSPACE_UPDATED
                 ),
-                title="Workspace section regenerated",
+                title=(
+                    "Workspace section "
+                    "regenerated"
+                ),
                 description=folder.name,
                 metadata={
                     "folder_id": folder.pk,
-                    "folder_type": folder.folder_type,
+                    "folder_type": (
+                        folder.folder_type
+                    ),
+                    "cascade_success": (
+                        cascade["success"]
+                    ),
                 },
             )
 
-            messages.success(
-                request,
-                f'"{folder.name}" was regenerated successfully.',
-            )
+            if cascade["success"]:
+                messages.success(
+                    request,
+                    (
+                        f'"{folder.name}" was '
+                        "regenerated and affected "
+                        "areas were synchronized."
+                    ),
+                )
+            else:
+                messages.warning(
+                    request,
+                    (
+                        f'"{folder.name}" was '
+                        "regenerated, but project "
+                        "synchronization failed."
+                    ),
+                )
 
         else:
             messages.info(
                 request,
-                f'"{folder.name}" did not need any changes.',
+                (
+                    f'"{folder.name}" did not '
+                    "need any changes."
+                ),
             )
 
-    except Exception as error:
+    except Exception:
         print(
-            f"Failed to regenerate {folder.name}:",
-            error,
+            "\n"
+            + "=" * 80
+        )
+
+        print(
+            "WORKSPACE SECTION "
+            "REGENERATION FAILED"
+        )
+
+        traceback.print_exc()
+
+        print(
+            "=" * 80
+            + "\n"
         )
 
         messages.error(
             request,
-            f'BuilderOS could not regenerate "{folder.name}".',
+            (
+                f'Projivo could not regenerate '
+                f'"{folder.name}".'
+            ),
         )
 
     return redirect(
@@ -2671,20 +2772,37 @@ def toggle_task(
         project=project,
     )
 
+    previous_status = task.status
+
     task.completed = not task.completed
 
     if task.completed:
-        task.status = Task.Status.DONE
-        event_type = (
-            ProjectEvent.EventType.TASK_COMPLETED
+        task.status = (
+            Task.Status.DONE
         )
-        event_title = "Task completed"
+
+        event_type = (
+            ProjectEvent.EventType
+            .TASK_COMPLETED
+        )
+
+        event_title = (
+            "Task completed"
+        )
+
     else:
-        task.status = Task.Status.TODO
-        event_type = (
-            ProjectEvent.EventType.TASK_REOPENED
+        task.status = (
+            Task.Status.TODO
         )
-        event_title = "Task reopened"
+
+        event_type = (
+            ProjectEvent.EventType
+            .TASK_REOPENED
+        )
+
+        event_title = (
+            "Task reopened"
+        )
 
     task.save(
         update_fields=[
@@ -2694,12 +2812,20 @@ def toggle_task(
         ]
     )
 
-    mark_schedule_for_refresh(
-        project=project,
-        reason=(
-            f"Completion state changed for "
-            f"{task.title}."
-        ),
+    cascade = (
+        apply_manual_project_cascade(
+            project=project,
+            source="task_status",
+            description=(
+                f'Task "{task.title}" changed '
+                f"from {previous_status} to "
+                f"{task.status}. "
+                "The status change is already "
+                "saved. Adjust downstream timing, "
+                "budget, resources, roadmap, or "
+                "other tasks only if necessary."
+            ),
+        )
     )
 
     record_project_event(
@@ -2712,6 +2838,9 @@ def toggle_task(
             "task_title": task.title,
             "status": task.status,
             "completed": task.completed,
+            "cascade_success": (
+                cascade["success"]
+            ),
         },
     )
 
@@ -2726,7 +2855,6 @@ def toggle_task(
         project_pk=project.pk,
         folder_pk=tasks_folder.pk,
     )
-
 @login_required
 def new_task(
     request,
@@ -2744,28 +2872,40 @@ def new_task(
     )
 
     if request.method == "POST":
-        title = request.POST.get(
-            "title",
-            "",
-        ).strip()
-
-        description = request.POST.get(
-            "description",
-            "",
-        ).strip()
-
-        priority = normalize_task_priority(
+        title = (
             request.POST.get(
-                "priority",
-                Task.Priority.MEDIUM,
+                "title",
+                "",
+            )
+            .strip()
+        )
+
+        description = (
+            request.POST.get(
+                "description",
+                "",
+            )
+            .strip()
+        )
+
+        priority = (
+            normalize_task_priority(
+                request.POST.get(
+                    "priority",
+                    Task.Priority.MEDIUM,
+                )
             )
         )
 
         if not title:
             messages.error(
                 request,
-                "Task title cannot be blank.",
+                (
+                    "Task title cannot "
+                    "be blank."
+                ),
             )
+
         else:
             last_task = (
                 project.tasks
@@ -2779,27 +2919,57 @@ def new_task(
                 else 1
             )
 
-            task = Task.objects.create(
-                project=project,
-                title=title,
-                description=description,
-                priority=priority,
-                status=Task.Status.TODO,
-                completed=False,
-                order=next_order,
+            task = (
+                Task.objects.create(
+                    project=project,
+                    title=title,
+                    description=description,
+                    priority=priority,
+                    status=(
+                        Task.Status.TODO
+                    ),
+                    completed=False,
+                    order=next_order,
+                )
             )
 
-            mark_schedule_for_refresh(
-                project=project,
-                reason=(
-                    f"Task added: {task.title}."
-                ),
+            cascade = (
+                apply_manual_project_cascade(
+                    project=project,
+                    source="tasks",
+                    description=(
+                        f'A new task '
+                        f'"{task.title}" was '
+                        "manually created. "
+                        f"Priority: "
+                        f"{task.priority}. "
+                        f"Description: "
+                        f"{task.description or 'None'}. "
+                        "The new task already exists. "
+                        "Update related areas only "
+                        "where necessary."
+                    ),
+                )
             )
 
-            messages.success(
-                request,
-                f'Task "{task.title}" was created.',
-            )
+            if cascade["success"]:
+                messages.success(
+                    request,
+                    (
+                        f'Task "{task.title}" '
+                        "was created and the "
+                        "project was synchronized."
+                    ),
+                )
+            else:
+                messages.warning(
+                    request,
+                    (
+                        f'Task "{task.title}" '
+                        "was created, but project "
+                        "synchronization failed."
+                    ),
+                )
 
             return redirect(
                 "workspace_folder",
@@ -2807,9 +2977,11 @@ def new_task(
                 folder_pk=tasks_folder.pk,
             )
 
-    permission_context = project_permission_context(
-        project=project,
-        user=request.user,
+    permission_context = (
+        project_permission_context(
+            project=project,
+            user=request.user,
+        )
     )
 
     return render(
@@ -2818,7 +2990,9 @@ def new_task(
         {
             "project": project,
             "tasks_folder": tasks_folder,
-            "priorities": Task.Priority.choices,
+            "priorities": (
+                Task.Priority.choices
+            ),
             **permission_context,
         },
     )
@@ -2846,45 +3020,58 @@ def edit_task(
     )
 
     if request.method == "POST":
-        new_title = request.POST.get(
-            "title",
-            "",
-        ).strip()
-
-        new_description = request.POST.get(
-            "description",
-            "",
-        ).strip()
-
-        new_priority = normalize_task_priority(
+        new_title = (
             request.POST.get(
-                "priority",
-                task.priority,
-            ),
-            default=task.priority,
+                "title",
+                "",
+            )
+            .strip()
         )
 
-        new_start_date = request.POST.get(
-            "start_date",
-            "",
-        ).strip()
+        new_description = (
+            request.POST.get(
+                "description",
+                "",
+            )
+            .strip()
+        )
 
-        new_due_date = request.POST.get(
-            "due_date",
-            "",
-        ).strip()
+        new_priority = (
+            normalize_task_priority(
+                request.POST.get(
+                    "priority",
+                    task.priority,
+                ),
+                default=task.priority,
+            )
+        )
 
-        new_estimated_hours = request.POST.get(
-            "estimated_hours",
-            "",
-        ).strip()
+        new_start_date = (
+            request.POST.get(
+                "start_date",
+                "",
+            )
+            .strip()
+        )
+
+        new_due_date = (
+            request.POST.get(
+                "due_date",
+                "",
+            )
+            .strip()
+        )
+
+        new_estimated_hours = (
+            request.POST.get(
+                "estimated_hours",
+                "",
+            )
+            .strip()
+        )
 
         if not new_title:
             new_title = task.title
-
-        # ---------------------------------
-        # PARSE START DATE
-        # ---------------------------------
 
         parsed_start_date = None
 
@@ -2895,10 +3082,13 @@ def edit_task(
                         new_start_date
                     )
                 )
+
             except ValueError:
                 messages.error(
                     request,
-                    "Start date is invalid.",
+                    (
+                        "Start date is invalid."
+                    ),
                 )
 
                 return redirect(
@@ -2906,10 +3096,6 @@ def edit_task(
                     project_pk=project.pk,
                     task_pk=task.pk,
                 )
-
-        # ---------------------------------
-        # PARSE DUE DATE
-        # ---------------------------------
 
         parsed_due_date = None
 
@@ -2920,6 +3106,7 @@ def edit_task(
                         new_due_date
                     )
                 )
+
             except ValueError:
                 messages.error(
                     request,
@@ -2931,10 +3118,6 @@ def edit_task(
                     project_pk=project.pk,
                     task_pk=task.pk,
                 )
-
-        # ---------------------------------
-        # VALIDATE DATE ORDER
-        # ---------------------------------
 
         if (
             parsed_start_date is not None
@@ -2956,17 +3139,16 @@ def edit_task(
                 task_pk=task.pk,
             )
 
-        # ---------------------------------
-        # PARSE ESTIMATED HOURS
-        # ---------------------------------
-
         parsed_estimated_hours = None
 
         if new_estimated_hours:
             try:
-                parsed_estimated_hours = Decimal(
-                    new_estimated_hours
+                parsed_estimated_hours = (
+                    Decimal(
+                        new_estimated_hours
+                    )
                 )
+
             except (
                 InvalidOperation,
                 ValueError,
@@ -2985,7 +3167,10 @@ def edit_task(
                     task_pk=task.pk,
                 )
 
-            if parsed_estimated_hours < 0:
+            if (
+                parsed_estimated_hours
+                < 0
+            ):
                 messages.error(
                     request,
                     (
@@ -3000,9 +3185,22 @@ def edit_task(
                     task_pk=task.pk,
                 )
 
-        # ---------------------------------
-        # CHECK FOR CHANGES
-        # ---------------------------------
+        old_task_data = {
+            "title": task.title,
+            "description": (
+                task.description
+            ),
+            "priority": task.priority,
+            "start_date": (
+                task.start_date
+            ),
+            "due_date": (
+                task.due_date
+            ),
+            "estimated_hours": (
+                task.estimated_hours
+            ),
+        }
 
         changed = any(
             [
@@ -3011,7 +3209,10 @@ def edit_task(
                     task.description
                     != new_description
                 ),
-                task.priority != new_priority,
+                (
+                    task.priority
+                    != new_priority
+                ),
                 (
                     task.start_date
                     != parsed_start_date
@@ -3029,8 +3230,13 @@ def edit_task(
 
         if changed:
             task.title = new_title
-            task.description = new_description
-            task.priority = new_priority
+            task.description = (
+                new_description
+            )
+
+            task.priority = (
+                new_priority
+            )
 
             task.start_date = (
                 parsed_start_date
@@ -3056,26 +3262,65 @@ def edit_task(
                 ]
             )
 
-            mark_schedule_for_refresh(
-                project=project,
-                reason=(
-                    f"Task updated: "
-                    f"{task.title}."
-                ),
+            cascade = (
+                apply_manual_project_cascade(
+                    project=project,
+                    source=(
+                        "tasks_and_timeline"
+                    ),
+                    description=(
+                        f'Task "{task.title}" was '
+                        "manually edited.\n"
+                        f"Previous title: "
+                        f"{old_task_data['title']}\n"
+                        f"Current title: "
+                        f"{task.title}\n"
+                        f"Previous priority: "
+                        f"{old_task_data['priority']}\n"
+                        f"Current priority: "
+                        f"{task.priority}\n"
+                        f"Previous start: "
+                        f"{old_task_data['start_date']}\n"
+                        f"Current start: "
+                        f"{task.start_date}\n"
+                        f"Previous due: "
+                        f"{old_task_data['due_date']}\n"
+                        f"Current due: "
+                        f"{task.due_date}\n"
+                        f"Previous estimate: "
+                        f"{old_task_data['estimated_hours']}\n"
+                        f"Current estimate: "
+                        f"{task.estimated_hours}."
+                    ),
+                )
             )
 
-            messages.success(
-                request,
-                (
-                    f'Task "{task.title}" '
-                    "was updated."
-                ),
-            )
+            if cascade["success"]:
+                messages.success(
+                    request,
+                    (
+                        f'Task "{task.title}" '
+                        "was updated and affected "
+                        "areas were synchronized."
+                    ),
+                )
+            else:
+                messages.warning(
+                    request,
+                    (
+                        f'Task "{task.title}" '
+                        "was updated, but project "
+                        "synchronization failed."
+                    ),
+                )
 
         else:
             messages.info(
                 request,
-                "No task changes were made.",
+                (
+                    "No task changes "
+                    "were made."
+                ),
             )
 
         return redirect(
@@ -3127,25 +3372,49 @@ def delete_task(
         folder_type="tasks",
     )
 
-    deleted_task_title = task.title
+    deleted_task_title = (
+        task.title
+    )
+
+    deleted_task_description = (
+        f'Task "{task.title}" was '
+        "manually deleted. "
+        f"Priority: {task.priority}. "
+        f"Status: {task.status}. "
+        f"Description: "
+        f"{task.description or 'None'}."
+    )
 
     task.delete()
 
-    mark_schedule_for_refresh(
-        project=project,
-        reason=(
-            f"Task deleted: "
-            f"{deleted_task_title}"
-        ),
+    cascade = (
+        apply_manual_project_cascade(
+            project=project,
+            source="tasks",
+            description=(
+                deleted_task_description
+            ),
+        )
     )
 
-    messages.success(
-        request,
-        (
-            f'Task "{deleted_task_title}" '
-            "was deleted."
-        ),
-    )
+    if cascade["success"]:
+        messages.success(
+            request,
+            (
+                f'Task "{deleted_task_title}" '
+                "was deleted and affected "
+                "areas were synchronized."
+            ),
+        )
+    else:
+        messages.warning(
+            request,
+            (
+                f'Task "{deleted_task_title}" '
+                "was deleted, but project "
+                "synchronization failed."
+            ),
+        )
 
     return redirect(
         "workspace_folder",
@@ -3412,8 +3681,26 @@ def apply_workspace_change(
     *,
     project,
     content,
+    record_messages=True,
+    excluded_areas=None,
 ):
     update_started_at = time.monotonic()
+
+    # ---------------------------------
+    # EXCLUDED CASCADE AREAS
+    # ---------------------------------
+
+    excluded_areas = {
+        str(area).strip().lower()
+        for area in (
+            excluded_areas or []
+        )
+        if str(area).strip()
+    }
+
+    # ---------------------------------
+    # PROJECT STATE
+    # ---------------------------------
 
     project_state, _ = (
         ProjectState.objects.get_or_create(
@@ -3424,23 +3711,59 @@ def apply_workspace_change(
         )
     )
 
-    WorkspaceMessage.objects.create(
-        project=project,
-        role=WorkspaceMessage.Role.USER,
-        content=content,
+    # ---------------------------------
+    # TEMPORARY USER MESSAGE
+    # ---------------------------------
+    #
+    # generate_workspace_update_plan()
+    # reads the project's workspace
+    # conversation.
+    #
+    # Normal Assistant request:
+    #   keep this message.
+    #
+    # Manual cascade:
+    #   temporarily create it so the AI
+    #   sees the change, then remove it
+    #   from chat history.
+    # ---------------------------------
+
+    prompt_message = (
+        WorkspaceMessage.objects.create(
+            project=project,
+            role=(
+                WorkspaceMessage
+                .Role
+                .USER
+            ),
+            content=content,
+        )
     )
 
-    # One AI call handles:
-    # - change analysis
-    # - canonical fact updates
-    # - section regeneration
-    # - task synchronization
-    plan = generate_workspace_update_plan(
-        project
-    )
+    try:
+        # ---------------------------------
+        # ONE AI CASCADE PLAN
+        # ---------------------------------
+
+        plan = (
+            generate_workspace_update_plan(
+                project
+            )
+        )
+
+    finally:
+        if not record_messages:
+            try:
+                prompt_message.delete()
+            except Exception:
+                print(
+                    "Could not remove temporary "
+                    "manual-cascade message."
+                )
 
     print(
-        "\n===== Fast Workspace Update Plan ====="
+        "\n"
+        "===== Fast Workspace Update Plan ====="
     )
 
     print(
@@ -3450,8 +3773,13 @@ def apply_workspace_change(
     )
 
     print(
-        "======================================\n"
+        "======================================"
+        "\n"
     )
+
+    # =================================
+    # BEFORE SNAPSHOTS
+    # =================================
 
     facts_before = dict(
         project_state.facts or {}
@@ -3468,9 +3796,15 @@ def apply_workspace_change(
         {
             "id": task.pk,
             "title": task.title,
-            "description": task.description,
-            "priority": task.priority,
-            "completed": task.completed,
+            "description": (
+                task.description
+            ),
+            "priority": (
+                task.priority
+            ),
+            "completed": (
+                task.completed
+            ),
             "order": task.order,
             "status": task.status,
         }
@@ -3481,12 +3815,17 @@ def apply_workspace_change(
         )
     ]
 
+    # =================================
+    # CANONICAL FACT UPDATES
+    # =================================
+
     updated_facts = dict(
         facts_before
     )
 
     for fact_update in (
-        plan.canonical_updates or []
+        plan.canonical_updates
+        or []
     ):
         key = (
             fact_update.key
@@ -3503,26 +3842,43 @@ def apply_workspace_change(
     fact_changes = []
 
     fact_keys = sorted(
-        set(facts_before.keys())
-        | set(updated_facts.keys())
+        set(
+            facts_before.keys()
+        )
+        | set(
+            updated_facts.keys()
+        )
     )
 
     for key in fact_keys:
-        before_value = facts_before.get(
-            key
+        before_value = (
+            facts_before.get(
+                key
+            )
         )
 
-        after_value = updated_facts.get(
-            key
+        after_value = (
+            updated_facts.get(
+                key
+            )
         )
 
-        if before_value == after_value:
+        if (
+            before_value
+            == after_value
+        ):
             continue
 
-        if key not in facts_before:
+        if (
+            key
+            not in facts_before
+        ):
             change_type = "added"
 
-        elif key not in updated_facts:
+        elif (
+            key
+            not in updated_facts
+        ):
             change_type = "removed"
 
         else:
@@ -3531,22 +3887,40 @@ def apply_workspace_change(
         fact_changes.append(
             {
                 "key": key,
+
                 "label": (
                     key
-                    .replace("_", " ")
+                    .replace(
+                        "_",
+                        " ",
+                    )
                     .strip()
                     .title()
                 ),
-                "before": before_value,
-                "after": after_value,
-                "change_type": change_type,
+
+                "before": (
+                    before_value
+                ),
+
+                "after": (
+                    after_value
+                ),
+
+                "change_type": (
+                    change_type
+                ),
             }
         )
 
     facts_changed = [
         fact_change["key"]
-        for fact_change in fact_changes
+        for fact_change
+        in fact_changes
     ]
+
+    # =================================
+    # WORKSPACE SECTION UPDATES
+    # =================================
 
     regenerated_sections = {}
 
@@ -3569,23 +3943,72 @@ def apply_workspace_change(
         if not section_content:
             continue
 
+        # Do not overwrite an area that
+        # was explicitly excluded from
+        # this cascade.
+        if (
+            folder_type
+            in excluded_areas
+        ):
+            continue
+
         regenerated_sections[
             folder_type
         ] = section_content
 
     affected_sections = {
-        str(section_type).strip().lower()
+        str(
+            section_type
+        )
+        .strip()
+        .lower()
+
         for section_type
         in (
             plan.affected_sections
             or []
         )
-        if str(section_type).strip()
+
+        if str(
+            section_type
+        ).strip()
     }
+
+    # =================================
+    # TASK CHANGE DETECTION
+    # =================================
 
     tasks_affected = (
         "tasks"
-        in affected_sections
+        not in excluded_areas
+        and (
+            "tasks"
+            in affected_sections
+
+            or bool(
+                getattr(
+                    plan,
+                    "tasks_to_add",
+                    [],
+                )
+            )
+
+            or bool(
+                getattr(
+                    plan,
+                    "tasks_to_update",
+                    [],
+                )
+            )
+
+            or bool(
+                getattr(
+                    plan,
+                    "task_ids_to_remove",
+                    [],
+                )
+            )
+        )
     )
 
     task_changes = {
@@ -3600,13 +4023,31 @@ def apply_workspace_change(
         "total": 0,
     }
 
+    # =================================
+    # CASCADE RESULTS
+    # =================================
+
+    budget_changes = []
+
+    schedule_result = None
+
     updated_section_names = []
 
     section_summary = (
-        "No text sections required changes"
+        "No text sections "
+        "required changes"
     )
 
+    # =================================
+    # APPLY PRIMARY CASCADE
+    # =================================
+
     with transaction.atomic():
+
+        # -----------------------------
+        # SAVE FACTS
+        # -----------------------------
+
         project_state.facts = (
             updated_facts
         )
@@ -3618,8 +4059,14 @@ def apply_workspace_change(
             ]
         )
 
+        # -----------------------------
+        # SAVE WORKSPACE SECTIONS
+        # -----------------------------
+
         folders_by_type = {
-            folder.folder_type: folder
+            folder.folder_type:
+                folder
+
             for folder
             in project.folders.all()
         }
@@ -3629,9 +4076,15 @@ def apply_workspace_change(
         for (
             section_type,
             new_content,
-        ) in regenerated_sections.items():
-            folder = folders_by_type.get(
-                section_type
+        ) in (
+            regenerated_sections
+            .items()
+        ):
+            folder = (
+                folders_by_type
+                .get(
+                    section_type
+                )
             )
 
             if folder is None:
@@ -3656,17 +4109,27 @@ def apply_workspace_change(
             )
 
         if folders_to_update:
-            WorkspaceFolder.objects.bulk_update(
-                folders_to_update,
-                [
-                    "description",
-                ],
+            (
+                WorkspaceFolder
+                .objects
+                .bulk_update(
+                    folders_to_update,
+                    [
+                        "description",
+                    ],
+                )
             )
 
         if updated_section_names:
-            section_summary = ", ".join(
-                updated_section_names
+            section_summary = (
+                ", ".join(
+                    updated_section_names
+                )
             )
+
+        # =================================
+        # TASK CASCADE
+        # =================================
 
         if tasks_affected:
             task_changes = (
@@ -3708,19 +4171,58 @@ def apply_workspace_change(
 
             task_changes["total"] = (
                 task_changes["added"]
-                + task_changes["updated"]
-                + task_changes["removed"]
+                + task_changes[
+                    "updated"
+                ]
+                + task_changes[
+                    "removed"
+                ]
             )
+
+        # =================================
+        # BUDGET CASCADE
+        # =================================
+
+        budget_actions = (
+            getattr(
+                plan,
+                "budget_actions",
+                [],
+            )
+            or []
+        )
+
+        if (
+            budget_actions
+            and "budget"
+            not in excluded_areas
+        ):
+            budget_changes = (
+                apply_budget_actions(
+                    project=project,
+                    actions=(
+                        budget_actions
+                    ),
+                )
+            )
+
+        # =================================
+        # TASK SUMMARY TEXT
+        # =================================
 
         task_note = ""
 
         if tasks_affected:
             task_note = (
-                "\n\nTask synchronization:\n"
+                "\n\n"
+                "Task synchronization:\n"
+
                 f"- Added: "
                 f"{task_changes['added']}\n"
+
                 f"- Updated: "
                 f"{task_changes['updated']}\n"
+
                 f"- Removed: "
                 f"{task_changes['removed']}"
             )
@@ -3740,9 +4242,31 @@ def apply_workspace_change(
                     + task_summary
                 )
 
+        # =================================
+        # BUDGET SUMMARY TEXT
+        # =================================
+
+        budget_note = ""
+
+        if budget_changes:
+            budget_note = (
+                "\n\n"
+                "Budget changes:\n"
+                + "\n".join(
+                    f"- {change}"
+                    for change
+                    in budget_changes
+                )
+            )
+
+        # =================================
+        # AFTER SNAPSHOTS
+        # =================================
+
         sections_after = {
             folder.folder_type:
                 folder.description
+
             for folder
             in project.folders.all()
         }
@@ -3750,17 +4274,32 @@ def apply_workspace_change(
         tasks_after = [
             {
                 "id": task.pk,
-                "title": task.title,
+
+                "title": (
+                    task.title
+                ),
+
                 "description": (
                     task.description
                 ),
-                "priority": task.priority,
+
+                "priority": (
+                    task.priority
+                ),
+
                 "completed": (
                     task.completed
                 ),
-                "order": task.order,
-                "status": task.status,
+
+                "order": (
+                    task.order
+                ),
+
+                "status": (
+                    task.status
+                ),
             }
+
             for task
             in project.tasks.order_by(
                 "order",
@@ -3768,20 +4307,32 @@ def apply_workspace_change(
             )
         ]
 
+        # =================================
+        # HUMAN-READABLE CHANGE SUMMARY
+        # =================================
+
         change_summary_items = []
 
-        for fact_change in fact_changes:
-            label = fact_change[
-                "label"
-            ]
+        for fact_change in (
+            fact_changes
+        ):
+            label = (
+                fact_change[
+                    "label"
+                ]
+            )
 
-            before_value = fact_change[
-                "before"
-            ]
+            before_value = (
+                fact_change[
+                    "before"
+                ]
+            )
 
-            after_value = fact_change[
-                "after"
-            ]
+            after_value = (
+                fact_change[
+                    "after"
+                ]
+            )
 
             if (
                 before_value is None
@@ -3800,7 +4351,7 @@ def apply_workspace_change(
             ):
                 change_summary_items.append(
                     (
-                        f"Removed the saved "
+                        "Removed the saved "
                         f"{label} value."
                     )
                 )
@@ -3808,9 +4359,9 @@ def apply_workspace_change(
             else:
                 change_summary_items.append(
                     (
-                        f"Changed {label} from "
-                        f"{before_value} to "
-                        f"{after_value}."
+                        f"Changed {label} "
+                        f"from {before_value} "
+                        f"to {after_value}."
                     )
                 )
 
@@ -3827,54 +4378,93 @@ def apply_workspace_change(
             )
 
         if task_changes["added"]:
+            added_count = (
+                task_changes[
+                    "added"
+                ]
+            )
+
             change_summary_items.append(
                 (
                     f"Added "
-                    f"{task_changes['added']} "
-                    "new project "
-                    f"{'task' if task_changes['added'] == 1 else 'tasks'}."
+                    f"{added_count} new "
+                    f"{'task' if added_count == 1 else 'tasks'}."
                 )
             )
 
         if task_changes["updated"]:
+            updated_count = (
+                task_changes[
+                    "updated"
+                ]
+            )
+
             change_summary_items.append(
                 (
                     f"Updated "
-                    f"{task_changes['updated']} "
-                    "existing "
-                    f"{'task' if task_changes['updated'] == 1 else 'tasks'}."
+                    f"{updated_count} existing "
+                    f"{'task' if updated_count == 1 else 'tasks'}."
                 )
             )
 
         if task_changes["removed"]:
+            removed_count = (
+                task_changes[
+                    "removed"
+                ]
+            )
+
             change_summary_items.append(
                 (
                     f"Removed "
-                    f"{task_changes['removed']} "
-                    f"{'task' if task_changes['removed'] == 1 else 'tasks'} "
-                    "that were no longer needed."
+                    f"{removed_count} "
+                    f"{'task' if removed_count == 1 else 'tasks'} "
+                    "that were no longer "
+                    "needed."
                 )
             )
 
-        if task_changes["total"] == 0:
-            change_summary_items.append(
-                (
-                    "No task changes were "
-                    "necessary because the "
-                    "existing task list was "
-                    "already compatible with "
-                    "this update."
+        if budget_changes:
+            budget_change_count = (
+                len(
+                    budget_changes
                 )
             )
 
-        if not change_summary_items:
             change_summary_items.append(
                 (
-                    "Projivo reviewed the request, "
-                    "but no saved project content "
-                    "needed to change."
+                    f"Applied "
+                    f"{budget_change_count} "
+                    "budget "
+                    f"{'change' if budget_change_count == 1 else 'changes'}."
                 )
             )
+
+        # Don't claim that absolutely
+        # nothing changed when facts or
+        # sections did change.
+        if (
+            task_changes["total"]
+            == 0
+
+            and not budget_changes
+
+            and not fact_changes
+
+            and not updated_section_names
+        ):
+            change_summary_items.append(
+                (
+                    "Projivo reviewed the "
+                    "change, but no additional "
+                    "saved project content "
+                    "needed to be modified."
+                )
+            )
+
+        # =================================
+        # PLAN SUMMARY
+        # =================================
 
         plan_summary = (
             getattr(
@@ -3885,23 +4475,49 @@ def apply_workspace_change(
             or ""
         ).strip()
 
+        # =================================
+        # SAVE PROJECT CHANGE HISTORY
+        # =================================
+
         change = (
             ProjectChange.objects.create(
                 project=project,
+
                 user_message=content,
-                summary=plan_summary,
-                facts_before=facts_before,
-                facts_after=updated_facts,
+
+                summary=(
+                    plan_summary
+                ),
+
+                facts_before=(
+                    facts_before
+                ),
+
+                facts_after=(
+                    updated_facts
+                ),
+
                 sections_before=(
                     sections_before
                 ),
+
                 sections_after=(
                     sections_after
                 ),
-                tasks_before=tasks_before,
-                tasks_after=tasks_after,
+
+                tasks_before=(
+                    tasks_before
+                ),
+
+                tasks_after=(
+                    tasks_after
+                ),
             )
         )
+
+        # =================================
+        # BUILD ASSISTANT RESPONSE
+        # =================================
 
         assistant_content = (
             getattr(
@@ -3914,7 +4530,8 @@ def apply_workspace_change(
 
         if not assistant_content:
             assistant_content = (
-                "Your project update was applied."
+                "Your project update "
+                "was applied."
             )
 
         impact_explanation = (
@@ -3928,111 +4545,387 @@ def apply_workspace_change(
 
         if impact_explanation:
             assistant_content += (
-                "\n\nWhy this matters:\n"
+                "\n\n"
+                "Why this matters:\n"
                 + impact_explanation
             )
 
         assistant_content += (
-            "\n\nUpdated workspace sections: "
+            "\n\n"
+            "Updated workspace sections: "
             f"{section_summary}."
             f"{task_note}"
+            f"{budget_note}"
         )
 
-        WorkspaceMessage.objects.create(
-            project=project,
-            role=(
+        # Normal Workspace Assistant request:
+        # show the AI response in chat.
+        #
+        # Manual cascade:
+        # don't add invisible system-like
+        # cascade messages to chat.
+        if record_messages:
+            (
                 WorkspaceMessage
-                .Role
-                .ASSISTANT
-            ),
-            content=assistant_content,
-        )
+                .objects
+                .create(
+                    project=project,
+
+                    role=(
+                        WorkspaceMessage
+                        .Role
+                        .ASSISTANT
+                    ),
+
+                    content=(
+                        assistant_content
+                    ),
+                )
+            )
+
+        # =================================
+        # EVENT LOG
+        # =================================
 
         record_project_event(
             project=project,
+
             event_type=(
                 ProjectEvent
                 .EventType
                 .WORKSPACE_UPDATED
             ),
-            title="Workspace updated",
+
+            title=(
+                "Workspace updated"
+            ),
+
             description=(
                 f"Updated sections: "
                 f"{section_summary}. "
+
                 f"Facts changed: "
                 f"{len(fact_changes)}. "
+
                 f"Tasks added: "
                 f"{task_changes['added']}; "
+
                 f"updated: "
                 f"{task_changes['updated']}; "
+
                 f"removed: "
-                f"{task_changes['removed']}."
+                f"{task_changes['removed']}. "
+
+                f"Budget changes: "
+                f"{len(budget_changes)}."
             ),
+
             metadata={
-                "change_id": change.pk,
+                "change_id": (
+                    change.pk
+                ),
+
                 "sections": (
                     updated_section_names
                 ),
+
                 "facts_changed": (
                     facts_changed
                 ),
+
                 "fact_changes": (
                     fact_changes
                 ),
+
                 "task_changes": (
                     task_changes
+                ),
+
+                "budget_changes": (
+                    budget_changes
+                ),
+
+                "manual_cascade": (
+                    not record_messages
+                ),
+
+                "excluded_areas": (
+                    sorted(
+                        excluded_areas
+                    )
                 ),
             },
         )
 
-    schedule_relevant_sections = {
-        "requirements",
-        "roadmap",
-        "tasks",
-        "resources",
-        "budget",
-        "testing",
-    }
+    # =================================
+    # AUTOMATIC TIMELINE CASCADE
+    # =================================
 
-    affected_schedule_sections = (
-        schedule_relevant_sections
-        & affected_sections
+    schedule_action = (
+        getattr(
+            plan,
+            "schedule_action",
+            None,
+        )
+    )
+
+    should_reschedule = (
+        "timeline"
+        not in excluded_areas
+
+        and schedule_action
+        is not None
+
+        and schedule_action.action
+        == "reschedule"
     )
 
     tasks_changed = (
-        task_changes["total"] > 0
+        task_changes["total"]
+        > 0
     )
 
-    if (
-        affected_schedule_sections
-        or tasks_changed
-    ):
-        refresh_reasons = []
+    if should_reschedule:
+        try:
+            print(
+                "\n"
+                "CASCADE: Regenerating "
+                "project schedule..."
+            )
 
-        if affected_schedule_sections:
-            refresh_reasons.append(
-                (
-                    "Updated sections: "
-                    + ", ".join(
-                        sorted(
-                            affected_schedule_sections
-                        )
-                    )
-                    + "."
+            schedule = (
+                generate_project_schedule(
+                    project
                 )
             )
 
-        if tasks_changed:
-            refresh_reasons.append(
-                "The task list changed."
+            schedule_result = (
+                apply_project_schedule(
+                    project=project,
+                    schedule=schedule,
+                )
             )
 
-        mark_schedule_for_refresh(
-            project=project,
-            reason=" ".join(
-                refresh_reasons
-            ),
+            project.schedule_needs_refresh = (
+                False
+            )
+
+            project.schedule_refresh_reason = (
+                ""
+            )
+
+            project.schedule_last_generated_at = (
+                timezone.now()
+            )
+
+            project.save(
+                update_fields=[
+                    (
+                        "schedule_"
+                        "needs_refresh"
+                    ),
+
+                    (
+                        "schedule_"
+                        "refresh_reason"
+                    ),
+
+                    (
+                        "schedule_last_"
+                        "generated_at"
+                    ),
+
+                    "updated_at",
+                ]
+            )
+
+            record_project_event(
+                project=project,
+
+                event_type=(
+                    ProjectEvent
+                    .EventType
+                    .SCHEDULE_GENERATED
+                ),
+
+                title=(
+                    "Schedule automatically "
+                    "regenerated"
+                ),
+
+                description=(
+                    schedule_result[
+                        "summary"
+                    ]
+                ),
+
+                metadata={
+                    "automatic": True,
+
+                    "reason": (
+                        getattr(
+                            schedule_action,
+                            "reason",
+                            "",
+                        )
+                        or ""
+                    ),
+
+                    (
+                        "milestones_created_"
+                        "or_updated"
+                    ): (
+                        schedule_result[
+                            (
+                                "milestones_"
+                                "created_or_"
+                                "updated"
+                            )
+                        ]
+                    ),
+
+                    "tasks_scheduled": (
+                        schedule_result[
+                            "tasks_scheduled"
+                        ]
+                    ),
+                },
+            )
+
+            change_summary_items.append(
+                (
+                    "Automatically regenerated "
+                    "the project schedule."
+                )
+            )
+
+            print(
+                "CASCADE: Schedule "
+                "regenerated successfully."
+            )
+
+        except Exception:
+            print(
+                "\n"
+                + "=" * 80
+            )
+
+            print(
+                "AUTOMATIC SCHEDULE "
+                "CASCADE FAILED"
+            )
+
+            traceback.print_exc()
+
+            print(
+                "=" * 80
+                + "\n"
+            )
+
+            mark_schedule_for_refresh(
+                project=project,
+
+                reason=(
+                    getattr(
+                        schedule_action,
+                        "reason",
+                        "",
+                    )
+                    or (
+                        "Recent project changes "
+                        "affected the schedule."
+                    )
+                ),
+            )
+
+    else:
+        # =================================
+        # SCHEDULE SAFETY FALLBACK
+        # =================================
+        #
+        # If the AI doesn't regenerate the
+        # timeline, still mark it stale when
+        # scheduling inputs changed.
+        #
+        # But don't use an explicitly excluded
+        # area as the sole reason.
+        # =================================
+
+        schedule_relevant_sections = {
+            "requirements",
+            "roadmap",
+            "tasks",
+            "resources",
+            "budget",
+            "testing",
+        }
+
+        affected_schedule_sections = (
+            schedule_relevant_sections
+            & affected_sections
         )
+
+        affected_schedule_sections -= (
+            excluded_areas
+        )
+
+        # If the timeline itself was excluded,
+        # we must not immediately regenerate it.
+        #
+        # However, if this cascade changed tasks
+        # or budget as a RESULT of the timeline,
+        # the schedule may now genuinely require
+        # another future refresh.
+        should_mark_stale = (
+            affected_schedule_sections
+            or tasks_changed
+            or budget_changes
+        )
+
+        if should_mark_stale:
+            refresh_reasons = []
+
+            if affected_schedule_sections:
+                refresh_reasons.append(
+                    (
+                        "Updated sections: "
+                        + ", ".join(
+                            sorted(
+                                affected_schedule_sections
+                            )
+                        )
+                        + "."
+                    )
+                )
+
+            if tasks_changed:
+                refresh_reasons.append(
+                    (
+                        "The task list "
+                        "changed."
+                    )
+                )
+
+            if budget_changes:
+                refresh_reasons.append(
+                    (
+                        "The budget "
+                        "changed."
+                    )
+                )
+
+            mark_schedule_for_refresh(
+                project=project,
+                reason=(
+                    " ".join(
+                        refresh_reasons
+                    )
+                ),
+            )
+
+    # =================================
+    # FINISH
+    # =================================
 
     total_seconds = (
         time.monotonic()
@@ -4040,7 +4933,8 @@ def apply_workspace_change(
     )
 
     print(
-        "\n===== Fast Update Complete ====="
+        "\n"
+        "===== Fast Update Complete ====="
     )
 
     print(
@@ -4064,17 +4958,43 @@ def apply_workspace_change(
     )
 
     print(
+        "Budget changes:",
+        budget_changes,
+    )
+
+    print(
+        "Excluded areas:",
+        sorted(
+            excluded_areas
+        ),
+    )
+
+    print(
+        "Schedule regenerated:",
+        (
+            schedule_result
+            is not None
+        ),
+    )
+
+    print(
         "TOTAL WORKSPACE ASSISTANT "
-        f"UPDATE TIME: "
+        "UPDATE TIME: "
         f"{total_seconds:.2f} seconds"
     )
 
     print(
-        "================================\n"
+        "================================"
+        "\n"
     )
+
+    # =================================
+    # RESULT
+    # =================================
 
     return {
         "analysis": plan,
+
         "change": change,
 
         "updated_facts": (
@@ -4087,6 +5007,19 @@ def apply_workspace_change(
 
         "task_changes": (
             task_changes
+        ),
+
+        "budget_changes": (
+            budget_changes
+        ),
+
+        "schedule_regenerated": (
+            schedule_result
+            is not None
+        ),
+
+        "schedule_result": (
+            schedule_result
         ),
 
         "facts_changed": (
@@ -4104,7 +5037,123 @@ def apply_workspace_change(
         "assistant_summary": (
             plan_summary
         ),
+
+        "excluded_areas": (
+            sorted(
+                excluded_areas
+            )
+        ),
     }
+def apply_manual_project_cascade(
+    *,
+    project,
+    source,
+    description,
+    excluded_areas=None,
+):
+    """
+    Propagate an already-saved manual project
+    change into other affected project areas.
+
+    The original source change has already been
+    saved before this function is called.
+    """
+
+    excluded_areas = list(
+        excluded_areas or []
+    )
+
+    excluded_text = (
+        ", ".join(
+            excluded_areas
+        )
+        if excluded_areas
+        else "None"
+    )
+
+    cascade_content = (
+        "A project change was manually applied "
+        "through the Projivo interface.\n\n"
+
+        f"Source area: {source}\n"
+        f"Change: {description}\n\n"
+
+        "IMPORTANT:\n"
+        "The source change has ALREADY been saved "
+        "to the database.\n\n"
+
+        "Do not undo, duplicate, or blindly "
+        "re-apply that source change.\n\n"
+
+        "Analyze the project's CURRENT state "
+        "after the change and modify only other "
+        "areas that are meaningfully affected.\n\n"
+
+        "Possible affected areas include:\n"
+        "- requirements\n"
+        "- roadmap\n"
+        "- tasks\n"
+        "- resources\n"
+        "- budget\n"
+        "- timeline\n"
+        "- testing\n"
+        "- documentation\n\n"
+
+        f"Areas explicitly excluded from this "
+        f"cascade: {excluded_text}.\n\n"
+
+        "Respect the excluded areas exactly.\n\n"
+
+        "Use the normal cross-area cascade rules. "
+        "Preserve unrelated content."
+    )
+
+    try:
+        result = apply_workspace_change(
+            project=project,
+            content=cascade_content,
+            record_messages=False,
+            excluded_areas=(
+                excluded_areas
+            ),
+        )
+
+        return {
+            "success": True,
+            "result": result,
+        }
+
+    except Exception:
+        print(
+            "\n"
+            + "=" * 80
+        )
+
+        print(
+            "MANUAL PROJECT CASCADE FAILED"
+        )
+
+        print(
+            "SOURCE:",
+            source,
+        )
+
+        print(
+            "DESCRIPTION:",
+            description,
+        )
+
+        traceback.print_exc()
+
+        print(
+            "=" * 80
+            + "\n"
+        )
+
+        return {
+            "success": False,
+            "result": None,
+        }
 def normalize_task_priority(
     raw_priority,
     default=Task.Priority.MEDIUM,
@@ -5815,14 +6864,18 @@ def update_task_status(
         project=project,
     )
 
-    new_status = request.POST.get(
-        "status",
-        "",
-    ).strip()
+    new_status = (
+        request.POST.get(
+            "status",
+            "",
+        )
+        .strip()
+    )
 
     valid_statuses = {
         value
-        for value, _ in Task.Status.choices
+        for value, _
+        in Task.Status.choices
     }
 
     if new_status not in valid_statuses:
@@ -5831,7 +6884,9 @@ def update_task_status(
             project_pk=project.pk,
         )
 
-    previous_status = task.status
+    previous_status = (
+        task.status
+    )
 
     if previous_status == new_status:
         return redirect(
@@ -5839,9 +6894,15 @@ def update_task_status(
             project_pk=project.pk,
         )
 
+    status_labels = dict(
+        Task.Status.choices
+    )
+
     task.status = new_status
+
     task.completed = (
-        new_status == Task.Status.DONE
+        new_status
+        == Task.Status.DONE
     )
 
     task.save(
@@ -5852,20 +6913,19 @@ def update_task_status(
         ]
     )
 
-    if (
-        previous_status == Task.Status.DONE
-        or new_status == Task.Status.DONE
-    ):
-        mark_schedule_for_refresh(
+    cascade = (
+        apply_manual_project_cascade(
             project=project,
-            reason=(
-                f"Completion state changed for "
-                f"{task.title}."
+            source="task_status",
+            description=(
+                f'Task "{task.title}" '
+                f"changed from "
+                f"{status_labels[previous_status]} "
+                f"to "
+                f"{status_labels[new_status]}. "
+                "This status is already saved."
             ),
         )
-
-    status_labels = dict(
-        Task.Status.choices
     )
 
     record_project_event(
@@ -5878,7 +6938,8 @@ def update_task_status(
         description=(
             f"{task.title}: "
             f"{status_labels[previous_status]} "
-            f"→ {status_labels[new_status]}"
+            f"→ "
+            f"{status_labels[new_status]}"
         ),
         metadata={
             "task_id": task.pk,
@@ -5887,6 +6948,9 @@ def update_task_status(
                 previous_status
             ),
             "new_status": new_status,
+            "cascade_success": (
+                cascade["success"]
+            ),
         },
     )
 
@@ -5914,7 +6978,9 @@ def move_task_on_board(
 
     try:
         payload = json.loads(
-            request.body.decode("utf-8")
+            request.body.decode(
+                "utf-8"
+            )
         )
 
     except (
@@ -5938,14 +7004,17 @@ def move_task_on_board(
         )
     ).strip()
 
-    ordered_task_ids = payload.get(
-        "ordered_task_ids",
-        [],
+    ordered_task_ids = (
+        payload.get(
+            "ordered_task_ids",
+            [],
+        )
     )
 
     valid_statuses = {
         value
-        for value, _ in Task.Status.choices
+        for value, _
+        in Task.Status.choices
     }
 
     if new_status not in valid_statuses:
@@ -5962,10 +7031,14 @@ def move_task_on_board(
     try:
         ordered_task_ids = [
             int(task_id)
-            for task_id in ordered_task_ids
+            for task_id
+            in ordered_task_ids
         ]
 
-    except (TypeError, ValueError):
+    except (
+        TypeError,
+        ValueError,
+    ):
         return JsonResponse(
             {
                 "success": False,
@@ -5976,12 +7049,16 @@ def move_task_on_board(
             status=400,
         )
 
-    previous_status = task.status
+    previous_status = (
+        task.status
+    )
 
     with transaction.atomic():
         task.status = new_status
+
         task.completed = (
-            new_status == Task.Status.DONE
+            new_status
+            == Task.Status.DONE
         )
 
         task.save(
@@ -5993,7 +7070,8 @@ def move_task_on_board(
         )
 
         destination_tasks = {
-            existing_task.pk: existing_task
+            existing_task.pk:
+                existing_task
             for existing_task
             in project.tasks.filter(
                 status=new_status,
@@ -6003,7 +7081,10 @@ def move_task_on_board(
 
         tasks_to_update = []
 
-        for order, ordered_task_id in enumerate(
+        for (
+            order,
+            ordered_task_id,
+        ) in enumerate(
             ordered_task_ids,
             start=1,
         ):
@@ -6016,8 +7097,12 @@ def move_task_on_board(
             if ordered_task is None:
                 continue
 
-            if ordered_task.order != order:
+            if (
+                ordered_task.order
+                != order
+            ):
                 ordered_task.order = order
+
                 tasks_to_update.append(
                     ordered_task
                 )
@@ -6029,18 +7114,9 @@ def move_task_on_board(
             )
 
         if (
-            previous_status == Task.Status.DONE
-            or new_status == Task.Status.DONE
+            previous_status
+            != new_status
         ):
-            mark_schedule_for_refresh(
-                project=project,
-                reason=(
-                    f"Completion state changed "
-                    f"for {task.title}."
-                ),
-            )
-
-        if previous_status != new_status:
             status_labels = dict(
                 Task.Status.choices
             )
@@ -6051,7 +7127,9 @@ def move_task_on_board(
                     ProjectEvent.EventType
                     .TASK_STATUS_CHANGED
                 ),
-                title="Task status changed",
+                title=(
+                    "Task status changed"
+                ),
                 description=(
                     f"{task.title}: "
                     f"{status_labels[previous_status]} "
@@ -6060,20 +7138,51 @@ def move_task_on_board(
                 ),
                 metadata={
                     "task_id": task.pk,
-                    "task_title": task.title,
+                    "task_title": (
+                        task.title
+                    ),
                     "previous_status": (
                         previous_status
                     ),
-                    "new_status": new_status,
+                    "new_status": (
+                        new_status
+                    ),
                 },
             )
+
+    cascade_success = True
+
+    if previous_status != new_status:
+        cascade = (
+            apply_manual_project_cascade(
+                project=project,
+                source="task_status",
+                description=(
+                    f'Task "{task.title}" was '
+                    "moved on the board from "
+                    f"{previous_status} to "
+                    f"{new_status}. "
+                    "The new status is already "
+                    "saved."
+                ),
+            )
+        )
+
+        cascade_success = (
+            cascade["success"]
+        )
 
     return JsonResponse(
         {
             "success": True,
             "task_id": task.pk,
             "status": task.status,
-            "completed": task.completed,
+            "completed": (
+                task.completed
+            ),
+            "cascade_success": (
+                cascade_success
+            ),
         }
     )
 def escape_mermaid_text(value):
@@ -6722,7 +7831,10 @@ def edit_task_dependencies(
     available_tasks = (
         project.tasks
         .exclude(pk=task.pk)
-        .order_by("order", "title")
+        .order_by(
+            "order",
+            "title",
+        )
     )
 
     error_message = ""
@@ -6736,13 +7848,19 @@ def edit_task_dependencies(
 
         selected_dependencies = list(
             project.tasks
-            .filter(pk__in=dependency_ids)
-            .exclude(pk=task.pk)
+            .filter(
+                pk__in=dependency_ids
+            )
+            .exclude(
+                pk=task.pk
+            )
         )
 
         invalid_dependencies = []
 
-        for dependency in selected_dependencies:
+        for dependency in (
+            selected_dependencies
+        ):
             if task_depends_on(
                 task=dependency,
                 possible_dependency=task,
@@ -6753,17 +7871,34 @@ def edit_task_dependencies(
 
         if invalid_dependencies:
             error_message = (
-                "These dependencies would create "
-                "a circular dependency: "
+                "These dependencies would "
+                "create a circular dependency: "
                 + ", ".join(
                     invalid_dependencies
                 )
             )
+
         else:
             previous_dependency_ids = set(
-                task.dependencies.values_list(
+                task.dependencies
+                .values_list(
                     "pk",
                     flat=True,
+                )
+            )
+
+            previous_dependency_titles = (
+                list(
+                    project.tasks
+                    .filter(
+                        pk__in=(
+                            previous_dependency_ids
+                        )
+                    )
+                    .values_list(
+                        "title",
+                        flat=True,
+                    )
                 )
             )
 
@@ -6781,12 +7916,29 @@ def edit_task_dependencies(
                     selected_dependencies
                 )
 
-                mark_schedule_for_refresh(
-                    project=project,
-                    reason=(
-                        f"Dependencies changed "
-                        f"for {task.title}."
-                    ),
+                new_dependency_titles = [
+                    dependency.title
+                    for dependency
+                    in selected_dependencies
+                ]
+
+                cascade = (
+                    apply_manual_project_cascade(
+                        project=project,
+                        source=(
+                            "task_dependencies"
+                        ),
+                        description=(
+                            f'Dependencies for '
+                            f'"{task.title}" changed.\n'
+                            f"Previous dependencies: "
+                            f"{previous_dependency_titles}\n"
+                            f"New dependencies: "
+                            f"{new_dependency_titles}.\n"
+                            "The dependency change is "
+                            "already saved."
+                        ),
+                    )
                 )
 
                 record_project_event(
@@ -6796,7 +7948,8 @@ def edit_task_dependencies(
                         .TASK_DEPENDENCIES_CHANGED
                     ),
                     title=(
-                        "Task dependencies changed"
+                        "Task dependencies "
+                        "changed"
                     ),
                     description=task.title,
                     metadata={
@@ -6812,17 +7965,32 @@ def edit_task_dependencies(
                         ): sorted(
                             new_dependency_ids
                         ),
+                        "cascade_success": (
+                            cascade["success"]
+                        ),
                     },
                 )
 
-                messages.success(
-                    request,
-                    (
-                        f'Dependencies for '
-                        f'"{task.title}" '
-                        "were updated."
-                    ),
-                )
+                if cascade["success"]:
+                    messages.success(
+                        request,
+                        (
+                            f'Dependencies for '
+                            f'"{task.title}" were '
+                            "updated and affected "
+                            "areas synchronized."
+                        ),
+                    )
+                else:
+                    messages.warning(
+                        request,
+                        (
+                            "Dependencies were "
+                            "updated, but project "
+                            "synchronization failed."
+                        ),
+                    )
+
             else:
                 messages.info(
                     request,
@@ -6838,20 +8006,26 @@ def edit_task_dependencies(
             )
 
     selected_dependency_ids = set(
-        task.dependencies.values_list(
+        task.dependencies
+        .values_list(
             "pk",
             flat=True,
         )
     )
 
-    permission_context = project_permission_context(
-        project=project,
-        user=request.user,
+    permission_context = (
+        project_permission_context(
+            project=project,
+            user=request.user,
+        )
     )
 
     return render(
         request,
-        "projects/edit_task_dependencies.html",
+        (
+            "projects/"
+            "edit_task_dependencies.html"
+        ),
         {
             "project": project,
             "task": task,
@@ -6861,7 +8035,9 @@ def edit_task_dependencies(
             "selected_dependency_ids": (
                 selected_dependency_ids
             ),
-            "error_message": error_message,
+            "error_message": (
+                error_message
+            ),
             **permission_context,
         },
     )
@@ -7124,8 +8300,10 @@ def generate_more_tasks(
     new_tasks = []
 
     try:
-        result = generate_additional_tasks(
-            project
+        result = (
+            generate_additional_tasks(
+                project
+            )
         )
 
         existing_tasks = list(
@@ -7133,7 +8311,9 @@ def generate_more_tasks(
         )
 
         existing_titles = {
-            task.title.strip().lower()
+            task.title
+            .strip()
+            .lower()
             for task in existing_tasks
         }
 
@@ -7141,7 +8321,8 @@ def generate_more_tasks(
             normalize_task_title(
                 task.title
             )
-            for task in existing_tasks
+            for task
+            in existing_tasks
         ]
 
         last_task = (
@@ -7166,15 +8347,21 @@ def generate_more_tasks(
             result.tasks[:5]
         ):
             title = (
-                generated_task.title.strip()
+                generated_task.title
+                .strip()
             )
 
             if not title:
                 continue
 
-            normalized_title = title.lower()
+            normalized_title = (
+                title.lower()
+            )
 
-            if normalized_title in existing_titles:
+            if (
+                normalized_title
+                in existing_titles
+            ):
                 continue
 
             new_title_words = (
@@ -7190,7 +8377,9 @@ def generate_more_tasks(
                         & existing_words
                     )
                     / max(
-                        len(new_title_words),
+                        len(
+                            new_title_words
+                        ),
                         1,
                     )
                 )
@@ -7212,8 +8401,13 @@ def generate_more_tasks(
                 generated_task.status
             )
 
-            if new_status not in valid_statuses:
-                new_status = Task.Status.TODO
+            if (
+                new_status
+                not in valid_statuses
+            ):
+                new_status = (
+                    Task.Status.TODO
+                )
 
             new_tasks.append(
                 Task(
@@ -7249,44 +8443,76 @@ def generate_more_tasks(
                 new_tasks
             )
 
-            mark_schedule_for_refresh(
-                project=project,
-                reason=(
-                    f"{len(new_tasks)} new "
-                    "tasks were generated."
-                ),
+            created_titles = [
+                task.title
+                for task in new_tasks
+            ]
+
+            cascade = (
+                apply_manual_project_cascade(
+                    project=project,
+                    source="tasks",
+                    description=(
+                        f"{len(new_tasks)} new "
+                        "AI-generated tasks were "
+                        "added to the project. "
+                        f"Titles: {created_titles}. "
+                        "The tasks are already saved."
+                    ),
+                )
             )
 
-            messages.success(
-                request,
-                (
-                    f"{len(new_tasks)} new tasks "
-                    "were generated."
-                ),
-            )
+            if cascade["success"]:
+                messages.success(
+                    request,
+                    (
+                        f"{len(new_tasks)} new "
+                        "tasks were generated and "
+                        "the project was synchronized."
+                    ),
+                )
+            else:
+                messages.warning(
+                    request,
+                    (
+                        f"{len(new_tasks)} tasks "
+                        "were generated, but project "
+                        "synchronization failed."
+                    ),
+                )
+
         else:
             messages.info(
                 request,
                 (
-                    "No new non-duplicate tasks "
-                    "were generated."
+                    "No new non-duplicate "
+                    "tasks were generated."
                 ),
             )
 
-    except Exception as error:
+    except Exception:
         print(
-            (
-                "Additional task generation "
-                "failed:"
-            ),
-            error,
+            "\n"
+            + "=" * 80
+        )
+
+        print(
+            "ADDITIONAL TASK "
+            "GENERATION FAILED"
+        )
+
+        traceback.print_exc()
+
+        print(
+            "=" * 80
+            + "\n"
         )
 
         messages.error(
             request,
             (
-                "BuilderOS could not generate "
-                "more tasks."
+                "Projivo could not "
+                "generate more tasks."
             ),
         )
 
@@ -7307,17 +8533,27 @@ def generate_project_schedule_view(
     )
 
     try:
-        schedule = generate_project_schedule(
-            project
+        schedule = (
+            generate_project_schedule(
+                project
+            )
         )
 
-        result = apply_project_schedule(
-            project=project,
-            schedule=schedule,
+        result = (
+            apply_project_schedule(
+                project=project,
+                schedule=schedule,
+            )
         )
 
-        project.schedule_needs_refresh = False
-        project.schedule_refresh_reason = ""
+        project.schedule_needs_refresh = (
+            False
+        )
+
+        project.schedule_refresh_reason = (
+            ""
+        )
+
         project.schedule_last_generated_at = (
             timezone.now()
         )
@@ -7340,8 +8576,12 @@ def generate_project_schedule_view(
                 ProjectEvent.EventType
                 .SCHEDULE_GENERATED
             ),
-            title="AI schedule generated",
-            description=result["summary"],
+            title=(
+                "AI schedule generated"
+            ),
+            description=(
+                result["summary"]
+            ),
             metadata={
                 (
                     "milestones_created_"
@@ -7353,37 +8593,82 @@ def generate_project_schedule_view(
                     )
                 ],
                 "tasks_scheduled": (
-                    result["tasks_scheduled"]
+                    result[
+                        "tasks_scheduled"
+                    ]
                 ),
             },
         )
 
-        request.session[
-            "schedule_message"
-        ] = (
-            "AI schedule generated "
-            "successfully. "
-            f"{result['tasks_scheduled']} "
-            "tasks were scheduled."
+        cascade = (
+            apply_manual_project_cascade(
+                project=project,
+                source="timeline",
+                description=(
+                    "The project schedule was "
+                    "regenerated. New milestones, "
+                    "task dates, estimates, and "
+                    "dependencies are already saved. "
+                    "Determine whether the resulting "
+                    "timeline meaningfully changes "
+                    "budget, resources, roadmap, "
+                    "requirements, testing, or "
+                    "documentation."
+                ),
+                excluded_areas=[
+                    "timeline",
+                ],
+            )
         )
+
+        if cascade["success"]:
+            request.session[
+                "schedule_message"
+            ] = (
+                "AI schedule generated "
+                "successfully and affected "
+                "project areas were synchronized. "
+                f"{result['tasks_scheduled']} "
+                "tasks were scheduled."
+            )
+
+        else:
+            request.session[
+                "schedule_message"
+            ] = (
+                "AI schedule was generated, "
+                "but cross-project "
+                "synchronization failed. "
+                f"{result['tasks_scheduled']} "
+                "tasks were scheduled."
+            )
 
         request.session[
             "schedule_message_type"
         ] = "success"
 
-    except Exception as error:
+    except Exception:
         print(
-            (
-                "AI schedule generation "
-                "failed:"
-            ),
-            error,
+            "\n"
+            + "=" * 80
+        )
+
+        print(
+            "AI SCHEDULE GENERATION "
+            "FAILED"
+        )
+
+        traceback.print_exc()
+
+        print(
+            "=" * 80
+            + "\n"
         )
 
         request.session[
             "schedule_message"
         ] = (
-            "BuilderOS could not generate "
+            "Projivo could not generate "
             "the schedule. Please try again."
         )
 
@@ -7395,8 +8680,6 @@ def generate_project_schedule_view(
         "project_timeline",
         project_pk=project.pk,
     )
-
-
 @login_required
 def project_members(
     request,
@@ -7702,32 +8985,45 @@ def regenerate_project_budget(
     )
 
     try:
-        generated_budget = generate_project_budget(
-            project
+        generated_budget = (
+            generate_project_budget(
+                project
+            )
         )
 
-        budget_items = build_budget_items_from_ai(
-            project=project,
-            generated_items=(
-                generated_budget.budget_items
-            ),
+        budget_items = (
+            build_budget_items_from_ai(
+                project=project,
+                generated_items=(
+                    generated_budget
+                    .budget_items
+                ),
+            )
         )
 
         if not budget_items:
             raise ValueError(
-                "Budget generation returned "
-                "no usable budget items."
+                (
+                    "Budget generation "
+                    "returned no usable "
+                    "budget items."
+                )
             )
 
         with transaction.atomic():
-            project.budget_items.all().delete()
+            (
+                project.budget_items
+                .all()
+                .delete()
+            )
 
             BudgetItem.objects.bulk_create(
                 budget_items
             )
 
             budget_folder.description = (
-                generated_budget.summary or ""
+                generated_budget.summary
+                or ""
             ).strip()
 
             budget_folder.save(
@@ -7753,47 +9049,80 @@ def regenerate_project_budget(
                     "budget items."
                 ),
                 metadata={
-                    "folder_id": budget_folder.pk,
-                    "folder_type": (
-                        budget_folder.folder_type
+                    "folder_id": (
+                        budget_folder.pk
                     ),
-                    "item_count": len(
-                        budget_items
+                    "folder_type": (
+                        budget_folder
+                        .folder_type
+                    ),
+                    "item_count": (
+                        len(budget_items)
                     ),
                 },
             )
 
-        mark_schedule_for_refresh(
-            project=project,
-            reason=(
-                "The budget and parts list "
-                "were regenerated."
-            ),
+        cascade = (
+            apply_manual_project_cascade(
+                project=project,
+                source="budget",
+                description=(
+                    "The complete project budget "
+                    "and parts list were regenerated. "
+                    "The new budget is already saved. "
+                    "Propagate meaningful effects to "
+                    "tasks, resources, requirements, "
+                    "roadmap, testing, documentation, "
+                    "and timeline."
+                ),
+                excluded_areas=[
+                    "budget",
+                ],
+            )
         )
 
-        messages.success(
-            request,
-            (
-                "Budget and parts list "
-                "were regenerated successfully."
-            ),
-        )
+        if cascade["success"]:
+            messages.success(
+                request,
+                (
+                    "Budget and parts list "
+                    "were regenerated and "
+                    "the project was synchronized."
+                ),
+            )
+        else:
+            messages.warning(
+                request,
+                (
+                    "Budget was regenerated, "
+                    "but project synchronization "
+                    "could not be completed."
+                ),
+            )
 
     except Exception:
-        print("\n" + "=" * 80)
+        print(
+            "\n"
+            + "=" * 80
+        )
+
         print(
             "BUDGET AND PARTS LIST "
             "REGENERATION FAILED"
         )
+
         traceback.print_exc()
-        print("=" * 80 + "\n")
+
+        print(
+            "=" * 80
+            + "\n"
+        )
 
         messages.error(
             request,
             (
                 "Projivo could not regenerate "
-                "the budget and parts list. "
-                "Please try again."
+                "the budget and parts list."
             ),
         )
 
@@ -7900,8 +9229,8 @@ def assign_task(
         messages.error(
             request,
             (
-                "The selected assignee is "
-                "not valid."
+                "The selected assignee "
+                "is not valid."
             ),
         )
 
@@ -7916,7 +9245,9 @@ def assign_task(
 
     if updated_task.assignee:
         if (
-            updated_task.assignee.project_id
+            updated_task
+            .assignee
+            .project_id
             != project.pk
         ):
             messages.error(
@@ -7948,15 +9279,38 @@ def assign_task(
     )
 
     previous_username = (
-        previous_assignee.user.username
+        previous_assignee
+        .user
+        .username
         if previous_assignee
         else "Unassigned"
     )
 
     new_username = (
-        updated_task.assignee.user.username
+        updated_task
+        .assignee
+        .user
+        .username
         if updated_task.assignee
         else "Unassigned"
+    )
+
+    cascade = (
+        apply_manual_project_cascade(
+            project=project,
+            source="task_assignment",
+            description=(
+                f'Task "{task.title}" was '
+                f"reassigned from "
+                f"{previous_username} to "
+                f"{new_username}. "
+                "The assignment is already saved. "
+                "Only change timeline, roadmap, "
+                "resources, or other project areas "
+                "if the workload impact is "
+                "meaningful."
+            ),
+        )
     )
 
     record_project_event(
@@ -7965,7 +9319,9 @@ def assign_task(
             ProjectEvent.EventType
             .MEMBER_ROLE_CHANGED
         ),
-        title="Task assignment changed",
+        title=(
+            "Task assignment changed"
+        ),
         description=(
             f'"{task.title}" was reassigned '
             f"from {previous_username} "
@@ -7983,20 +9339,25 @@ def assign_task(
                 if updated_task.assignee
                 else None
             ),
+            "cascade_success": (
+                cascade["success"]
+            ),
         },
     )
 
     messages.success(
         request,
         (
-            f'"{task.title}" is now assigned '
-            f"to {new_username}."
+            f'"{task.title}" is now '
+            f"assigned to {new_username}."
         ),
     )
 
-    next_url = request.POST.get(
-        "next",
-        "",
+    next_url = (
+        request.POST.get(
+            "next",
+            "",
+        )
     )
 
     if (
@@ -9896,18 +11257,80 @@ def edit_budget_item(
     )
 
     if request.method == "POST":
+        old_data = {
+            "name": item.name,
+            "quantity": item.quantity,
+            "unit_cost": item.unit_cost,
+            "category": item.category,
+            "requirement_level": (
+                item.requirement_level
+            ),
+            "is_recurring": (
+                item.is_recurring
+            ),
+            "is_physical_part": (
+                item.is_physical_part
+            ),
+        }
+
         form = BudgetItemForm(
             request.POST,
             instance=item,
         )
 
         if form.is_valid():
-            form.save()
-
-            messages.success(
-                request,
-                "Budget item updated.",
+            updated_item = (
+                form.save()
             )
+
+            cascade = (
+                apply_manual_project_cascade(
+                    project=project,
+                    source="budget",
+                    description=(
+                        f'Budget item '
+                        f'"{old_data["name"]}" was '
+                        "manually edited.\n"
+                        f"Old quantity: "
+                        f'{old_data["quantity"]}\n'
+                        f"New quantity: "
+                        f"{updated_item.quantity}\n"
+                        f"Old unit cost: "
+                        f'{old_data["unit_cost"]}\n'
+                        f"New unit cost: "
+                        f"{updated_item.unit_cost}\n"
+                        f"Old category: "
+                        f'{old_data["category"]}\n'
+                        f"New category: "
+                        f"{updated_item.category}\n"
+                        "The budget edit is already "
+                        "saved. Update other affected "
+                        "areas only."
+                    ),
+                    excluded_areas=[
+                        "budget",
+                    ],
+                )
+            )
+
+            if cascade["success"]:
+                messages.success(
+                    request,
+                    (
+                        "Budget item updated and "
+                        "affected project areas "
+                        "were synchronized."
+                    ),
+                )
+            else:
+                messages.warning(
+                    request,
+                    (
+                        "Budget item updated, but "
+                        "automatic synchronization "
+                        "failed."
+                    ),
+                )
 
             return redirect(
                 "workspace_folder",
@@ -9922,12 +11345,17 @@ def edit_budget_item(
 
     return render(
         request,
-        "projects/edit_budget_item.html",
+        (
+            "projects/"
+            "edit_budget_item.html"
+        ),
         {
             "project": project,
             "item": item,
             "form": form,
-            "budget_folder": budget_folder,
+            "budget_folder": (
+                budget_folder
+            ),
         },
     )
 @login_required
@@ -9972,10 +11400,47 @@ def new_budget_item(
 
             item.save()
 
-            messages.success(
-                request,
-                "Budget item added.",
+            cascade = (
+                apply_manual_project_cascade(
+                    project=project,
+                    source="budget",
+                    description=(
+                        f'A new budget item '
+                        f'"{item.name}" was added. '
+                        f"Category: {item.category}. "
+                        f"Quantity: {item.quantity}. "
+                        f"Unit cost: "
+                        f"{item.unit_cost}. "
+                        f"Recurring: "
+                        f"{item.is_recurring}. "
+                        f"Physical part: "
+                        f"{item.is_physical_part}. "
+                        "The item is already saved."
+                    ),
+                    excluded_areas=[
+                        "budget",
+                    ],
+                )
             )
+
+            if cascade["success"]:
+                messages.success(
+                    request,
+                    (
+                        "Budget item added and "
+                        "affected project areas "
+                        "were synchronized."
+                    ),
+                )
+            else:
+                messages.warning(
+                    request,
+                    (
+                        "Budget item added, but "
+                        "project synchronization "
+                        "could not be completed."
+                    ),
+                )
 
             return redirect(
                 "workspace_folder",
@@ -9988,12 +11453,17 @@ def new_budget_item(
 
     return render(
         request,
-        "projects/edit_budget_item.html",
+        (
+            "projects/"
+            "edit_budget_item.html"
+        ),
         {
             "project": project,
             "item": None,
             "form": form,
-            "budget_folder": budget_folder,
+            "budget_folder": (
+                budget_folder
+            ),
         },
     )
 @login_required
@@ -10022,12 +11492,50 @@ def delete_budget_item(
 
     item_name = item.name
 
+    item_description = (
+        f'Budget item "{item.name}" '
+        "was manually deleted. "
+        f"Category: {item.category}. "
+        f"Quantity: {item.quantity}. "
+        f"Unit cost: {item.unit_cost}. "
+        f"Recurring: {item.is_recurring}. "
+        f"Physical part: "
+        f"{item.is_physical_part}."
+    )
+
     item.delete()
 
-    messages.success(
-        request,
-        f'"{item_name}" was deleted.',
+    cascade = (
+        apply_manual_project_cascade(
+            project=project,
+            source="budget",
+            description=(
+                item_description
+            ),
+            excluded_areas=[
+                "budget",
+            ],
+        )
     )
+
+    if cascade["success"]:
+        messages.success(
+            request,
+            (
+                f'"{item_name}" was deleted '
+                "and affected project areas "
+                "were synchronized."
+            ),
+        )
+    else:
+        messages.warning(
+            request,
+            (
+                f'"{item_name}" was deleted, '
+                "but automatic synchronization "
+                "failed."
+            ),
+        )
 
     return redirect(
         "workspace_folder",

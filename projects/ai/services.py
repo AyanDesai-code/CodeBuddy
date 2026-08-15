@@ -1905,9 +1905,19 @@ class BudgetAction(BaseModel):
     source_name: str | None = None
     source_url: str | None = None
     alternative_notes: str | None = None
+class ScheduleAction(BaseModel):
+    action: Literal[
+        "keep",
+        "reschedule",
+    ] = "keep"
+
+    reason: str = ""
 class WorkspaceUpdatePlan(BaseModel):
     summary: str
-    canonical_updates: list[CanonicalFactUpdate]
+
+    canonical_updates: list[
+        CanonicalFactUpdate
+    ]
 
     affected_sections: list[
         Literal[
@@ -1923,15 +1933,29 @@ class WorkspaceUpdatePlan(BaseModel):
         ]
     ]
 
-    sections: list[UpdatedWorkspaceSection]
+    sections: list[
+        UpdatedWorkspaceSection
+    ]
 
-    tasks_to_add: list[GeneratedTask]
-    tasks_to_update: list[TaskToUpdate]
+    tasks_to_add: list[
+        GeneratedTask
+    ]
+
+    tasks_to_update: list[
+        TaskToUpdate
+    ]
+
     task_ids_to_remove: list[int]
 
-    budget_actions: list[BudgetAction] = Field(
+    budget_actions: list[
+        BudgetAction
+    ] = Field(
         default_factory=list
     )
+
+    schedule_action: (
+        ScheduleAction | None
+    ) = None
 
     task_summary: str
     assistant_message: str
@@ -2235,6 +2259,106 @@ changes a project-level budget assumption, such as:
 - cost constraints
 - general budget allocation
 - recurring-cost policy
+CROSS-AREA CASCADE RULES
+
+The project areas are interconnected.
+
+A change in one area may require changes in another area.
+
+Possible relationships include:
+
+requirements
+→ tasks
+→ resources
+→ budget
+→ timeline
+→ roadmap
+→ testing
+
+But effects may also propagate in reverse.
+
+Examples:
+
+- A lower budget may require cheaper resources,
+  different tasks, or a longer timeline.
+
+- A shorter deadline may require more parallel work,
+  different resources, higher costs, or reduced scope.
+
+- Replacing a resource may change tasks, budget,
+  testing, documentation, and schedule.
+
+- Adding or removing tasks may require rescheduling.
+
+- Changing project requirements may affect nearly
+  every downstream area.
+
+IMPORTANT:
+
+Do not automatically modify every area.
+
+Only modify areas that are meaningfully affected.
+
+Do not regenerate unrelated content.
+
+BUDGET CASCADE RULES
+
+If the user's change requires modifying structured
+budget items, use budget_actions.
+
+Examples:
+
+- replacing a component
+- changing quantity
+- changing cost
+- adding a required service
+- removing an obsolete expense
+
+Use existing BUDGET ITEM IDs for updates and deletes.
+
+Do not rewrite the entire structured budget when only
+one or two items need changing.
+
+SCHEDULE CASCADE RULES
+
+Use schedule_action.
+
+Return:
+
+action="reschedule"
+
+when changes to tasks, dependencies, resources,
+requirements, milestone timing, workload, or budget
+meaningfully affect the execution schedule.
+
+Return:
+
+action="keep"
+
+when the existing schedule can remain accurate.
+
+Examples that usually require rescheduling:
+
+- tasks added or removed
+- dependencies changed
+- major resource changes
+- project deadline changed
+- milestone timing changed
+- project scope changed significantly
+
+Examples that usually do not require rescheduling:
+
+- spelling fixes
+- documentation wording changes
+- a small price correction that does not affect scope,
+  resources, or tasks
+
+Do not produce recursive cascades.
+
+This update plan is the ONE authoritative cascade pass.
+
+All affected project changes must be represented in
+this single response.
 """
 class RegeneratedWorkspaceSections(BaseModel):
     sections: list[UpdatedWorkspaceSection]
