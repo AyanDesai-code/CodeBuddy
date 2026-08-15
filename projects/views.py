@@ -3745,10 +3745,9 @@ def apply_workspace_change(
         # ONE AI CASCADE PLAN
         # ---------------------------------
 
-        plan = (
-            generate_workspace_update_plan(
-                project
-            )
+        plan = generate_workspace_update_plan(
+            project,
+            excluded_areas=excluded_areas,
         )
 
     finally:

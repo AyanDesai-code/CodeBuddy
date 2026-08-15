@@ -1284,6 +1284,7 @@ def normalize_affected_sections(
         normalized.append(section_type)
 
     return normalized
+
 WORKSPACE_CHANGE_PROMPT = """
 You are BuilderOS, a dependency-aware AI project manager.
 
@@ -2524,7 +2525,16 @@ Every finding must contain:
 """
 def generate_workspace_update_plan(
     project,
+    excluded_areas=None,
 ) -> WorkspaceUpdatePlan:
+
+    excluded_areas = {
+        str(area).strip().lower()
+        for area in (
+            excluded_areas or []
+        )
+        if str(area).strip()
+    }
     
     project_state = getattr(
         project,
@@ -2575,7 +2585,13 @@ def generate_workspace_update_plan(
             project
         )
     )
-
+    excluded_text = (
+        ", ".join(
+            sorted(excluded_areas)
+        )
+        if excluded_areas
+        else "None"
+    )
     generation_input = f"""
 PROJECT DISCOVERY SUMMARY:
 
@@ -2616,9 +2632,22 @@ RECENT WORKSPACE-ASSISTANT CONVERSATION:
 {assistant_text}
 
 
+PROTECTED SOURCE AREAS:
+
+{excluded_text}
+
+These areas were already changed manually.
+
+Do not return changes that modify these areas.
+Treat their current database state as authoritative.
+You may modify other project areas that are
+meaningfully affected by them.
+
+
 LATEST USER REQUEST:
 
 {latest_user_message.content}
+
 """
 
     print(
@@ -3464,11 +3493,6 @@ PROJECT TEAM:
 CURRENT WORKSPACE:
 
 {workspace_text}
-
-
-CURRENT DATABASE-BACKED TASKS:
-
-{tasks_text}
 
 
 CURRENT DATABASE-BACKED TASKS:
