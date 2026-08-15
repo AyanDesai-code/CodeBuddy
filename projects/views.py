@@ -7248,9 +7248,9 @@ def project_timeline(
             user=request.user,
         )
 
-        # ---------------------------------
+        # =================================
         # TASK LIST SORTING
-        # ---------------------------------
+        # =================================
 
         task_list_sort = (
             request.GET.get(
@@ -7280,6 +7280,10 @@ def project_timeline(
             )
         )
 
+        # =================================
+        # LOAD MILESTONES
+        # =================================
+
         print(
             "TIMELINE 2: Loading milestones"
         )
@@ -7293,9 +7297,10 @@ def project_timeline(
             )
         )
 
-        # ---------------------------------
-        # ATTACH SORTED TASKS TO MILESTONES
-        # ---------------------------------
+        # =================================
+        # ATTACH SORTED TASKS
+        # TO MILESTONES
+        # =================================
 
         for milestone in milestones:
             milestone.sorted_tasks = list(
@@ -7314,6 +7319,10 @@ def project_timeline(
                     *task_list_ordering
                 )
             )
+
+        # =================================
+        # UNSCHEDULED TASKS
+        # =================================
 
         print(
             "TIMELINE 3: Loading "
@@ -7337,6 +7346,10 @@ def project_timeline(
             )
         )
 
+        # =================================
+        # LOAD ALL TASKS
+        # =================================
+
         print(
             "TIMELINE 4: Loading all tasks"
         )
@@ -7356,8 +7369,53 @@ def project_timeline(
             )
         )
 
+        # =================================
+        # BUILD GANTT SCHEDULE DATA
+        # =================================
+
         print(
-            "TIMELINE 5: Checking "
+            "TIMELINE 5: Building "
+            "Gantt schedule data"
+        )
+
+        gantt_data = build_gantt_data(
+            tasks=all_tasks,
+            milestones=milestones,
+        )
+
+        print(
+            "TIMELINE GANTT:",
+            {
+                "has_schedule": (
+                    gantt_data[
+                        "has_schedule"
+                    ]
+                ),
+                "task_count": len(
+                    gantt_data["tasks"]
+                ),
+                "milestone_count": len(
+                    gantt_data["milestones"]
+                ),
+                "start_date": (
+                    gantt_data[
+                        "start_date"
+                    ]
+                ),
+                "end_date": (
+                    gantt_data[
+                        "end_date"
+                    ]
+                ),
+            },
+        )
+
+        # =================================
+        # BLOCKED TASKS
+        # =================================
+
+        print(
+            "TIMELINE 6: Checking "
             "blocked tasks"
         )
 
@@ -7367,8 +7425,12 @@ def project_timeline(
             if task.is_blocked
         ]
 
+        # =================================
+        # OVERDUE TASKS
+        # =================================
+
         print(
-            "TIMELINE 6: Checking "
+            "TIMELINE 7: Checking "
             "overdue tasks"
         )
 
@@ -7415,13 +7477,13 @@ def project_timeline(
         )
 
         print(
-            "TIMELINE 7: Applying "
+            "TIMELINE 8: Applying "
             "flowchart filters"
         )
 
-        # ---------------------------------
+        # =================================
         # START WITH ALL PROJECT TASKS
-        # ---------------------------------
+        # =================================
 
         flow_tasks = (
             project.tasks
@@ -7515,11 +7577,9 @@ def project_timeline(
         #
         # SHOW EXACTLY THAT TASK.
         #
-        # Do NOT call
-        # get_connected_task_ids().
-        #
-        # Do NOT recursively pull in
-        # dependencies or dependents.
+        # Do NOT recursively pull its
+        # dependencies/dependents into
+        # the graph.
         # =================================
 
         if task_filter:
@@ -7566,24 +7626,25 @@ def project_timeline(
 
         elif flow_filter == "blocked":
             # is_blocked is a Python
-            # property, so we handle it
-            # after evaluating the queryset.
+            # property, so this must be
+            # handled after evaluating
+            # the queryset.
             pass
 
         elif flow_filter != "all":
             flow_filter = "all"
 
-        # ---------------------------------
-        # EVALUATE QUERYSET
-        # ---------------------------------
+        # =================================
+        # EVALUATE FLOW QUERYSET
+        # =================================
 
         flow_tasks = list(
             flow_tasks
         )
 
-        # ---------------------------------
-        # BLOCKED FILTER
-        # ---------------------------------
+        # =================================
+        # BLOCKED FLOW FILTER
+        # =================================
 
         if flow_filter == "blocked":
             flow_tasks = [
@@ -7593,11 +7654,11 @@ def project_timeline(
             ]
 
         # =================================
-        # DEBUGGING
+        # FLOWCHART DEBUGGING
         # =================================
 
         print(
-            "TIMELINE 8: Flowchart "
+            "TIMELINE 9: Flowchart "
             "task count:",
             len(flow_tasks),
         )
@@ -7629,11 +7690,12 @@ def project_timeline(
         )
 
         # =================================
-        # BUILD FLOWCHART
+        # BUILD DEPENDENCY FLOWCHART
         # =================================
 
         print(
-            "TIMELINE 9: Building flowchart"
+            "TIMELINE 10: "
+            "Building flowchart"
         )
 
         task_flowchart = (
@@ -7644,7 +7706,7 @@ def project_timeline(
         )
 
         print(
-            "TIMELINE 10: "
+            "TIMELINE 11: "
             "Flowchart built:",
             len(task_flowchart),
             "characters",
@@ -7680,7 +7742,7 @@ def project_timeline(
         )
 
         print(
-            "TIMELINE 11: "
+            "TIMELINE 12: "
             "Rendering template"
         )
 
@@ -7715,6 +7777,14 @@ def project_timeline(
                 ),
 
                 # -------------------------
+                # Gantt schedule
+                # -------------------------
+
+                "gantt_data": (
+                    gantt_data
+                ),
+
+                # -------------------------
                 # Metrics
                 # -------------------------
 
@@ -7739,7 +7809,7 @@ def project_timeline(
                 ),
 
                 # -------------------------
-                # Flowchart
+                # Dependency flowchart
                 # -------------------------
 
                 "task_flowchart": (
@@ -7751,7 +7821,7 @@ def project_timeline(
                 ),
 
                 # -------------------------
-                # Filters
+                # Flowchart filters
                 # -------------------------
 
                 "milestone_filter": (
@@ -7773,6 +7843,10 @@ def project_timeline(
                 "status_choices": (
                     Task.Status.choices
                 ),
+
+                # -------------------------
+                # Permissions
+                # -------------------------
 
                 **permission_context,
             },
@@ -9859,7 +9933,152 @@ def escape_mermaid_text(value):
         .replace("]", ")")
         .strip()
     )
+def build_gantt_data(
+    *,
+    tasks,
+    milestones,
+):
+    dated_tasks = [
+        task
+        for task in tasks
+        if (
+            task.start_date is not None
+            and task.due_date is not None
+        )
+    ]
 
+    dated_milestones = [
+        milestone
+        for milestone in milestones
+        if milestone.target_date is not None
+    ]
+
+    all_dates = []
+
+    for task in dated_tasks:
+        all_dates.append(
+            task.start_date
+        )
+        all_dates.append(
+            task.due_date
+        )
+
+    for milestone in dated_milestones:
+        all_dates.append(
+            milestone.target_date
+        )
+
+    if not all_dates:
+        return {
+            "has_schedule": False,
+            "start_date": None,
+            "end_date": None,
+            "total_days": 0,
+            "tasks": [],
+            "milestones": [],
+        }
+
+    timeline_start = min(
+        all_dates
+    )
+
+    timeline_end = max(
+        all_dates
+    )
+
+    total_days = (
+        timeline_end
+        - timeline_start
+    ).days + 1
+
+    gantt_tasks = []
+
+    for task in dated_tasks:
+        start_offset = (
+            task.start_date
+            - timeline_start
+        ).days
+
+        duration_days = (
+            task.due_date
+            - task.start_date
+        ).days + 1
+
+        left_percent = (
+            start_offset
+            / total_days
+            * 100
+        )
+
+        width_percent = (
+            duration_days
+            / total_days
+            * 100
+        )
+
+        gantt_tasks.append(
+            {
+                "id": task.pk,
+                "title": task.title,
+                "status": task.status,
+                "status_label": (
+                    task.get_status_display()
+                ),
+                "priority": task.priority,
+                "start_date": (
+                    task.start_date
+                ),
+                "due_date": (
+                    task.due_date
+                ),
+                "left_percent": (
+                    left_percent
+                ),
+                "width_percent": (
+                    max(
+                        width_percent,
+                        0.8,
+                    )
+                ),
+                "milestone": (
+                    task.milestone.name
+                    if task.milestone
+                    else ""
+                ),
+            }
+        )
+
+    gantt_milestones = []
+
+    for milestone in dated_milestones:
+        offset = (
+            milestone.target_date
+            - timeline_start
+        ).days
+
+        gantt_milestones.append(
+            {
+                "id": milestone.pk,
+                "name": milestone.name,
+                "target_date": (
+                    milestone.target_date
+                ),
+                "left_percent": (
+                    offset
+                    / total_days
+                    * 100
+                ),
+            }
+        )
+
+    return {
+        "has_schedule": True,
+        "start_date": timeline_start,
+        "end_date": timeline_end,
+        "total_days": total_days,
+        "tasks": gantt_tasks,
+        "milestones": gantt_milestones,
+    }
 def build_task_flowchart(
     project,
     tasks=None,

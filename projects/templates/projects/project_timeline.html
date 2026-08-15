@@ -522,6 +522,369 @@
             width: 100%;
         }
     }
+    .timeline-view-section {
+    margin-top: 32px;
+}
+
+.timeline-section-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 16px;
+}
+
+.timeline-section-heading h2 {
+    margin: 4px 0 4px;
+}
+
+.timeline-section-heading p {
+    margin: 0;
+    color: var(--text-muted);
+}
+
+.timeline-eyebrow {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+}
+
+.gantt-date-range {
+    color: var(--text-muted);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+
+/* ================================
+   GANTT CONTAINER
+================================ */
+
+.gantt-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    overflow: hidden;
+}
+
+.gantt-scroll {
+    overflow-x: auto;
+}
+
+.gantt-chart {
+    min-width: 1000px;
+}
+
+
+/* ================================
+   ROW
+================================ */
+
+.gantt-row {
+    display: grid;
+    grid-template-columns: 260px minmax(740px, 1fr);
+    min-height: 56px;
+    border-bottom: 1px solid var(--border);
+}
+
+.gantt-row:last-child {
+    border-bottom: 0;
+}
+
+
+/* ================================
+   TASK NAME COLUMN
+================================ */
+
+.gantt-task-column {
+    padding: 11px 14px;
+    border-right: 1px solid var(--border);
+}
+
+.gantt-task-name {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-decoration: none;
+    color: var(--text);
+}
+
+.gantt-task-name:hover {
+    background: var(--surface-soft);
+}
+
+.gantt-task-title {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.gantt-task-meta {
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+
+/* ================================
+   TIME COLUMN
+================================ */
+
+.gantt-time-column {
+    position: relative;
+    min-height: 56px;
+
+    background-image:
+        linear-gradient(
+            to right,
+            var(--border) 1px,
+            transparent 1px
+        );
+
+    background-size:
+        calc(100% / 12) 100%;
+}
+
+
+/* ================================
+   HEADER
+================================ */
+
+.gantt-header-row {
+    min-height: 46px;
+    background: var(--surface-soft);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.gantt-header-row .gantt-task-column {
+    display: flex;
+    align-items: center;
+}
+
+.gantt-range-label {
+    position: absolute;
+    inset: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 0 14px;
+    font-size: 12px;
+}
+
+
+/* ================================
+   TASK BAR
+================================ */
+
+.gantt-bar {
+    position: absolute;
+
+    top: 13px;
+    height: 30px;
+
+    min-width: 8px;
+
+    border-radius: 6px;
+
+    display: flex;
+    align-items: center;
+
+    padding: 0 9px;
+
+    overflow: hidden;
+
+    text-decoration: none;
+
+    z-index: 3;
+
+    border: 1px solid transparent;
+
+    transition:
+        transform 0.12s ease,
+        filter 0.12s ease;
+}
+
+.gantt-bar:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.12);
+    z-index: 6;
+}
+
+.gantt-bar span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+    font-size: 11px;
+    font-weight: 600;
+}
+
+
+/* ================================
+   STATUS COLORS
+================================ */
+
+.gantt-status-todo {
+    background: var(--surface-raised);
+    border-color: var(--border-strong);
+    color: var(--text);
+}
+
+.gantt-status-in_progress {
+    background: var(--info-background);
+    border-color: var(--accent);
+    color: var(--accent-hover);
+}
+
+.gantt-status-review {
+    background: var(--warning-background);
+    border-color: var(--warning);
+    color: var(--warning);
+}
+
+.gantt-status-done {
+    background: var(--success-background);
+    border-color: var(--success);
+    color: var(--success);
+}
+
+
+/* ================================
+   MILESTONES
+================================ */
+
+.gantt-milestone-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+
+    width: 1px;
+
+    background: var(--warning);
+
+    opacity: 0.4;
+
+    z-index: 1;
+}
+
+.gantt-milestone-row {
+    min-height: 64px;
+    background: var(--surface-soft);
+}
+
+.gantt-milestone {
+    position: absolute;
+    top: 9px;
+
+    transform: translateX(-7px);
+
+    z-index: 5;
+}
+
+.gantt-milestone-diamond {
+    display: block;
+    color: var(--warning);
+    font-size: 15px;
+}
+
+.gantt-milestone-name {
+    position: absolute;
+    top: 22px;
+    left: 0;
+
+    max-width: 140px;
+
+    color: var(--text-muted);
+
+    font-size: 10px;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+/* ================================
+   LEGEND
+================================ */
+
+.gantt-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px 18px;
+
+    margin-top: 12px;
+
+    color: var(--text-muted);
+
+    font-size: 12px;
+}
+
+.gantt-legend > span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.gantt-legend-dot {
+    display: inline-block;
+
+    width: 12px;
+    height: 12px;
+
+    border-radius: 3px;
+
+    border-width: 1px;
+    border-style: solid;
+}
+
+
+/* ================================
+   EMPTY STATE
+================================ */
+
+.gantt-empty {
+    padding: 24px;
+
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+
+    background: var(--surface);
+
+    color: var(--text-muted);
+}
+
+.gantt-empty strong {
+    color: var(--text);
+}
+
+.gantt-empty p {
+    margin-bottom: 0;
+}
+
+
+/* ================================
+   MOBILE
+================================ */
+
+@media (max-width: 700px) {
+
+    .timeline-section-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .gantt-row {
+        grid-template-columns:
+            210px
+            minmax(740px, 1fr);
+    }
+
+}
 </style>
 {% endblock %}
 
@@ -619,7 +982,251 @@
     </div>
 </div>
 
+<section class="timeline-view-section">
 
+    <div class="timeline-section-heading">
+        <div>
+            <div class="timeline-eyebrow">
+                PROJECT SCHEDULE
+            </div>
+
+            <h2>
+                Schedule
+            </h2>
+
+            <p>
+                See when work happens and
+                where tasks overlap.
+            </p>
+        </div>
+
+        {% if gantt_data.has_schedule %}
+            <div class="gantt-date-range">
+                {{ gantt_data.start_date|date:"M j" }}
+                →
+                {{ gantt_data.end_date|date:"M j, Y" }}
+            </div>
+        {% endif %}
+    </div>
+
+
+    {% if gantt_data.has_schedule %}
+
+        <div class="gantt-card">
+
+            <div class="gantt-scroll">
+
+                <div class="gantt-chart">
+
+                    <!-- HEADER -->
+
+                    <div class="gantt-row gantt-header-row">
+
+                        <div class="gantt-task-column">
+                            Task
+                        </div>
+
+                        <div class="gantt-time-column">
+
+                            <div class="gantt-range-label">
+                                {{ gantt_data.start_date|date:"F j, Y" }}
+                                <span>
+                                    →
+                                </span>
+                                {{ gantt_data.end_date|date:"F j, Y" }}
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- TASKS -->
+
+                    {% for task in gantt_data.tasks %}
+
+                        <div class="gantt-row">
+
+                            <a
+                                href="{% url 'edit_task' project.pk task.id %}"
+                                class="gantt-task-column gantt-task-name"
+                            >
+                                <span class="gantt-task-title">
+                                    {{ task.title }}
+                                </span>
+
+                                <span class="gantt-task-meta">
+                                    {{ task.start_date|date:"M j" }}
+                                    –
+                                    {{ task.due_date|date:"M j" }}
+                                </span>
+                            </a>
+
+
+                            <div class="gantt-time-column">
+
+                                <!-- MILESTONE LINES -->
+
+                                {% for milestone in gantt_data.milestones %}
+
+                                    <div
+                                        class="gantt-milestone-line"
+                                        style="
+                                            left:
+                                            {{ milestone.left_percent }}%;
+                                        "
+                                        title="
+                                            {{ milestone.name }} —
+                                            {{ milestone.target_date|date:'M j, Y' }}
+                                        "
+                                    ></div>
+
+                                {% endfor %}
+
+
+                                <!-- TASK BAR -->
+
+                                <a
+                                    href="{% url 'edit_task' project.pk task.id %}"
+                                    class="
+                                        gantt-bar
+                                        gantt-status-{{ task.status }}
+                                    "
+                                    style="
+                                        left:
+                                        {{ task.left_percent }}%;
+
+                                        width:
+                                        {{ task.width_percent }}%;
+                                    "
+                                    title="
+                                        {{ task.title }}
+                                        — {{ task.start_date|date:'M j' }}
+                                        to {{ task.due_date|date:'M j' }}
+                                    "
+                                >
+                                    <span>
+                                        {{ task.title }}
+                                    </span>
+                                </a>
+
+                            </div>
+
+                        </div>
+
+                    {% endfor %}
+
+
+                    <!-- MILESTONE LABELS -->
+
+                    <div class="gantt-row gantt-milestone-row">
+
+                        <div class="gantt-task-column">
+                            Milestones
+                        </div>
+
+                        <div class="gantt-time-column">
+
+                            {% for milestone in gantt_data.milestones %}
+
+                                <div
+                                    class="gantt-milestone"
+                                    style="
+                                        left:
+                                        {{ milestone.left_percent }}%;
+                                    "
+                                    title="
+                                        {{ milestone.name }} —
+                                        {{ milestone.target_date|date:'F j, Y' }}
+                                    "
+                                >
+                                    <span class="gantt-milestone-diamond">
+                                        ◆
+                                    </span>
+
+                                    <span class="gantt-milestone-name">
+                                        {{ milestone.name }}
+                                    </span>
+                                </div>
+
+                            {% endfor %}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="gantt-legend">
+
+            <span>
+                <span
+                    class="
+                        gantt-legend-dot
+                        gantt-status-todo
+                    "
+                ></span>
+                To do
+            </span>
+
+            <span>
+                <span
+                    class="
+                        gantt-legend-dot
+                        gantt-status-in_progress
+                    "
+                ></span>
+                In progress
+            </span>
+
+            <span>
+                <span
+                    class="
+                        gantt-legend-dot
+                        gantt-status-review
+                    "
+                ></span>
+                Review
+            </span>
+
+            <span>
+                <span
+                    class="
+                        gantt-legend-dot
+                        gantt-status-done
+                    "
+                ></span>
+                Done
+            </span>
+
+            <span>
+                ◆ Milestone
+            </span>
+
+        </div>
+
+    {% else %}
+
+        <div class="gantt-empty">
+            <strong>
+                No scheduled tasks yet.
+            </strong>
+
+            <p>
+                Generate the AI schedule to
+                assign task dates and build
+                the project timeline.
+            </p>
+        </div>
+
+    {% endif %}
+
+</section>
 <section
     class="task-flowchart-card"
     id="task-flowchart-card"
