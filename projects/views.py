@@ -6086,7 +6086,45 @@ def escape_mermaid_text(value):
         .strip()
     )
 
+def get_connected_task_ids(
+    task,
+):
+    connected_ids = set()
+    pending = [task]
 
+    while pending:
+        current = pending.pop()
+
+        if current.pk in connected_ids:
+            continue
+
+        connected_ids.add(
+            current.pk
+        )
+
+        for dependency in (
+            current.dependencies.all()
+        ):
+            if (
+                dependency.pk
+                not in connected_ids
+            ):
+                pending.append(
+                    dependency
+                )
+
+        for dependent in (
+            current.dependents.all()
+        ):
+            if (
+                dependent.pk
+                not in connected_ids
+            ):
+                pending.append(
+                    dependent
+                )
+
+    return connected_ids
 @login_required
 def project_timeline(
     request,
@@ -6147,8 +6185,7 @@ def project_timeline(
             )
         )
 
-        # Attach a sorted task list to
-        # every milestone.
+        # Attach sorted tasks to each milestone.
         for milestone in milestones:
             milestone.sorted_tasks = list(
                 project.tasks
@@ -6341,22 +6378,58 @@ def project_timeline(
 
         # ---------------------------------
         # TASK FILTER
+        #
+        # Selecting a task now shows the
+        # entire dependency-connected graph:
+        #
+        # - everything it depends on
+        # - everything depending on it
+        # - recursively in both directions
         # ---------------------------------
 
         if task_filter:
             try:
-                task_id = int(
+                selected_task_id = int(
                     task_filter
                 )
 
-                flow_tasks = (
-                    flow_tasks.filter(
-                        pk=task_id,
+            except (
+                TypeError,
+                ValueError,
+            ):
+                selected_task_id = None
+                task_filter = ""
+
+            if selected_task_id is not None:
+                selected_task = (
+                    project.tasks
+                    .prefetch_related(
+                        "dependencies",
+                        "dependents",
                     )
+                    .filter(
+                        pk=selected_task_id,
+                    )
+                    .first()
                 )
 
-            except ValueError:
-                task_filter = ""
+                if selected_task is None:
+                    task_filter = ""
+
+                else:
+                    connected_task_ids = (
+                        get_connected_task_ids(
+                            selected_task
+                        )
+                    )
+
+                    flow_tasks = (
+                        flow_tasks.filter(
+                            pk__in=(
+                                connected_task_ids
+                            ),
+                        )
+                    )
 
         # ---------------------------------
         # SPECIAL FLOW FILTER
@@ -6376,9 +6449,9 @@ def project_timeline(
         }:
             flow_filter = "all"
 
-        # Convert to list after queryset
-        # filtering so Python properties
-        # such as is_blocked can be checked.
+        # Convert after queryset filtering
+        # because is_blocked is a Python
+        # property rather than DB field.
         flow_tasks = list(
             flow_tasks
         )
