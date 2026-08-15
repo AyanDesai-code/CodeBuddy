@@ -6185,7 +6185,8 @@ def project_timeline(
             )
         )
 
-        # Attach sorted tasks to each milestone.
+        # Attach the correctly sorted task
+        # list to every milestone.
         for milestone in milestones:
             milestone.sorted_tasks = list(
                 project.tasks
@@ -6268,7 +6269,7 @@ def project_timeline(
         ]
 
         # ---------------------------------
-        # FLOWCHART FILTERS
+        # FLOWCHART FILTER VALUES
         # ---------------------------------
 
         milestone_filter = (
@@ -6308,6 +6309,10 @@ def project_timeline(
             "flowchart filters"
         )
 
+        # Start with every project task.
+        #
+        # Each filter below independently
+        # narrows this queryset.
         flow_tasks = (
             project.tasks
             .select_related(
@@ -6341,16 +6346,32 @@ def project_timeline(
                         milestone_filter
                     )
 
-                    flow_tasks = (
-                        flow_tasks.filter(
-                            milestone_id=(
-                                milestone_id
-                            ),
+                except (
+                    TypeError,
+                    ValueError,
+                ):
+                    milestone_filter = ""
+
+                else:
+                    milestone_exists = (
+                        project.milestones
+                        .filter(
+                            pk=milestone_id,
                         )
+                        .exists()
                     )
 
-                except ValueError:
-                    milestone_filter = ""
+                    if milestone_exists:
+                        flow_tasks = (
+                            flow_tasks.filter(
+                                milestone_id=(
+                                    milestone_id
+                                ),
+                            )
+                        )
+
+                    else:
+                        milestone_filter = ""
 
         # ---------------------------------
         # STATUS FILTER
@@ -6362,29 +6383,33 @@ def project_timeline(
             in Task.Status.choices
         }
 
-        if (
-            status_filter
-            and status_filter
-            in valid_statuses
-        ):
-            flow_tasks = (
-                flow_tasks.filter(
-                    status=status_filter,
+        if status_filter:
+            if (
+                status_filter
+                in valid_statuses
+            ):
+                flow_tasks = (
+                    flow_tasks.filter(
+                        status=status_filter,
+                    )
                 )
-            )
 
-        elif status_filter:
-            status_filter = ""
+            else:
+                status_filter = ""
 
         # ---------------------------------
         # TASK FILTER
+        # ---------------------------------
         #
-        # Selecting a task now shows the
-        # entire dependency-connected graph:
+        # IMPORTANT:
         #
-        # - everything it depends on
-        # - everything depending on it
-        # - recursively in both directions
+        # Selecting a task means:
+        # SHOW THAT TASK.
+        #
+        # We do NOT recursively include
+        # every connected dependency because
+        # a large project may have one giant
+        # connected dependency graph.
         # ---------------------------------
 
         if task_filter:
@@ -6397,39 +6422,26 @@ def project_timeline(
                 TypeError,
                 ValueError,
             ):
-                selected_task_id = None
                 task_filter = ""
 
-            if selected_task_id is not None:
-                selected_task = (
+            else:
+                selected_task_exists = (
                     project.tasks
-                    .prefetch_related(
-                        "dependencies",
-                        "dependents",
-                    )
                     .filter(
                         pk=selected_task_id,
                     )
-                    .first()
+                    .exists()
                 )
 
-                if selected_task is None:
-                    task_filter = ""
-
-                else:
-                    connected_task_ids = (
-                        get_connected_task_ids(
-                            selected_task
-                        )
-                    )
-
+                if selected_task_exists:
                     flow_tasks = (
                         flow_tasks.filter(
-                            pk__in=(
-                                connected_task_ids
-                            ),
+                            pk=selected_task_id,
                         )
                     )
+
+                else:
+                    task_filter = ""
 
         # ---------------------------------
         # SPECIAL FLOW FILTER
@@ -6442,19 +6454,26 @@ def project_timeline(
                 )
             )
 
-        elif flow_filter not in {
-            "all",
-            "blocked",
-            "incomplete",
-        }:
+        elif flow_filter == "blocked":
+            # is_blocked is a Python property,
+            # so this gets handled after the
+            # queryset becomes a list.
+            pass
+
+        elif flow_filter != "all":
             flow_filter = "all"
 
-        # Convert after queryset filtering
-        # because is_blocked is a Python
-        # property rather than DB field.
+        # ---------------------------------
+        # CONVERT QUERYSET TO LIST
+        # ---------------------------------
+
         flow_tasks = list(
             flow_tasks
         )
+
+        # ---------------------------------
+        # BLOCKED FILTER
+        # ---------------------------------
 
         if flow_filter == "blocked":
             flow_tasks = [
@@ -6467,6 +6486,32 @@ def project_timeline(
             "TIMELINE 8: Flowchart "
             "task count:",
             len(flow_tasks),
+        )
+
+        print(
+            "TIMELINE FILTER VALUES:",
+            {
+                "milestone": (
+                    milestone_filter
+                ),
+                "status": (
+                    status_filter
+                ),
+                "task": (
+                    task_filter
+                ),
+                "flow": (
+                    flow_filter
+                ),
+            },
+        )
+
+        print(
+            "TIMELINE FLOW TASK IDS:",
+            [
+                task.pk
+                for task in flow_tasks
+            ],
         )
 
         print(
@@ -6487,6 +6532,10 @@ def project_timeline(
             "characters",
         )
 
+        # ---------------------------------
+        # SCHEDULE MESSAGE
+        # ---------------------------------
+
         schedule_message = (
             request.session.pop(
                 "schedule_message",
@@ -6500,6 +6549,10 @@ def project_timeline(
                 None,
             )
         )
+
+        # ---------------------------------
+        # PERMISSIONS
+        # ---------------------------------
 
         permission_context = (
             project_permission_context(
@@ -6540,7 +6593,7 @@ def project_timeline(
                 ),
 
                 # -------------------------
-                # Timeline metrics
+                # Metrics
                 # -------------------------
 
                 "blocked_tasks": (
