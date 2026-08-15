@@ -7293,8 +7293,10 @@ def project_timeline(
             )
         )
 
-        # Attach the correctly sorted task
-        # list to every milestone.
+        # ---------------------------------
+        # ATTACH SORTED TASKS TO MILESTONES
+        # ---------------------------------
+
         for milestone in milestones:
             milestone.sorted_tasks = list(
                 project.tasks
@@ -7376,9 +7378,9 @@ def project_timeline(
             if task.is_overdue
         ]
 
-        # ---------------------------------
+        # =================================
         # FLOWCHART FILTER VALUES
-        # ---------------------------------
+        # =================================
 
         milestone_filter = (
             request.GET.get(
@@ -7417,10 +7419,10 @@ def project_timeline(
             "flowchart filters"
         )
 
-        # Start with every project task.
-        #
-        # Each filter below independently
-        # narrows this queryset.
+        # ---------------------------------
+        # START WITH ALL PROJECT TASKS
+        # ---------------------------------
+
         flow_tasks = (
             project.tasks
             .select_related(
@@ -7436,9 +7438,9 @@ def project_timeline(
             )
         )
 
-        # ---------------------------------
+        # =================================
         # MILESTONE FILTER
-        # ---------------------------------
+        # =================================
 
         if milestone_filter:
             if milestone_filter == "none":
@@ -7481,9 +7483,9 @@ def project_timeline(
                     else:
                         milestone_filter = ""
 
-        # ---------------------------------
+        # =================================
         # STATUS FILTER
-        # ---------------------------------
+        # =================================
 
         valid_statuses = {
             value
@@ -7505,20 +7507,20 @@ def project_timeline(
             else:
                 status_filter = ""
 
-        # ---------------------------------
+        # =================================
         # TASK FILTER
-        # ---------------------------------
+        # =================================
         #
-        # IMPORTANT:
+        # Selecting one task means:
         #
-        # Selecting a task means:
-        # SHOW THAT TASK.
+        # SHOW EXACTLY THAT TASK.
         #
-        # We do NOT recursively include
-        # every connected dependency because
-        # a large project may have one giant
-        # connected dependency graph.
-        # ---------------------------------
+        # Do NOT call
+        # get_connected_task_ids().
+        #
+        # Do NOT recursively pull in
+        # dependencies or dependents.
+        # =================================
 
         if task_filter:
             try:
@@ -7551,9 +7553,9 @@ def project_timeline(
                 else:
                     task_filter = ""
 
-        # ---------------------------------
-        # SPECIAL FLOW FILTER
-        # ---------------------------------
+        # =================================
+        # FLOW FILTER
+        # =================================
 
         if flow_filter == "incomplete":
             flow_tasks = (
@@ -7563,16 +7565,16 @@ def project_timeline(
             )
 
         elif flow_filter == "blocked":
-            # is_blocked is a Python property,
-            # so this gets handled after the
-            # queryset becomes a list.
+            # is_blocked is a Python
+            # property, so we handle it
+            # after evaluating the queryset.
             pass
 
         elif flow_filter != "all":
             flow_filter = "all"
 
         # ---------------------------------
-        # CONVERT QUERYSET TO LIST
+        # EVALUATE QUERYSET
         # ---------------------------------
 
         flow_tasks = list(
@@ -7589,6 +7591,10 @@ def project_timeline(
                 for task in flow_tasks
                 if task.is_blocked
             ]
+
+        # =================================
+        # DEBUGGING
+        # =================================
 
         print(
             "TIMELINE 8: Flowchart "
@@ -7622,6 +7628,10 @@ def project_timeline(
             ],
         )
 
+        # =================================
+        # BUILD FLOWCHART
+        # =================================
+
         print(
             "TIMELINE 9: Building flowchart"
         )
@@ -7640,9 +7650,9 @@ def project_timeline(
             "characters",
         )
 
-        # ---------------------------------
+        # =================================
         # SCHEDULE MESSAGE
-        # ---------------------------------
+        # =================================
 
         schedule_message = (
             request.session.pop(
@@ -7658,9 +7668,9 @@ def project_timeline(
             )
         )
 
-        # ---------------------------------
+        # =================================
         # PERMISSIONS
-        # ---------------------------------
+        # =================================
 
         permission_context = (
             project_permission_context(
@@ -7673,6 +7683,10 @@ def project_timeline(
             "TIMELINE 11: "
             "Rendering template"
         )
+
+        # =================================
+        # RENDER
+        # =================================
 
         return render(
             request,
@@ -7732,8 +7746,12 @@ def project_timeline(
                     task_flowchart
                 ),
 
+                "flow_task_count": (
+                    len(flow_tasks)
+                ),
+
                 # -------------------------
-                # Flowchart filters
+                # Filters
                 # -------------------------
 
                 "milestone_filter": (
@@ -7754,10 +7772,6 @@ def project_timeline(
 
                 "status_choices": (
                     Task.Status.choices
-                ),
-
-                "flow_task_count": (
-                    len(flow_tasks)
                 ),
 
                 **permission_context,
