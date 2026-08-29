@@ -1898,7 +1898,10 @@ def generate_workspace(
     )
 
 @login_required
-def workspace(request, project_pk):
+def workspace(
+    request,
+    project_pk,
+):
     project = get_project_for_user(
         project_pk=project_pk,
         user=request.user,
@@ -1918,27 +1921,44 @@ def workspace(request, project_pk):
         else None
     )
 
-    open_conflicts = project.conflicts.filter(
-        status=ProjectConflict.Status.OPEN,
+    open_conflicts = (
+        project.conflicts
+        .filter(
+            status=ProjectConflict.Status.OPEN,
+        )
     )
 
-    open_conflict_count = open_conflicts.count()
+    open_conflict_count = (
+        open_conflicts.count()
+    )
 
-    critical_conflict_count = open_conflicts.filter(
-        severity="critical",
-    ).count()
+    critical_conflict_count = (
+        open_conflicts
+        .filter(
+            severity="critical",
+        )
+        .count()
+    )
 
-    total_tasks = project.tasks.count()
+    total_tasks = (
+        project.tasks.count()
+    )
 
-    completed_tasks = project.tasks.filter(
-        completed=True,
-    ).count()
+    completed_tasks = (
+        project.tasks
+        .filter(
+            status=Task.Status.DONE,
+        )
+        .count()
+    )
 
     task_progress = 0
 
-    if total_tasks > 0:
+    if total_tasks:
         task_progress = round(
-            completed_tasks / total_tasks * 100
+            completed_tasks
+            / total_tasks
+            * 100
         )
 
     high_priority_tasks = (
@@ -1947,44 +1967,182 @@ def workspace(request, project_pk):
             completed=False,
             priority=Task.Priority.HIGH,
         )
-        .order_by("order")[:5]
+        .order_by(
+            "order",
+        )[:5]
     )
 
     recent_events = (
         project.events
-        .order_by("-created_at")[:6]
+        .order_by(
+            "-created_at",
+        )[:6]
     )
 
     recent_changes = (
         project.changes
-        .order_by("-created_at")[:5]
+        .order_by(
+            "-created_at",
+        )[:5]
     )
-    permission_context = project_permission_context(
-        project=project,
-        user=request.user,
+
+    # ---------------------------------
+    # NEXT TASK
+    # ---------------------------------
+
+    next_task = None
+    next_task_is_blocked = False
+
+    # First preference:
+    # something the user already started.
+    next_task = (
+        project.tasks
+        .filter(
+            status=Task.Status.IN_PROGRESS,
+        )
+        .select_related(
+            "milestone",
+            "assignee",
+            "assignee__user",
+            "assignee__project_role",
+        )
+        .prefetch_related(
+            "dependencies",
+        )
+        .order_by(
+            "due_date",
+            "-priority",
+            "order",
+            "pk",
+        )
+        .first()
     )
+
+    # If nothing is currently in progress,
+    # find the best unblocked TODO task.
+    if next_task is None:
+        todo_tasks = (
+            project.tasks
+            .filter(
+                status=Task.Status.TODO,
+            )
+            .select_related(
+                "milestone",
+                "assignee",
+                "assignee__user",
+                "assignee__project_role",
+            )
+            .prefetch_related(
+                "dependencies",
+            )
+            .order_by(
+                "start_date",
+                "due_date",
+                "-priority",
+                "order",
+                "pk",
+            )
+        )
+
+        first_blocked_task = None
+
+        for candidate in todo_tasks:
+            is_blocked = (
+                candidate.dependencies
+                .exclude(
+                    status=Task.Status.DONE,
+                )
+                .exists()
+            )
+
+            if not is_blocked:
+                next_task = candidate
+                break
+
+            if first_blocked_task is None:
+                first_blocked_task = candidate
+
+        # If absolutely everything remaining
+        # is blocked, still show the first task
+        # so the user understands why work
+        # cannot continue.
+        if (
+            next_task is None
+            and first_blocked_task is not None
+        ):
+            next_task = first_blocked_task
+            next_task_is_blocked = True
+
+    if next_task is not None:
+        next_task_is_blocked = (
+            next_task.dependencies
+            .exclude(
+                status=Task.Status.DONE,
+            )
+            .exists()
+        )
+
+    permission_context = (
+        project_permission_context(
+            project=project,
+            user=request.user,
+        )
+    )
+
     return render(
-    request,
-    "projects/workspace.html",
-    {
-        "project": project,
-        "folders": folders,
-        "health_score": health_score,
-        "open_conflict_count": (
-            open_conflict_count
-        ),
-        "critical_conflict_count": (
-            critical_conflict_count
-        ),
-        "total_tasks": total_tasks,
-        "completed_tasks": completed_tasks,
-        "task_progress": task_progress,
-        "high_priority_tasks": high_priority_tasks,
-        "recent_events": recent_events,
-        "recent_changes": recent_changes,
-        **permission_context,
-    },
-)
+        request,
+        "projects/workspace.html",
+        {
+            "project": project,
+            "folders": folders,
+
+            "health_score": (
+                health_score
+            ),
+
+            "open_conflict_count": (
+                open_conflict_count
+            ),
+
+            "critical_conflict_count": (
+                critical_conflict_count
+            ),
+
+            "total_tasks": (
+                total_tasks
+            ),
+
+            "completed_tasks": (
+                completed_tasks
+            ),
+
+            "task_progress": (
+                task_progress
+            ),
+
+            "high_priority_tasks": (
+                high_priority_tasks
+            ),
+
+            "recent_events": (
+                recent_events
+            ),
+
+            "recent_changes": (
+                recent_changes
+            ),
+
+            "next_task": (
+                next_task
+            ),
+
+            "next_task_is_blocked": (
+                next_task_is_blocked
+            ),
+
+            **permission_context,
+        },
+    )
 @login_required
 def workspace_folder(
     request,
@@ -6888,6 +7046,18 @@ def update_task_status(
     )
 
     if previous_status == new_status:
+        if (
+            request.POST.get(
+                "return_to",
+                "",
+            )
+            == "workspace"
+        ):
+            return redirect(
+                "workspace",
+                project_pk=project.pk,
+            )
+
         return redirect(
             "project_board",
             project_pk=project.pk,
@@ -6952,6 +7122,20 @@ def update_task_status(
             ),
         },
     )
+
+    return_to = (
+        request.POST.get(
+            "return_to",
+            "",
+        )
+        .strip()
+    )
+
+    if return_to == "workspace":
+        return redirect(
+            "workspace",
+            project_pk=project.pk,
+        )
 
     return redirect(
         "project_board",

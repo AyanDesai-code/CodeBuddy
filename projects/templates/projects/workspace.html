@@ -600,6 +600,275 @@
             justify-content: center;
         }
     }
+        .next-task-section {
+        margin: 32px 0 36px;
+    }
+
+    .next-task-heading {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+
+        margin-bottom: 12px;
+    }
+
+    .next-task-heading h2 {
+        margin: 2px 0 0;
+    }
+
+    .next-task-eyebrow {
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.11em;
+    }
+
+    .next-task-view-all {
+        color: var(--text-muted);
+        font-size: 13px;
+        text-decoration: none;
+    }
+
+    .next-task-view-all:hover {
+        color: var(--text);
+    }
+
+    .next-task-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 28px;
+
+        padding: 22px 24px;
+
+        border: 1px solid var(--border);
+        border-radius: 14px;
+
+        background: var(--surface);
+        box-shadow: var(--shadow);
+    }
+
+    .next-task-card:hover {
+        border-color: var(--border-strong);
+    }
+
+    .next-task-blocked {
+        opacity: 0.9;
+    }
+
+    .next-task-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .next-task-topline {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+
+        margin-bottom: 10px;
+    }
+
+    .next-task-status,
+    .next-task-priority,
+    .next-task-blocked-badge {
+        display: inline-flex;
+        align-items: center;
+
+        min-height: 24px;
+        padding: 3px 8px;
+
+        border: 1px solid var(--border);
+        border-radius: 999px;
+
+        background: var(--surface-soft);
+
+        color: var(--text-muted);
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .status-in_progress {
+        border-color: var(--info-border);
+        background: var(--info-background);
+        color: var(--accent-hover);
+    }
+
+    .status-review {
+        border-color: var(--warning-border);
+        background: var(--warning-background);
+        color: var(--warning);
+    }
+
+    .next-task-blocked-badge {
+        border-color: var(--warning-border);
+        background: var(--warning-background);
+        color: var(--warning);
+    }
+
+    .next-task-title {
+        margin: 0 0 7px;
+
+        color: var(--text);
+        font-size: 20px;
+        line-height: 1.3;
+    }
+
+    .next-task-description {
+        max-width: 760px;
+        margin: 0 0 14px;
+
+        color: var(--text-muted);
+        line-height: 1.55;
+    }
+
+    .next-task-meta {
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+
+        color: var(--text-muted);
+        font-size: 13px;
+    }
+
+    .next-task-meta span {
+        display: flex;
+        gap: 5px;
+    }
+
+    .next-task-meta strong {
+        color: var(--text);
+    }
+
+    .next-task-blockers {
+        display: flex;
+        gap: 7px;
+        flex-wrap: wrap;
+
+        margin-top: 14px;
+
+        color: var(--text-muted);
+        font-size: 12px;
+    }
+
+    .next-task-blockers span {
+        padding: 3px 7px;
+
+        border: 1px solid var(--warning-border);
+        border-radius: 6px;
+
+        background: var(--warning-background);
+    }
+
+    .next-task-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+
+        flex: 0 0 175px;
+    }
+
+    .next-task-actions form {
+        margin: 0;
+    }
+
+    .next-task-primary,
+    .next-task-secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        width: 100%;
+        min-height: 40px;
+
+        padding: 9px 14px;
+
+        border-radius: 8px;
+
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .next-task-primary {
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: #ffffff;
+    }
+
+    .next-task-primary:hover {
+        filter: brightness(1.08);
+    }
+
+    .next-task-secondary {
+        border: 1px solid var(--border);
+        background: var(--surface-soft);
+        color: var(--text);
+    }
+
+    .next-task-secondary:hover {
+        background: var(--surface-raised);
+    }
+
+    .next-task-empty {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+
+        padding: 22px;
+
+        border: 1px solid var(--border);
+        border-radius: 14px;
+
+        background: var(--surface);
+    }
+
+    .next-task-empty h3 {
+        margin: 0 0 4px;
+    }
+
+    .next-task-empty p {
+        margin: 0;
+        color: var(--text-muted);
+    }
+
+    .next-task-complete-icon {
+        display: grid;
+        place-items: center;
+
+        width: 42px;
+        height: 42px;
+
+        border: 1px solid var(--success-border);
+        border-radius: 50%;
+
+        background: var(--success-background);
+        color: var(--success);
+
+        font-size: 20px;
+        font-weight: 800;
+    }
+
+    @media (max-width: 760px) {
+        .next-task-card {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .next-task-actions {
+            flex: none;
+            width: 100%;
+        }
+
+        .next-task-heading {
+            align-items: flex-start;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -922,6 +1191,288 @@
         </a>
 
     </div>
+    <section class="next-task-section">
+    <div class="next-task-heading">
+        <div>
+            <span class="next-task-eyebrow">
+                {% if next_task.status == "in_progress" %}
+                    CURRENT TASK
+                {% else %}
+                    UP NEXT
+                {% endif %}
+            </span>
+
+            <h2>
+                {% if next_task.status == "in_progress" %}
+                    Keep building
+                {% else %}
+                    Your next task
+                {% endif %}
+            </h2>
+        </div>
+
+        <a
+            href="{% url 'project_board' project.pk %}"
+            class="next-task-view-all"
+        >
+            View all tasks →
+        </a>
+    </div>
+
+    {% if next_task %}
+        <article
+            class="
+                next-task-card
+                {% if next_task_is_blocked %}
+                    next-task-blocked
+                {% endif %}
+            "
+        >
+            <div class="next-task-main">
+                <div class="next-task-topline">
+                    <span
+                        class="
+                            next-task-status
+                            status-{{ next_task.status }}
+                        "
+                    >
+                        {{ next_task.get_status_display }}
+                    </span>
+
+                    <span
+                        class="
+                            next-task-priority
+                            priority-{{ next_task.priority }}
+                        "
+                    >
+                        {{ next_task.get_priority_display }}
+                        priority
+                    </span>
+
+                    {% if next_task_is_blocked %}
+                        <span class="next-task-blocked-badge">
+                            Blocked
+                        </span>
+                    {% endif %}
+                </div>
+
+                <h3 class="next-task-title">
+                    {{ next_task.title }}
+                </h3>
+
+                {% if next_task.description %}
+                    <p class="next-task-description">
+                        {{ next_task.description }}
+                    </p>
+                {% endif %}
+
+                <div class="next-task-meta">
+                    {% if next_task.start_date %}
+                        <span>
+                            <strong>Start</strong>
+                            {{ next_task.start_date|date:"M j" }}
+                        </span>
+                    {% endif %}
+
+                    {% if next_task.due_date %}
+                        <span>
+                            <strong>Due</strong>
+                            {{ next_task.due_date|date:"M j, Y" }}
+                        </span>
+                    {% endif %}
+
+                    {% if next_task.estimated_hours %}
+                        <span>
+                            <strong>Estimate</strong>
+                            {{ next_task.estimated_hours }}
+                            hr{% if next_task.estimated_hours != 1 %}s{% endif %}
+                        </span>
+                    {% endif %}
+
+                    {% if next_task.milestone %}
+                        <span>
+                            <strong>Milestone</strong>
+                            {{ next_task.milestone.name }}
+                        </span>
+                    {% endif %}
+                </div>
+
+                {% if next_task_is_blocked %}
+                    <div class="next-task-blockers">
+                        <strong>
+                            Waiting on:
+                        </strong>
+
+                        {% for dependency in next_task.dependencies.all %}
+                            {% if dependency.status != "done" %}
+                                <span>
+                                    {{ dependency.title }}
+                                </span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            {% if can_edit %}
+                <div class="next-task-actions">
+
+                    {% if next_task.status == "todo" %}
+
+                        {% if not next_task_is_blocked %}
+                            <form
+                                method="POST"
+                                action="{% url 'update_task_status' project.pk next_task.pk %}"
+                            >
+                                {% csrf_token %}
+
+                                <input
+                                    type="hidden"
+                                    name="status"
+                                    value="in_progress"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="return_to"
+                                    value="workspace"
+                                >
+
+                                <button
+                                    type="submit"
+                                    class="next-task-primary"
+                                >
+                                    Start Task
+                                </button>
+                            </form>
+                        {% endif %}
+
+                    {% elif next_task.status == "in_progress" %}
+
+                        <form
+                            method="POST"
+                            action="{% url 'update_task_status' project.pk next_task.pk %}"
+                        >
+                            {% csrf_token %}
+
+                            <input
+                                type="hidden"
+                                name="status"
+                                value="done"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="return_to"
+                                value="workspace"
+                            >
+
+                            <button
+                                type="submit"
+                                class="next-task-primary"
+                            >
+                                ✓ Mark Complete
+                            </button>
+                        </form>
+
+                        <form
+                            method="POST"
+                            action="{% url 'update_task_status' project.pk next_task.pk %}"
+                        >
+                            {% csrf_token %}
+
+                            <input
+                                type="hidden"
+                                name="status"
+                                value="review"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="return_to"
+                                value="workspace"
+                            >
+
+                            <button
+                                type="submit"
+                                class="next-task-secondary"
+                            >
+                                Send to Review
+                            </button>
+                        </form>
+
+                    {% elif next_task.status == "review" %}
+
+                        <form
+                            method="POST"
+                            action="{% url 'update_task_status' project.pk next_task.pk %}"
+                        >
+                            {% csrf_token %}
+
+                            <input
+                                type="hidden"
+                                name="status"
+                                value="done"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="return_to"
+                                value="workspace"
+                            >
+
+                            <button
+                                type="submit"
+                                class="next-task-primary"
+                            >
+                                ✓ Approve & Complete
+                            </button>
+                        </form>
+
+                    {% endif %}
+
+                    <a
+                        href="{% url 'edit_task' project.pk next_task.pk %}"
+                        class="next-task-secondary"
+                    >
+                        Edit Task
+                    </a>
+                </div>
+            {% endif %}
+        </article>
+
+    {% elif total_tasks > 0 %}
+
+        <div class="next-task-empty">
+            <div class="next-task-complete-icon">
+                ✓
+            </div>
+
+            <div>
+                <h3>Project tasks complete</h3>
+
+                <p>
+                    You've completed all
+                    {{ total_tasks }} tasks in this project.
+                </p>
+            </div>
+        </div>
+
+    {% else %}
+
+        <div class="next-task-empty">
+            <div>
+                <h3>No tasks yet</h3>
+
+                <p>
+                    Add or generate tasks to start working
+                    through the project.
+                </p>
+            </div>
+        </div>
+
+    {% endif %}
+</section>
 
 
     <!-- =========================
