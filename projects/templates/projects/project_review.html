@@ -531,6 +531,38 @@
             margin-top: 12px;
         }
     }
+    .apply-ai-fix-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+
+.apply-ai-fix-button:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+.apply-ai-fix-spinner {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+
+    border: 2px solid
+        rgba(255, 255, 255, 0.35);
+    border-top-color: currentColor;
+    border-radius: 50%;
+
+    animation:
+        apply-ai-fix-spin
+        0.7s linear infinite;
+}
+
+@keyframes apply-ai-fix-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
 </style>
 {% endblock %}
 
@@ -768,12 +800,14 @@
                     <form
                         method="POST"
                         action="{% url 'apply_project_conflict_fix' project.pk conflict.pk %}"
+                        class="apply-ai-fix-form"
                     >
                         {% csrf_token %}
 
                         <button
                             type="submit"
-                            data-loading-text="Applying Fix..."
+                            class="apply-ai-fix-button"
+                            data-loading-text="Applying AI Fix..."
                         >
                             Apply AI Fix
                         </button>
@@ -2341,7 +2375,53 @@
 
         }
     );
+/* =====================================
+   APPLY AI FIX LOADING STATE
+===================================== */
 
+const applyAiFixForms =
+    document.querySelectorAll(
+        ".apply-ai-fix-form"
+    );
+
+applyAiFixForms.forEach(
+    function (form) {
+        form.addEventListener(
+            "submit",
+            function (event) {
+                const button =
+                    form.querySelector(
+                        ".apply-ai-fix-button"
+                    );
+
+                if (!button) {
+                    return;
+                }
+
+                if (button.disabled) {
+                    event.preventDefault();
+                    return;
+                }
+
+                button.disabled = true;
+
+                const loadingText =
+                    button.dataset.loadingText
+                    || "Applying AI Fix...";
+
+                button.innerHTML = `
+                    <span
+                        class="apply-ai-fix-spinner"
+                        aria-hidden="true"
+                    ></span>
+                    <span>
+                        ${loadingText}
+                    </span>
+                `;
+            }
+        );
+    }
+);
 </script>
 
 {% endif %}
