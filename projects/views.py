@@ -54,6 +54,7 @@ from .models import (
     ProjectResource,
     ProjectRole,
 )
+from django.db.models import Q
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from .permissions import (
@@ -1907,11 +1908,20 @@ def workspace(
         user=request.user,
     )
 
-    folders = project.folders.all()
+    folders = (
+        project.folders
+        .all()
+    )
+
+    # ---------------------------------
+    # HEALTH
+    # ---------------------------------
 
     latest_review = (
         project.health_reviews
-        .order_by("-created_at")
+        .order_by(
+            "-created_at",
+        )
         .first()
     )
 
@@ -1924,7 +1934,9 @@ def workspace(
     open_conflicts = (
         project.conflicts
         .filter(
-            status=ProjectConflict.Status.OPEN,
+            status=(
+                ProjectConflict.Status.OPEN
+            ),
         )
     )
 
@@ -1940,8 +1952,13 @@ def workspace(
         .count()
     )
 
+    # ---------------------------------
+    # TASK PROGRESS
+    # ---------------------------------
+
     total_tasks = (
-        project.tasks.count()
+        project.tasks
+        .count()
     )
 
     completed_tasks = (
@@ -1961,11 +1978,20 @@ def workspace(
             * 100
         )
 
+    # ---------------------------------
+    # CURRENT WORK
+    # ---------------------------------
+
     high_priority_tasks = (
         project.tasks
         .filter(
             completed=False,
             priority=Task.Priority.HIGH,
+        )
+        .select_related(
+            "assignee",
+            "assignee__user",
+            "assignee__project_role",
         )
         .order_by(
             "order",
@@ -1993,12 +2019,38 @@ def workspace(
     next_task = None
     next_task_is_blocked = False
 
-    # First preference:
-    # something the user already started.
+    # A task may appear in this user's
+    # Next Task card when:
+    #
+    # 1. The task is unassigned, OR
+    # 2. The task is assigned to this user.
+    #
+    # Tasks assigned to another person are
+    # excluded from this user's Next Task card.
+    next_task_visibility = (
+        Q(
+            assignee__isnull=True,
+        )
+        |
+        Q(
+            assignee__user=(
+                request.user
+            ),
+        )
+    )
+
+    # ---------------------------------
+    # FIRST:
+    # CURRENT IN-PROGRESS TASK
+    # ---------------------------------
+
     next_task = (
         project.tasks
         .filter(
-            status=Task.Status.IN_PROGRESS,
+            next_task_visibility,
+            status=(
+                Task.Status.IN_PROGRESS
+            ),
         )
         .select_related(
             "milestone",
@@ -2018,13 +2070,19 @@ def workspace(
         .first()
     )
 
-    # If nothing is currently in progress,
-    # find the best unblocked TODO task.
+    # ---------------------------------
+    # OTHERWISE:
+    # BEST AVAILABLE TODO TASK
+    # ---------------------------------
+
     if next_task is None:
         todo_tasks = (
             project.tasks
             .filter(
-                status=Task.Status.TODO,
+                next_task_visibility,
+                status=(
+                    Task.Status.TODO
+                ),
             )
             .select_related(
                 "milestone",
@@ -2050,37 +2108,81 @@ def workspace(
             is_blocked = (
                 candidate.dependencies
                 .exclude(
-                    status=Task.Status.DONE,
+                    status=(
+                        Task.Status.DONE
+                    ),
                 )
                 .exists()
             )
 
+            # Prefer the first task whose
+            # dependencies are complete.
             if not is_blocked:
-                next_task = candidate
+                next_task = (
+                    candidate
+                )
+
                 break
 
-            if first_blocked_task is None:
-                first_blocked_task = candidate
+            # Keep one blocked task as a
+            # fallback in case every visible
+            # TODO task is blocked.
+            if (
+                first_blocked_task
+                is None
+            ):
+                first_blocked_task = (
+                    candidate
+                )
 
-        # If absolutely everything remaining
-        # is blocked, still show the first task
-        # so the user understands why work
-        # cannot continue.
+        # If every task available to this
+        # user is blocked, show the first
+        # blocked one and explain why.
         if (
             next_task is None
-            and first_blocked_task is not None
+            and first_blocked_task
+            is not None
         ):
-            next_task = first_blocked_task
-            next_task_is_blocked = True
+            next_task = (
+                first_blocked_task
+            )
+
+            next_task_is_blocked = (
+                True
+            )
+
+    # ---------------------------------
+    # FINAL BLOCKED CHECK
+    # ---------------------------------
 
     if next_task is not None:
         next_task_is_blocked = (
             next_task.dependencies
             .exclude(
-                status=Task.Status.DONE,
+                status=(
+                    Task.Status.DONE
+                ),
             )
             .exists()
         )
+        # ---------------------------------
+    # ASSIGNABLE MEMBERS
+    # ---------------------------------
+
+    assignable_memberships = (
+        project.memberships
+        .select_related(
+            "user",
+            "project_role",
+        )
+        .order_by(
+            "user__username",
+        )
+    )
+
+    # ---------------------------------
+    # PERMISSIONS
+    # ---------------------------------
 
     permission_context = (
         project_permission_context(
@@ -2089,12 +2191,25 @@ def workspace(
         )
     )
 
+    # ---------------------------------
+    # RENDER
+    # ---------------------------------
+
     return render(
         request,
         "projects/workspace.html",
         {
-            "project": project,
-            "folders": folders,
+            "project": (
+                project
+            ),
+
+            "folders": (
+                folders
+            ),
+
+            # -------------------------
+            # Health
+            # -------------------------
 
             "health_score": (
                 health_score
@@ -2108,6 +2223,10 @@ def workspace(
                 critical_conflict_count
             ),
 
+            # -------------------------
+            # Progress
+            # -------------------------
+
             "total_tasks": (
                 total_tasks
             ),
@@ -2119,6 +2238,10 @@ def workspace(
             "task_progress": (
                 task_progress
             ),
+
+            # -------------------------
+            # Current work
+            # -------------------------
 
             "high_priority_tasks": (
                 high_priority_tasks
@@ -2132,6 +2255,10 @@ def workspace(
                 recent_changes
             ),
 
+            # -------------------------
+            # Next Task
+            # -------------------------
+
             "next_task": (
                 next_task
             ),
@@ -2139,6 +2266,13 @@ def workspace(
             "next_task_is_blocked": (
                 next_task_is_blocked
             ),
+            "assignable_memberships": (
+                assignable_memberships
+            ),
+
+            # -------------------------
+            # Permissions
+            # -------------------------
 
             **permission_context,
         },

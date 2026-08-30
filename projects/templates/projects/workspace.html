@@ -907,6 +907,49 @@
         transform: rotate(360deg);
     }
 }
+.next-task-assignment-form {
+    display: grid;
+    gap: 7px;
+    padding-bottom: 10px;
+    margin-bottom: 2px;
+
+    border-bottom:
+        1px solid
+        var(--border);
+}
+
+.next-task-assignment-label {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.next-task-assignment-select {
+    width: 100%;
+    min-height: 40px;
+
+    padding: 8px 10px;
+
+    border:
+        1px solid
+        var(--border);
+
+    border-radius: 8px;
+
+    background:
+        var(--surface-soft);
+
+    color:
+        var(--text);
+
+    font: inherit;
+    font-size: 13px;
+}
+
+.next-task-assignment-select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
 </style>
 {% endblock %}
 
@@ -1305,6 +1348,7 @@
                 {% endif %}
 
                 <div class="next-task-meta">
+
                     {% if next_task.start_date %}
                         <span>
                             <strong>Start</strong>
@@ -1333,158 +1377,230 @@
                             {{ next_task.milestone.name }}
                         </span>
                     {% endif %}
-                </div>
 
-                {% if next_task_is_blocked %}
-                    <div class="next-task-blockers">
-                        <strong>
-                            Waiting on:
-                        </strong>
+                    {% if next_task.assignee %}
+                        <span>
+                            <strong>Assigned to</strong>
 
-                        {% for dependency in next_task.dependencies.all %}
-                            {% if dependency.status != "done" %}
-                                <span>
-                                    {{ dependency.title }}
-                                </span>
+                            {{ next_task.assignee.user.username }}
+
+                            {% if next_task.assignee.project_role %}
+                                · {{ next_task.assignee.project_role.name }}
                             {% endif %}
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            </div>
-
-            {% if can_edit %}
-                <div class="next-task-actions">
-
-                    {% if next_task.status == "todo" %}
-
-                        {% if not next_task_is_blocked %}
-                            <form
-                                method="POST"
-                                action="{% url 'update_task_status' project.pk next_task.pk %}"
-                                onsubmit="setNextTaskLoading(this)"
-                            >
-                                {% csrf_token %}
-
-                                <input
-                                    type="hidden"
-                                    name="status"
-                                    value="in_progress"
-                                >
-
-                                <input
-                                    type="hidden"
-                                    name="return_to"
-                                    value="workspace"
-                                >
-
-                                <button
-                                    type="submit"
-                                    class="next-task-primary"
-                                    data-loading-text="Starting..."
-                                >
-                                    Start Task
-                                </button>
-                            </form>
-                        {% endif %}
-
-                    {% elif next_task.status == "in_progress" %}
-
-                        <form
-                            method="POST"
-                            action="{% url 'update_task_status' project.pk next_task.pk %}"
-                            onsubmit="setNextTaskLoading(this)"
-                        >
-                            {% csrf_token %}
-
-                            <input
-                                type="hidden"
-                                name="status"
-                                value="done"
-                            >
-
-                            <input
-                                type="hidden"
-                                name="return_to"
-                                value="workspace"
-                            >
-
-                            <button
-                                type="submit"
-                                class="next-task-primary"
-                                data-loading-text="Completing..."
-                            >
-                                ✓ Mark Complete
-                            </button>
-                        </form>
-
-                        <form
-                            method="POST"
-                            action="{% url 'update_task_status' project.pk next_task.pk %}"
-                            onsubmit="setNextTaskLoading(this)"
-                        >
-                            {% csrf_token %}
-
-                            <input
-                                type="hidden"
-                                name="status"
-                                value="review"
-                            >
-
-                            <input
-                                type="hidden"
-                                name="return_to"
-                                value="workspace"
-                            >
-
-                            <button
-                                type="submit"
-                                class="next-task-secondary"
-                                data-loading-text="Sending..."
-                            >
-                                Send to Review
-                            </button>
-                        </form>
-
-                    {% elif next_task.status == "review" %}
-
-                        <form
-                            method="POST"
-                            action="{% url 'update_task_status' project.pk next_task.pk %}"
-                            onsubmit="setNextTaskLoading(this)"
-                        >
-                            {% csrf_token %}
-
-                            <input
-                                type="hidden"
-                                name="status"
-                                value="done"
-                            >
-
-                            <input
-                                type="hidden"
-                                name="return_to"
-                                value="workspace"
-                            >
-
-                            <button
-                                type="submit"
-                                class="next-task-primary"
-                                data-loading-text="Completing..."
-                            >
-                                ✓ Approve & Complete
-                            </button>
-                        </form>
-
+                        </span>
+                    {% else %}
+                        <span>
+                            <strong>Assigned to</strong>
+                            Unassigned
+                        </span>
                     {% endif %}
 
-                    <a
-                        href="{% url 'edit_task' project.pk next_task.pk %}"
-                        class="next-task-secondary"
-                    >
-                        Edit Task
-                    </a>
                 </div>
+
+{% if next_task_is_blocked %}
+    <div class="next-task-blockers">
+        <strong>
+            Waiting on:
+        </strong>
+
+        {% for dependency in next_task.dependencies.all %}
+            {% if dependency.status != "done" %}
+                <span>
+                    {{ dependency.title }}
+                </span>
             {% endif %}
+        {% endfor %}
+    </div>
+{% endif %}
+
+</div>
+
+{% if can_edit %}
+    <div class="next-task-actions">
+
+        {% if is_owner %}
+            <form
+                method="POST"
+                action="{% url 'assign_task' project.pk next_task.pk %}"
+                class="next-task-assignment-form"
+                onsubmit="setNextTaskLoading(this)"
+            >
+                {% csrf_token %}
+
+                <input
+                    type="hidden"
+                    name="next"
+                    value="{% url 'workspace' project.pk %}"
+                >
+
+                <label
+                    for="next-task-assignee-{{ next_task.pk }}"
+                    class="next-task-assignment-label"
+                >
+                    Assign to
+                </label>
+
+                <select
+                    id="next-task-assignee-{{ next_task.pk }}"
+                    name="assignee"
+                    class="next-task-assignment-select"
+                >
+                    <option value="">
+                        Unassigned
+                    </option>
+
+                    {% for membership in assignable_memberships %}
+                        <option
+                            value="{{ membership.pk }}"
+                            {% if next_task.assignee_id == membership.pk %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ membership.user.username }}
+
+                            {% if membership.project_role %}
+                                — {{ membership.project_role.name }}
+                            {% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <button
+                    type="submit"
+                    class="next-task-secondary"
+                    data-loading-text="Assigning..."
+                >
+                    Assign
+                </button>
+            </form>
+        {% endif %}
+
+        {% if next_task.status == "todo" %}
+            {% if not next_task_is_blocked %}
+                <form
+                    method="POST"
+                    action="{% url 'update_task_status' project.pk next_task.pk %}"
+                    onsubmit="setNextTaskLoading(this)"
+                >
+                    {% csrf_token %}
+
+                    <input
+                        type="hidden"
+                        name="status"
+                        value="in_progress"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="return_to"
+                        value="workspace"
+                    >
+
+                    <button
+                        type="submit"
+                        class="next-task-primary"
+                        data-loading-text="Starting..."
+                    >
+                        Start Task
+                    </button>
+                </form>
+            {% endif %}
+
+        {% elif next_task.status == "in_progress" %}
+            <form
+                method="POST"
+                action="{% url 'update_task_status' project.pk next_task.pk %}"
+                onsubmit="setNextTaskLoading(this)"
+            >
+                {% csrf_token %}
+
+                <input
+                    type="hidden"
+                    name="status"
+                    value="done"
+                >
+
+                <input
+                    type="hidden"
+                    name="return_to"
+                    value="workspace"
+                >
+
+                <button
+                    type="submit"
+                    class="next-task-primary"
+                    data-loading-text="Completing..."
+                >
+                    ✓ Mark Complete
+                </button>
+            </form>
+
+            <form
+                method="POST"
+                action="{% url 'update_task_status' project.pk next_task.pk %}"
+                onsubmit="setNextTaskLoading(this)"
+            >
+                {% csrf_token %}
+
+                <input
+                    type="hidden"
+                    name="status"
+                    value="review"
+                >
+
+                <input
+                    type="hidden"
+                    name="return_to"
+                    value="workspace"
+                >
+
+                <button
+                    type="submit"
+                    class="next-task-secondary"
+                    data-loading-text="Sending..."
+                >
+                    Send to Review
+                </button>
+            </form>
+
+        {% elif next_task.status == "review" %}
+            <form
+                method="POST"
+                action="{% url 'update_task_status' project.pk next_task.pk %}"
+                onsubmit="setNextTaskLoading(this)"
+            >
+                {% csrf_token %}
+
+                <input
+                    type="hidden"
+                    name="status"
+                    value="done"
+                >
+
+                <input
+                    type="hidden"
+                    name="return_to"
+                    value="workspace"
+                >
+
+                <button
+                    type="submit"
+                    class="next-task-primary"
+                    data-loading-text="Completing..."
+                >
+                    ✓ Approve & Complete
+                </button>
+            </form>
+        {% endif %}
+
+        <a
+            href="{% url 'edit_task' project.pk next_task.pk %}"
+            class="next-task-secondary"
+        >
+            Edit Task
+        </a>
+    </div>
+{% endif %}
         </article>
 
     {% elif total_tasks > 0 %}
