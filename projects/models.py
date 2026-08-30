@@ -1106,3 +1106,115 @@ class FeedbackSubmission(models.Model):
             f"{self.get_feedback_type_display()}: "
             f"{self.title}"
         )
+class Notification(models.Model):
+    class Type(models.TextChoices):
+        TASK_DUE_SOON = (
+            "task_due_soon",
+            "Task Due Soon",
+        )
+        TASK_DUE_TODAY = (
+            "task_due_today",
+            "Task Due Today",
+        )
+        TASK_OVERDUE = (
+            "task_overdue",
+            "Task Overdue",
+        )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        null=True,
+        blank=True,
+    )
+
+    notification_type = models.CharField(
+        max_length=40,
+        choices=Type.choices,
+    )
+
+    title = models.CharField(
+        max_length=200,
+    )
+
+    message = models.TextField()
+
+    is_read = models.BooleanField(
+        default=False,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        ordering = [
+            "-created_at",
+        ]
+class TaskEmailReminder(models.Model):
+    class ReminderType(models.TextChoices):
+        THREE_DAYS = (
+            "three_days",
+            "3 Days Before",
+        )
+        TOMORROW = (
+            "tomorrow",
+            "Tomorrow",
+        )
+        TODAY = (
+            "today",
+            "Today",
+        )
+        OVERDUE = (
+            "overdue",
+            "Overdue",
+        )
+
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name="email_reminders",
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="task_email_reminders",
+    )
+
+    reminder_type = models.CharField(
+        max_length=30,
+        choices=ReminderType.choices,
+    )
+
+    sent_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "task",
+                    "user",
+                    "reminder_type",
+                ],
+                name=(
+                    "unique_task_email_reminder"
+                ),
+            ),
+        ]
+        

@@ -53,6 +53,7 @@ from .models import (
     WorkspaceFolder,
     ProjectResource,
     ProjectRole,
+    Notification,
 )
 from django.db.models import Q
 from datetime import date
@@ -1903,6 +1904,7 @@ def workspace(
     request,
     project_pk,
 ):
+    send_due_task_reminders()
     project = get_project_for_user(
         project_pk=project_pk,
         user=request.user,
@@ -12572,3 +12574,241 @@ def feedback(
             "form": form,
         },
     )
+from datetime import timedelta
+
+from django.utils import timezone
+
+
+def create_due_date_notifications():
+    today = timezone.localdate()
+
+    tasks = (
+        Task.objects
+        .exclude(
+            status=Task.Status.DONE,
+        )
+        .exclude(
+            due_date=None,
+        )
+        .select_related(
+            "project",
+            "project__owner",
+            "assignee",
+            "assignee__user",
+        )
+    )
+
+    for task in tasks:
+        days_left = (
+            task.due_date - today
+        ).days
+
+        notification_type = None
+        title = None
+        message = None
+
+        if days_left == 3:
+            notification_type = (
+                Notification.Type.TASK_DUE_SOON
+            )
+
+            title = "Task due in 3 days"
+
+            message = (
+                f'"{task.title}" is due '
+                f'on {task.due_date:%b %d}.'
+            )
+
+        elif days_left == 1:
+            notification_type = (
+                Notification.Type.TASK_DUE_SOON
+            )
+
+            title = "Task due tomorrow"
+
+            message = (
+                f'"{task.title}" is due tomorrow.'
+            )
+
+        elif days_left == 0:
+            notification_type = (
+                Notification.Type.TASK_DUE_TODAY
+            )
+
+            title = "Task due today"
+
+            message = (
+                f'"{task.title}" is due today.'
+            )
+
+        elif days_left < 0:
+            notification_type = (
+                Notification.Type.TASK_OVERDUE
+            )
+
+            title = "Task overdue"
+
+            message = (
+                f'"{task.title}" is overdue.'
+            )
+
+        if notification_type is None:
+            continue
+
+        users = {
+            task.project.owner,
+        }
+
+        if task.assignee is not None:
+            users.add(
+                task.assignee.user
+            )
+
+        for user in users:
+            Notification.objects.get_or_create(
+                user=user,
+                project=task.project,
+                task=task,
+                notification_type=(
+                    notification_type
+                ),
+                defaults={
+                    "title": title,
+                    "message": message,
+                },
+            )
+from django.conf import settings
+from django.core.mail import send_mail
+from django.utils import timezone
+
+from .models import (
+    Task,
+    TaskEmailReminder,
+)
+
+
+def send_due_task_reminders():
+    today = timezone.localdate()
+
+    tasks = (
+        Task.objects
+        .exclude(
+            status=Task.Status.DONE,
+        )
+        .exclude(
+            due_date__isnull=True,
+        )
+        .select_related(
+            "project",
+            "project__owner",
+            "assignee",
+            "assignee__user",
+        )
+    )
+
+    for task in tasks:
+        days_left = (
+            task.due_date - today
+        ).days
+
+        reminder_type = None
+        subject = None
+
+        if days_left == 3:
+            reminder_type = (
+                TaskEmailReminder
+                .ReminderType
+                .THREE_DAYS
+            )
+
+            subject = (
+                f"Projivo: {task.title} "
+                "is due in 3 days"
+            )
+
+        elif days_left == 1:
+            reminder_type = (
+                TaskEmailReminder
+                .ReminderType
+                .TOMORROW
+            )
+
+            subject = (
+                f"Projivo: {task.title} "
+                "is due tomorrow"
+            )
+
+        elif days_left == 0:
+            reminder_type = (
+                TaskEmailReminder
+                .ReminderType
+                .TODAY
+            )
+
+            subject = (
+                f"Projivo: {task.title} "
+                "is due today"
+            )
+
+        elif days_left == -1:
+            reminder_type = (
+                TaskEmailReminder
+                .ReminderType
+                .OVERDUE
+            )
+
+            subject = (
+                f"Projivo: {task.title} "
+                "is overdue"
+            )
+
+        if reminder_type is None:
+            continue
+
+        if task.assignee:
+            user = task.assignee.user
+        else:
+            user = task.project.owner
+
+        if not user.email:
+            continue
+
+        already_sent = (
+            TaskEmailReminder.objects
+            .filter(
+                task=task,
+                user=user,
+                reminder_type=reminder_type,
+            )
+            .exists()
+        )
+
+        if already_sent:
+            continue
+
+        message = (
+            f'Your task "{task.title}" '
+            f'in "{task.project.name}" '
+            f'is due on '
+            f'{task.due_date:%B %d, %Y}.\n\n'
+            "Open Projivo to review "
+            "the task."
+        )
+
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=(
+                settings.DEFAULT_FROM_EMAIL
+            ),
+            recipient_list=[
+                user.email,
+            ],
+            fail_silently=False,
+        )
+
+        TaskEmailReminder.objects.create(
+            task=task,
+            user=user,
+            reminder_type=reminder_type,
+        )
