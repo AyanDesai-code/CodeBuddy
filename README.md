@@ -96,4 +96,4 @@ A copy-and-paste friendly onboarding guide is available in [USER_GUIDE.md](USER_
 - For production usage, update `SECRET_KEY`, `DEBUG`, and database settings.
 
 ## To access the actual site visit:
-- https://builderos-beta.onrender.com/projects/
+- https://projivo.io/
