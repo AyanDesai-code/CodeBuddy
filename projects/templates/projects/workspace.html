@@ -950,6 +950,974 @@
     outline: none;
     border-color: var(--accent);
 }
+.next-task-agent {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+    min-height: 40px;
+
+    padding: 9px 14px;
+
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+
+    background: var(--info-background);
+    color: var(--accent-hover);
+
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+
+    cursor: pointer;
+
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.next-task-agent:hover {
+    background: var(--surface-raised);
+    border-color: var(--accent-hover);
+    color: var(--accent-hover);
+}
+.agent-modal[hidden] {
+    display: none;
+}
+
+.agent-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 28px;
+}
+
+.agent-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(4px);
+}
+
+.agent-window {
+    position: relative;
+    z-index: 1;
+
+    width: min(1400px, 96vw);
+    height: min(860px, 94vh);
+    max-height: 94vh;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+
+    border: 1px solid var(--border-strong);
+    border-radius: 16px;
+
+    background: var(--surface);
+
+    box-shadow:
+        0 28px 80px rgba(0, 0, 0, 0.55);
+}
+
+.agent-window-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+
+    padding: 14px 22px;
+
+    border-bottom: 1px solid var(--border);
+}
+
+.agent-window-header h2 {
+    margin: 2px 0;
+    font-size: 18px;
+}
+
+.agent-window-eyebrow {
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+}
+
+.agent-window-model {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.agent-close-button {
+    width: 36px;
+    height: 36px;
+
+    border: 1px solid var(--border);
+    border-radius: 8px;
+
+    background: var(--surface-soft);
+    color: var(--text);
+
+    font-size: 22px;
+    cursor: pointer;
+}
+
+.agent-close-button:hover {
+    background: var(--surface-raised);
+}
+
+.agent-workspace {
+    min-height: 300px;
+
+    margin: 20px 24px 0;
+
+    border: 1px solid var(--border);
+    border-radius: 12px;
+
+    overflow: hidden;
+
+    background: #080b0f;
+}
+
+
+
+.agent-workspace-icon {
+    display: grid;
+    place-items: center;
+
+    width: 54px;
+    height: 54px;
+
+    margin-bottom: 6px;
+
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+
+    background: var(--info-background);
+    color: var(--accent-hover);
+
+    font-size: 22px;
+}
+
+.agent-progress-area {
+    padding: 20px 24px;
+}
+
+.agent-progress-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+
+    margin-bottom: 9px;
+
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.agent-progress-track {
+    width: 100%;
+    height: 8px;
+
+    overflow: hidden;
+
+    border-radius: 999px;
+
+    background: var(--surface-soft);
+}
+
+.agent-progress-fill {
+    height: 100%;
+
+    border-radius: inherit;
+
+    background: var(--accent);
+
+    transition: width 0.25s ease;
+}
+
+.agent-window-columns {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    gap: 14px;
+
+    padding: 0 24px 24px;
+}
+
+.agent-panel {
+    min-height: 190px;
+
+    padding: 16px;
+
+    border: 1px solid var(--border);
+    border-radius: 11px;
+
+    background: var(--surface-soft);
+}
+
+.agent-panel h3 {
+    margin: 0 0 13px;
+    font-size: 14px;
+}
+
+.agent-activity {
+    display: grid;
+    gap: 8px;
+}
+
+.agent-activity-item {
+    padding: 8px 10px;
+
+    border-left: 2px solid var(--accent);
+
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.agent-activity-empty {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.agent-result {
+    max-height: 250px;
+    overflow-y: auto;
+
+    white-space: pre-wrap;
+
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+@media (max-width: 760px) {
+    .agent-modal {
+        padding: 10px;
+    }
+
+    .agent-window {
+        max-height: calc(100vh - 20px);
+    }
+
+    .agent-window-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .agent-workspace {
+        min-height: 220px;
+    }
+}
+.agent-workspace-view {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    height: 430px;
+
+    border: 1px solid var(--border);
+    border-radius: 12px;
+
+    overflow: hidden;
+
+    background: var(--surface);
+}
+
+.agent-files-panel {
+    min-width: 0;
+
+    border-right: 1px solid var(--border);
+
+    background: var(--surface-soft);
+}
+
+.agent-editor-panel {
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    background: #0d1117;
+}
+
+.agent-panel-header {
+    height: 42px;
+
+    display: flex;
+    align-items: center;
+
+    padding: 0 14px;
+
+    border-bottom: 1px solid var(--border);
+
+    font-size: 13px;
+    font-weight: 700;
+
+    color: var(--text-muted);
+}
+
+.agent-file-tree {
+    height: calc(100% - 42px);
+
+    overflow-y: auto;
+
+    padding: 8px;
+}
+
+.agent-file-row {
+    width: 100%;
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 7px 9px;
+
+    border: none;
+    border-radius: 6px;
+
+    background: transparent;
+
+    color: var(--text);
+
+    font: inherit;
+    font-size: 13px;
+
+    text-align: left;
+
+    cursor: pointer;
+}
+
+.agent-file-row:hover {
+    background: var(--surface-raised);
+}
+
+.agent-file-icon {
+    width: 16px;
+
+    color: var(--text-muted);
+
+    flex-shrink: 0;
+}
+
+.agent-editor-content {
+    flex: 1;
+
+    margin: 0;
+
+    padding: 18px;
+
+    overflow: auto;
+
+    white-space: pre;
+
+    tab-size: 4;
+
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        "Liberation Mono",
+        Menlo,
+        monospace;
+
+    font-size: 13px;
+    line-height: 1.6;
+
+    color: var(--text);
+}
+
+.agent-files-empty {
+    padding: 12px;
+
+    font-size: 13px;
+
+    color: var(--text-muted);
+}
+
+.agent-directory-children {
+    padding-left: 14px;
+}
+
+@media (max-width: 800px) {
+    .agent-workspace-view {
+        grid-template-columns: 180px minmax(0, 1fr);
+    }
+}
+.agent-file-row-selected {
+    background: var(--info-background);
+    color: var(--accent-hover);
+}
+
+.agent-file-row-selected:hover {
+    background: var(--info-background);
+}
+.agent-workspace-tabs {
+    display: flex;
+    align-items: center;
+
+    height: 44px;
+
+    padding: 0 10px;
+
+    border-bottom: 1px solid var(--border);
+
+    background: #0d1117;
+}
+
+.agent-workspace-tab {
+    height: 100%;
+
+    padding: 0 14px;
+
+    border: 0;
+    border-bottom: 2px solid transparent;
+
+    background: transparent;
+    color: var(--text-muted);
+
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+.agent-workspace-tab:hover {
+    color: var(--text);
+}
+
+.agent-workspace-tab-active {
+    border-bottom-color: var(--accent);
+    color: var(--text);
+}
+
+.agent-workspace-content {
+    width: 100%;
+    padding: 16px;
+}
+
+.agent-terminal-panel {
+    width: 100%;
+    height: 462px;
+
+    background: #080b0f;
+}
+
+.agent-terminal {
+    width: 100%;
+    height: 100%;
+
+    margin: 0;
+    padding: 18px;
+
+    overflow: auto;
+
+    white-space: pre-wrap;
+    word-break: break-word;
+
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        "Liberation Mono",
+        Menlo,
+        monospace;
+
+    font-size: 13px;
+    line-height: 1.6;
+
+    color: var(--text);
+}
+/* =========================
+   AGENT CONSOLE
+========================= */
+
+.agent-console {
+    flex: 1;
+    min-height: 0;
+
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr)
+        340px;
+
+    overflow: hidden;
+}
+
+.agent-console-main {
+    min-width: 0;
+    min-height: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    border-right: 1px solid var(--border);
+
+    background: #080b0f;
+}
+
+.agent-workspace-stage {
+    flex: 1;
+    min-height: 0;
+
+    overflow: hidden;
+}
+
+.agent-workspace-content {
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.agent-workspace-view {
+    height: 100%;
+}
+
+
+/* =========================
+   AGENT SIDEBAR
+========================= */
+
+.agent-console-sidebar {
+    min-width: 0;
+    min-height: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow-y: auto;
+
+    background: var(--surface);
+}
+
+.agent-sidebar-section {
+    padding: 18px;
+
+    border-bottom:
+        1px solid
+        var(--border);
+}
+
+.agent-sidebar-label {
+    margin-bottom: 8px;
+
+    color: var(--text-muted);
+
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.11em;
+}
+
+.agent-sidebar-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    gap: 12px;
+
+    margin-bottom: 9px;
+}
+
+.agent-sidebar-heading
+.agent-sidebar-label {
+    margin-bottom: 0;
+}
+
+.agent-current-action {
+    color: var(--text);
+
+    font-size: 14px;
+    font-weight: 650;
+    line-height: 1.5;
+}
+
+.agent-status-text {
+    margin-top: 8px;
+
+    color: var(--text-muted);
+
+    font-size: 12px;
+}
+
+
+/* =========================
+   APPROVAL
+========================= */
+
+.agent-approval-card {
+    margin: 14px;
+
+    padding: 16px;
+
+    border: 1px solid var(--warning-border);
+    border-radius: 10px;
+
+    background: var(--warning-background);
+}
+
+.agent-approval-description {
+    margin-top: 8px;
+
+    color: var(--text-muted);
+
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.agent-approval-action {
+    max-height: 160px;
+
+    margin: 12px 0 0;
+    padding: 10px;
+
+    overflow: auto;
+
+    border: 1px solid var(--border);
+    border-radius: 7px;
+
+    background: #080b0f;
+
+    color: var(--text);
+
+    white-space: pre-wrap;
+    word-break: break-word;
+
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.agent-approval-buttons {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 8px;
+
+    margin-top: 12px;
+}
+
+
+/* =========================
+   RESUME
+========================= */
+
+.agent-resume-card {
+    margin: 14px;
+
+    padding: 14px;
+
+    border: 1px solid var(--border);
+    border-radius: 10px;
+
+    background: var(--surface-soft);
+}
+
+.agent-resume-copy {
+    margin-bottom: 10px;
+
+    color: var(--text-muted);
+
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+
+/* =========================
+   ACTIVITY
+========================= */
+
+.agent-activity-section {
+    flex: 1;
+}
+
+.agent-console-sidebar
+.agent-activity {
+    max-height: 260px;
+
+    overflow-y: auto;
+}
+
+
+/* =========================
+   RESPONSIVE AGENT
+========================= */
+
+@media (max-width: 900px) {
+    .agent-console {
+        grid-template-columns: 1fr;
+        overflow-y: auto;
+    }
+
+    .agent-console-main {
+        min-height: 520px;
+
+        border-right: 0;
+        border-bottom:
+            1px solid
+            var(--border);
+    }
+
+    .agent-console-sidebar {
+        overflow: visible;
+    }
+}
+
+@media (max-width: 650px) {
+    .agent-workspace-view {
+        grid-template-columns:
+            150px
+            minmax(0, 1fr);
+    }
+
+    .agent-window {
+        width: calc(100vw - 20px);
+        height: calc(100vh - 20px);
+    }
+    
+}
+.agent-activity-item {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    align-items: start;
+
+    gap: 7px;
+
+    padding: 8px 0;
+
+    border-left: 0;
+    border-bottom: 1px solid var(--border);
+
+    color: var(--text-muted);
+
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.agent-activity-item:last-child {
+    border-bottom: 0;
+}
+
+.agent-activity-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 20px;
+    height: 20px;
+
+    border: 1px solid var(--border);
+    border-radius: 50%;
+
+    background: var(--surface-soft);
+    color: var(--accent-hover);
+
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        monospace;
+
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.agent-activity-text {
+    padding-top: 2px;
+
+    min-width: 0;
+
+    overflow-wrap: anywhere;
+}
+.agent-stop-button {
+    padding: 7px 11px;
+    border: 1px solid #7f1d1d;
+    border-radius: 7px;
+    background: #2a0d0d;
+    color: #fca5a5;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.agent-stop-button:hover {
+    background: #3b1111;
+}
+
+.agent-stop-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+/* =========================
+   AGENT COMPLETION REVIEW
+========================= */
+
+.agent-completion-review {
+    display: grid;
+    gap: 0;
+}
+
+.agent-completion-review[hidden] {
+    display: none;
+}
+
+.agent-completion-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding-bottom: 15px;
+
+    border-bottom: 1px solid var(--border);
+}
+
+.agent-completion-icon {
+    width: 34px;
+    height: 34px;
+
+    display: grid;
+    place-items: center;
+
+    flex: 0 0 auto;
+
+    border: 1px solid var(--success-border);
+    border-radius: 50%;
+
+    background: var(--success-background);
+    color: var(--success);
+
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.agent-completion-header strong {
+    color: var(--text);
+
+    font-size: 14px;
+}
+
+.agent-completion-subtitle {
+    margin-top: 2px;
+
+    color: var(--text-muted);
+
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.agent-review-block {
+    padding: 14px 0;
+
+    border-bottom: 1px solid var(--border);
+}
+
+.agent-review-block[hidden] {
+    display: none;
+}
+
+.agent-review-summary {
+    color: var(--text);
+
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.agent-review-list {
+    display: grid;
+    gap: 7px;
+}
+
+.agent-review-item {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 6px;
+
+    color: var(--text-muted);
+
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.agent-review-check {
+    color: var(--success);
+
+    font-weight: 800;
+}
+
+.agent-review-warning-icon {
+    color: var(--warning);
+
+    font-weight: 800;
+}
+
+.agent-review-files {
+    display: grid;
+    gap: 6px;
+}
+
+.agent-review-file {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 7px 9px;
+
+    border: 1px solid var(--border);
+    border-radius: 7px;
+
+    background: var(--surface);
+
+    font-size: 11px;
+}
+
+.agent-review-file-path {
+    min-width: 0;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    color: var(--text);
+}
+
+.agent-review-file-action {
+    flex: 0 0 auto;
+
+    color: var(--text-muted);
+
+    font-size: 10px;
+    font-weight: 700;
+
+    text-transform: capitalize;
+}
+
+.agent-review-buttons {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 8px;
+
+    padding-top: 14px;
+}
+
+@media (max-width: 900px) {
+    .agent-review-buttons {
+        grid-template-columns: 1fr;
+    }
+}
+.agent-review-file {
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.agent-review-file:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.agent-review-file-selected {
+    background: rgba(255, 255, 255, 0.08);
+}
 </style>
 {% endblock %}
 
@@ -1414,7 +2382,6 @@
 {% endif %}
 
 </div>
-
 {% if can_edit %}
     <div class="next-task-actions">
 
@@ -1475,7 +2442,9 @@
             </form>
         {% endif %}
 
+
         {% if next_task.status == "todo" %}
+
             {% if not next_task_is_blocked %}
                 <form
                     method="POST"
@@ -1506,7 +2475,9 @@
                 </form>
             {% endif %}
 
+
         {% elif next_task.status == "in_progress" %}
+
             <form
                 method="POST"
                 action="{% url 'update_task_status' project.pk next_task.pk %}"
@@ -1530,6 +2501,7 @@
                     type="submit"
                     class="next-task-primary"
                     data-loading-text="Completing..."
+                    id="next-task-complete-form"
                 >
                     ✓ Mark Complete
                 </button>
@@ -1563,7 +2535,9 @@
                 </button>
             </form>
 
+
         {% elif next_task.status == "review" %}
+
             <form
                 method="POST"
                 action="{% url 'update_task_status' project.pk next_task.pk %}"
@@ -1591,7 +2565,21 @@
                     ✓ Approve & Complete
                 </button>
             </form>
+
         {% endif %}
+
+
+        <button
+    type="button"
+    id="deploy-agent-button"
+    class="next-task-agent"
+    data-project-id="{{ project.pk }}"
+    data-task-id="{{ next_task.pk }}"
+    data-deploy-url="{% url 'deploy_task_agent' project.pk next_task.pk %}"
+>
+    ✦ Deploy AI Agent
+</button>
+
 
         <a
             href="{% url 'edit_task' project.pk next_task.pk %}"
@@ -1599,8 +2587,523 @@
         >
             Edit Task
         </a>
+
     </div>
+    <div
+    id="agent-run-modal"
+    class="agent-modal"
+    hidden
+>
+    <div class="agent-modal-backdrop"></div>
+
+    <section
+        class="agent-window"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="agent-window-title"
+    >
+
+        <!-- HEADER -->
+
+        <header class="agent-window-header">
+
+            <div>
+                <div class="agent-window-eyebrow">
+                    PROJIVO AGENT
+                </div>
+
+                <h2 id="agent-window-title">
+                    AI Agent
+                </h2>
+
+                <div
+                    id="agent-model"
+                    class="agent-window-model"
+                >
+                    GPT-6 Astra
+                </div>
+            </div>
+            <button
+                type="button"
+                id="agent-stop-button"
+                class="agent-stop-button"
+                hidden
+            >
+                Stop Agent
+            </button>
+            
+            <button
+                type="button"
+                id="agent-modal-close"
+                class="agent-close-button"
+                aria-label="Close agent window"
+            >
+                ×
+            </button>
+            
+
+        </header>
+
+
+        <!-- CONSOLE -->
+
+        <div class="agent-console">
+
+            <!-- LEFT SIDE -->
+
+            <section class="agent-console-main">
+
+                <div class="agent-workspace-tabs">
+
+                    <button
+                        type="button"
+                        class="
+                            agent-workspace-tab
+                            agent-workspace-tab-active
+                        "
+                        data-agent-tab="files"
+                    >
+                        Files
+                    </button>
+
+                    <button
+                        type="button"
+                        class="agent-workspace-tab"
+                        data-agent-tab="terminal"
+                    >
+                        Terminal
+                    </button>
+
+                </div>
+
+
+                <div class="agent-workspace-stage">
+
+                    <!-- FILES -->
+
+                    <div
+                        id="agent-files-panel"
+                        class="agent-workspace-content"
+                    >
+                        <div class="agent-workspace-view">
+
+                            <div class="agent-files-panel">
+
+                                <div class="agent-panel-header">
+                                    Workspace
+                                </div>
+
+                                <div
+                                    id="agent-file-tree"
+                                    class="agent-file-tree"
+                                >
+                                    <div class="agent-files-empty">
+                                        Waiting for workspace...
+                                    </div>
+                                </div>
+
+                            </div>
+
+
+                            <div class="agent-editor-panel">
+
+                                <div
+                                    id="agent-editor-header"
+                                    class="agent-panel-header"
+                                >
+                                    Editor
+                                </div>
+
+                                <pre
+                                    id="agent-editor-content"
+                                    class="agent-editor-content"
+                                >Select a file to view it.</pre>
+
+                            </div>
+
+                        </div>
+                    </div>
+
+
+                    <!-- TERMINAL -->
+
+                    <div
+                        id="agent-terminal-panel"
+                        class="agent-terminal-panel"
+                        hidden
+                    >
+                        <pre
+                            id="agent-terminal"
+                            class="agent-terminal"
+                        >Waiting for terminal activity...</pre>
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- RIGHT SIDE -->
+
+            <aside class="agent-console-sidebar">
+
+                <!-- CURRENT ACTION -->
+
+                <section class="agent-sidebar-section">
+
+                    <div class="agent-sidebar-label">
+                        CURRENT ACTION
+                    </div>
+
+                    <div
+                        id="agent-current-step"
+                        class="agent-current-action"
+                    >
+                        Preparing agent...
+                    </div>
+
+                </section>
+
+
+                <!-- PROGRESS -->
+
+                <section class="agent-sidebar-section">
+
+                    <div class="agent-sidebar-heading">
+
+                        <div class="agent-sidebar-label">
+                            PROGRESS
+                        </div>
+
+                        <span id="agent-progress-number">
+                            0%
+                        </span>
+
+                    </div>
+
+                    <div class="agent-progress-track">
+
+                        <div
+                            id="agent-progress-fill"
+                            class="agent-progress-fill"
+                            style="width: 0%;"
+                        ></div>
+
+                    </div>
+
+                    <div
+                        id="agent-status"
+                        class="agent-status-text"
+                    >
+                        Queued
+                    </div>
+
+                </section>
+
+
+                <!-- APPROVAL -->
+
+                <div
+                    id="agentApprovalContainer"
+                    class="agent-approval-card"
+                    hidden
+                >
+
+                    <div class="agent-sidebar-label">
+                        APPROVAL REQUIRED
+                    </div>
+
+                    <strong id="agentApprovalTitle">
+                    </strong>
+
+                    <div
+                        id="agentApprovalDescription"
+                        class="agent-approval-description"
+                    ></div>
+
+                    <pre
+                        id="agentApprovalAction"
+                        class="agent-approval-action"
+                    ></pre>
+
+                    <div class="agent-approval-buttons">
+
+                        <button
+                            type="button"
+                            id="agentDenyApprovalButton"
+                            class="next-task-secondary"
+                        >
+                            Deny
+                        </button>
+
+                        <button
+                            type="button"
+                            id="agentApproveApprovalButton"
+                            class="next-task-primary"
+                        >
+                            Approve
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <!-- RESUME -->
+
+                <div
+                    id="agent-resume-container"
+                    class="agent-resume-card"
+                    hidden
+                >
+
+                    <div
+                        id="agent-resume-message"
+                        class="agent-resume-copy"
+                    >
+                        Agent paused. Click resume to continue.
+                    </div>
+
+                    <button
+                        type="button"
+                        id="agent-resume-button"
+                        class="next-task-agent"
+                    >
+                        ↻ Resume Agent
+                    </button>
+
+                </div>
+                <div
+                    id="agent-retry-container"
+                    class="agent-resume-card"
+                    hidden
+                >
+                    <div
+                        id="agent-retry-message"
+                        class="agent-resume-copy"
+                    ></div>
+
+                    <button
+                        type="button"
+                        id="agent-retry-button"
+                        class="next-task-agent"
+                    >
+                        ↻ Retry Agent
+                    </button>
+                </div>
+
+
+                <!-- ACTIVITY -->
+
+                <section
+                    class="
+                        agent-sidebar-section
+                        agent-activity-section
+                    "
+                >
+
+                    <div class="agent-sidebar-label">
+                        ACTIVITY
+                    </div>
+
+                    <div
+                        id="agent-activity"
+                        class="agent-activity"
+                    >
+                        <div class="agent-activity-empty">
+                            Waiting for agent activity...
+                        </div>
+                    </div>
+
+                </section>
+
+
+                <!-- RESULT -->
+
+                <!-- RESULT -->
+
+<section
+    id="agent-result-section"
+    class="agent-sidebar-section"
+>
+
+    <!-- Normal running / error result -->
+
+    <div id="agent-result-default">
+
+        <div class="agent-sidebar-label">
+            RESULT
+        </div>
+
+        <div
+            id="agent-result"
+            class="agent-result"
+        >
+            The result will appear here when
+            the agent finishes.
+        </div>
+
+    </div>
+
+
+    <!-- Completed review -->
+
+    <div
+        id="agent-completion-review"
+        class="agent-completion-review"
+        hidden
+    >
+
+        <div class="agent-completion-header">
+
+            <div class="agent-completion-icon">
+                ✓
+            </div>
+
+            <div>
+                <strong>
+                    Agent completed
+                </strong>
+
+                <div class="agent-completion-subtitle">
+                    Review the work before completing
+                    the task.
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- SUMMARY -->
+
+        <div class="agent-review-block">
+
+            <div class="agent-sidebar-label">
+                SUMMARY
+            </div>
+
+            <div
+                id="agent-result-summary"
+                class="agent-review-summary"
+            ></div>
+
+        </div>
+
+
+        <!-- WORK COMPLETED -->
+
+        <div
+            id="agent-result-actions-section"
+            class="agent-review-block"
+            hidden
+        >
+
+            <div class="agent-sidebar-label">
+                WORK COMPLETED
+            </div>
+
+            <div
+                id="agent-result-actions"
+                class="agent-review-list"
+            ></div>
+
+        </div>
+
+
+        <!-- FILES CHANGED -->
+
+        <div
+            id="agent-result-files-section"
+            class="agent-review-block"
+            hidden
+        >
+
+            <div class="agent-sidebar-label">
+                FILES CHANGED
+            </div>
+
+            <div
+                id="agent-result-files"
+                class="agent-review-files"
+            ></div>
+
+        </div>
+
+
+        <!-- VERIFICATION -->
+
+        <div
+            id="agent-result-verification-section"
+            class="agent-review-block"
+            hidden
+        >
+
+            <div class="agent-sidebar-label">
+                VERIFICATION
+            </div>
+
+            <div
+                id="agent-result-verification"
+                class="agent-review-list"
+            ></div>
+
+        </div>
+
+
+        <!-- WARNINGS -->
+
+        <div
+            id="agent-result-warnings-section"
+            class="agent-review-block"
+            hidden
+        >
+
+            <div class="agent-sidebar-label">
+                WARNINGS
+            </div>
+
+            <div
+                id="agent-result-warnings"
+                class="agent-review-list"
+            ></div>
+
+        </div>
+
+
+        <div class="agent-review-buttons">
+
+            <button
+                type="button"
+                id="agent-review-work-button"
+                class="next-task-secondary"
+            >
+                Review Work
+            </button>
+
+            <button
+                type="button"
+                id="agent-mark-complete-button"
+                class="next-task-primary"
+                data-complete-url="{% url 'update_task_status' project.pk next_task.pk %}"
+            >
+                ✓ Mark Task Complete
+            </button>
+
+        </div>
+
+    </div>
+
+</section>
+
+            </aside>
+
+        </div>
+
+    </section>
+</div>
+
 {% endif %}
+
         </article>
 
     {% elif total_tasks > 0 %}
@@ -2045,23 +3548,24 @@
 
 </div>
 <script>
+    // =========================
+    // BASIC HELPERS
+    // =========================
+
     function setNextTaskLoading(form) {
         const button = form.querySelector(
             'button[type="submit"]'
         );
 
-        if (!button) {
-            return;
-        }
-
-        if (button.disabled) {
+        if (!button || button.disabled) {
             return;
         }
 
         button.disabled = true;
 
         const loadingText =
-            button.dataset.loadingText || "Working...";
+            button.dataset.loadingText ||
+            "Working...";
 
         button.dataset.originalText =
             button.innerHTML;
@@ -2073,20 +3577,3203 @@
 
         form
             .closest(".next-task-actions")
-            ?.querySelectorAll(
-                "button, a"
-            )
+            ?.querySelectorAll("button, a")
             .forEach((element) => {
                 element.classList.add(
                     "next-task-action-disabled"
                 );
 
                 if (
-                    element.tagName === "BUTTON"
+                    element.tagName ===
+                    "BUTTON"
                 ) {
                     element.disabled = true;
                 }
             });
     }
+
+
+    function getCookie(name) {
+        const cookies = document.cookie
+            ? document.cookie.split(";")
+            : [];
+
+        for (const cookie of cookies) {
+            const trimmed =
+                cookie.trim();
+
+            if (
+                trimmed.startsWith(
+                    name + "="
+                )
+            ) {
+                return decodeURIComponent(
+                    trimmed.substring(
+                        name.length + 1
+                    )
+                );
+            }
+        }
+
+        return null;
+    }
+
+
+    // =========================
+    // DOM REFERENCES
+    // =========================
+
+    const agentModal =
+        document.getElementById(
+            "agent-run-modal"
+        );
+
+    const agentCloseButton =
+        document.getElementById(
+            "agent-modal-close"
+        );
+
+    const agentStopButton =
+        document.getElementById(
+            "agent-stop-button"
+        );
+
+    const agentTitle =
+        document.getElementById(
+            "agent-window-title"
+        );
+    let agentRunProjectId = null;
+    let agentRunTaskId = null;
+    
+
+    const agentModel =
+        document.getElementById(
+            "agent-model"
+        );
+
+    const agentStatus =
+        document.getElementById(
+            "agent-status"
+        );
+
+    const agentCurrentStep =
+        document.getElementById(
+            "agent-current-step"
+        );
+
+    const agentProgressNumber =
+        document.getElementById(
+            "agent-progress-number"
+        );
+
+    const agentProgressFill =
+        document.getElementById(
+            "agent-progress-fill"
+        );
+
+    const agentActivity =
+        document.getElementById(
+            "agent-activity"
+        );
+
+    const agentResult =
+        document.getElementById(
+            "agent-result"
+        );
+    const agentResultDefault =
+    document.getElementById(
+        "agent-result-default"
+    );
+
+
+const agentCompletionReview =
+    document.getElementById(
+        "agent-completion-review"
+    );
+
+const agentResultSummary =
+    document.getElementById(
+        "agent-result-summary"
+    );
+
+const agentResultActionsSection =
+    document.getElementById(
+        "agent-result-actions-section"
+    );
+
+const agentResultActions =
+    document.getElementById(
+        "agent-result-actions"
+    );
+
+const agentResultFilesSection =
+    document.getElementById(
+        "agent-result-files-section"
+    );
+
+const agentResultFiles =
+    document.getElementById(
+        "agent-result-files"
+    );
+
+const agentResultVerificationSection =
+    document.getElementById(
+        "agent-result-verification-section"
+    );
+
+const agentResultVerification =
+    document.getElementById(
+        "agent-result-verification"
+    );
+
+const agentResultWarningsSection =
+    document.getElementById(
+        "agent-result-warnings-section"
+    );
+
+const agentResultWarnings =
+    document.getElementById(
+        "agent-result-warnings"
+    );
+
+const agentReviewWorkButton =
+    document.getElementById(
+        "agent-review-work-button"
+    );
+
+const agentMarkCompleteButton =
+    document.getElementById(
+        "agent-mark-complete-button"
+    );
+    
+
+
+    // =========================
+    // APPROVAL DOM
+    // =========================
+
+    const agentApprovalContainer =
+        document.getElementById(
+            "agentApprovalContainer"
+        );
+
+    const agentApprovalTitle =
+        document.getElementById(
+            "agentApprovalTitle"
+        );
+
+    const agentApprovalDescription =
+        document.getElementById(
+            "agentApprovalDescription"
+        );
+
+    const agentApprovalAction =
+        document.getElementById(
+            "agentApprovalAction"
+        );
+
+    const agentApproveApprovalButton =
+        document.getElementById(
+            "agentApproveApprovalButton"
+        );
+
+    const agentDenyApprovalButton =
+        document.getElementById(
+            "agentDenyApprovalButton"
+        );
+
+
+    // =========================
+    // RESUME / RETRY DOM
+    // =========================
+
+    const agentResumeContainer =
+        document.getElementById(
+            "agent-resume-container"
+        );
+
+    const agentResumeButton =
+        document.getElementById(
+            "agent-resume-button"
+        );
+
+    const agentResumeMessage =
+        document.getElementById(
+            "agent-resume-message"
+        );
+
+    const agentRetryContainer =
+        document.getElementById(
+            "agent-retry-container"
+        );
+
+    const agentRetryButton =
+        document.getElementById(
+            "agent-retry-button"
+        );
+
+    const agentRetryMessage =
+        document.getElementById(
+            "agent-retry-message"
+        );
+
+
+    // =========================
+    // WORKSPACE DOM
+    // =========================
+
+    const agentFileTree =
+        document.getElementById(
+            "agent-file-tree"
+        );
+
+    const agentFilesPanel =
+        document.getElementById(
+            "agent-files-panel"
+        );
+
+    const agentTerminalPanel =
+        document.getElementById(
+            "agent-terminal-panel"
+        );
+
+    const agentTerminal =
+        document.getElementById(
+            "agent-terminal"
+        );
+
+    const agentWorkspaceTabs =
+        document.querySelectorAll(
+            "[data-agent-tab]"
+        );
+
+    const agentEditorContent =
+        document.getElementById(
+            "agent-editor-content"
+        );
+
+    const agentEditorHeader =
+        document.getElementById(
+            "agent-editor-header"
+        );
+
+
+    // =========================
+    // STATE
+    // =========================
+    let currentAgentResultFiles = [];
+    
+    let currentAgentRunId = null;
+    let currentAgentApprovalId = null;
+    
+    let agentPollTimer = null;
+
+    let stopRequestInProgress =
+        false;
+
+    let currentAgentFilePath =
+        null;
+    const expandedAgentDirectories =
+        new Set();
+
+
+    // =========================
+    // MODAL
+    // =========================
+
+    function openAgentModal() {
+        if (!agentModal) {
+            return;
+        }
+
+        agentModal.hidden = false;
+
+        document.body.style.overflow =
+            "hidden";
+    }
+
+
+    function closeAgentModal() {
+        if (!agentModal) {
+            return;
+        }
+
+        agentModal.hidden = true;
+
+        document.body.style.overflow =
+            "";
+    }
+
+
+    // =========================
+    // RESET WINDOW
+    // =========================
+
+    function resetAgentWindow() {
+        currentAgentApprovalId = null;
+
+        if (agentTitle) {
+            agentTitle.textContent =
+                "AI Agent";
+        }
+
+        if (agentModel) {
+            agentModel.textContent =
+                "GPT-6 Astra";
+        }
+
+        if (agentStatus) {
+            agentStatus.textContent =
+                "Queued";
+        }
+
+        if (agentCurrentStep) {
+            agentCurrentStep.textContent =
+                "Preparing agent...";
+        }
+
+        if (agentProgressNumber) {
+            agentProgressNumber.textContent =
+                "0%";
+        }
+
+        if (agentProgressFill) {
+            agentProgressFill.style.width =
+                "0%";
+        }
+
+        if (agentActivity) {
+            agentActivity.innerHTML = `
+                <div class="agent-activity-empty">
+                    Waiting for agent activity...
+                </div>
+            `;
+        }
+
+        if (agentResult) {
+            agentResult.textContent =
+                "The result will appear here when the agent finishes.";
+        }
+        if (agentResultDefault) {
+            agentResultDefault.hidden =
+                false;
+        }
+
+        if (agentCompletionReview) {
+            agentCompletionReview.hidden =
+                true;
+        }
+
+        if (agentResultSummary) {
+            agentResultSummary.textContent =
+                "";
+        }
+
+        if (agentResultActions) {
+            agentResultActions.innerHTML =
+                "";
+        }
+
+        if (agentResultFiles) {
+            agentResultFiles.innerHTML =
+                "";
+        }
+
+        if (agentResultVerification) {
+            agentResultVerification.innerHTML =
+                "";
+        }
+
+        if (agentResultWarnings) {
+            agentResultWarnings.innerHTML =
+                "";
+        }
+
+
+        // Approval
+
+        if (agentApprovalContainer) {
+            agentApprovalContainer.hidden =
+                true;
+        }
+
+        if (agentApproveApprovalButton) {
+            agentApproveApprovalButton.disabled =
+                false;
+
+            agentApproveApprovalButton.textContent =
+                "Approve";
+        }
+
+        if (agentDenyApprovalButton) {
+            agentDenyApprovalButton.disabled =
+                false;
+
+            agentDenyApprovalButton.textContent =
+                "Deny";
+        }
+
+        if (agentApprovalTitle) {
+            agentApprovalTitle.textContent =
+                "";
+        }
+
+        if (agentApprovalDescription) {
+            agentApprovalDescription.textContent =
+                "";
+        }
+
+        if (agentApprovalAction) {
+            agentApprovalAction.textContent =
+                "";
+        }
+
+
+        // Resume
+
+        if (agentResumeContainer) {
+            agentResumeContainer.hidden =
+                true;
+        }
+
+        if (agentResumeButton) {
+            agentResumeButton.disabled =
+                false;
+
+            agentResumeButton.textContent =
+                "↻ Resume Agent";
+        }
+
+        if (agentResumeMessage) {
+            agentResumeMessage.textContent =
+                "Agent paused. Click resume to continue.";
+        }
+
+
+        // Retry
+
+        if (agentRetryContainer) {
+            agentRetryContainer.hidden =
+                true;
+        }
+
+        if (agentRetryButton) {
+            agentRetryButton.disabled =
+                false;
+
+            agentRetryButton.textContent =
+                "↻ Retry Agent";
+        }
+
+        if (agentRetryMessage) {
+            agentRetryMessage.textContent =
+                "";
+        }
+
+
+        // Stop
+
+        if (agentStopButton) {
+            agentStopButton.hidden =
+                true;
+
+            agentStopButton.disabled =
+                false;
+
+            agentStopButton.textContent =
+                "Stop Agent";
+        }
+
+
+        // Workspace
+
+        if (agentFileTree) {
+            agentFileTree.innerHTML = `
+                <div class="agent-files-empty">
+                    Waiting for workspace...
+                </div>
+            `;
+        }
+
+        if (agentEditorHeader) {
+            agentEditorHeader.textContent =
+                "Editor";
+        }
+
+        if (agentEditorContent) {
+            agentEditorContent.textContent =
+                "Select a file to view it.";
+        }
+
+        if (agentTerminal) {
+            agentTerminal.textContent =
+                "Waiting for terminal activity...";
+        }
+
+        expandedAgentDirectories.clear();
+
+        currentAgentFilePath = null;
+        currentAgentResultFiles = [];
+    }
+    function renderAgentCompletionReview(data) {
+        
+    if (
+        !agentCompletionReview ||
+        !agentResultDefault
+    ) {
+        return;
+    }
+
+    const actions =
+        Array.isArray(data.result_actions)
+            ? data.result_actions
+            : [];
+    currentAgentResultFiles =
+        Array.isArray(data.result_files)
+            ? data.result_files
+            : [];
+    
+    const files =
+        Array.isArray(data.result_files)
+            ? data.result_files
+            : [];
+    currentAgentResultFiles = files;
+    const verification =
+        Array.isArray(
+            data.result_verification
+        )
+            ? data.result_verification
+            : [];
+
+    const warnings =
+        Array.isArray(data.result_warnings)
+            ? data.result_warnings
+            : [];
+
+
+    agentResultDefault.hidden =
+        true;
+
+    agentCompletionReview.hidden =
+        false;
+
+
+    // Summary
+
+    if (agentResultSummary) {
+        agentResultSummary.textContent =
+            data.result_summary ||
+            data.result ||
+            "The agent completed the task.";
+    }
+
+
+    // Actions
+
+    if (
+        agentResultActionsSection &&
+        agentResultActions
+    ) {
+        agentResultActionsSection.hidden =
+            actions.length === 0;
+
+        agentResultActions.innerHTML =
+            "";
+
+        for (const action of actions) {
+            const item =
+                document.createElement(
+                    "div"
+                );
+
+            item.className =
+                "agent-review-item";
+
+            const icon =
+                document.createElement(
+                    "span"
+                );
+
+            icon.className =
+                "agent-review-check";
+
+            icon.textContent =
+                "✓";
+
+            const text =
+                document.createElement(
+                    "span"
+                );
+
+            text.textContent =
+                action;
+
+            item.appendChild(icon);
+            item.appendChild(text);
+
+            agentResultActions.appendChild(
+                item
+            );
+        }
+    }
+
+
+    // Files
+
+    if (
+        agentResultFilesSection &&
+        agentResultFiles
+    ) {
+        agentResultFilesSection.hidden =
+            files.length === 0;
+
+        agentResultFiles.innerHTML =
+            "";
+
+        for (const file of files) {
+            const row =
+                document.createElement(
+                    "div"
+                );
+
+            row.className =
+                "agent-review-file";
+
+
+            const path =
+                document.createElement(
+                    "span"
+                );
+
+            path.className =
+                "agent-review-file-path";
+
+            path.textContent =
+                file.path || "Unknown file";
+
+
+            const action =
+                document.createElement(
+                    "span"
+                );
+
+            action.className =
+                "agent-review-file-action";
+
+            action.textContent =
+                file.action || "changed";
+
+
+            row.appendChild(path);
+            row.appendChild(action);
+
+
+            // Make reviewable files clickable
+            if (
+                file.path &&
+                file.action !== "deleted"
+            ) {
+                row.style.cursor = "pointer";
+
+                row.addEventListener(
+                    "click",
+                    async () => {
+                        if (!currentAgentRunId) {
+                            return;
+                        }
+
+                        // Switch to Files tab
+                        const filesTab =
+                            Array.from(
+                                agentWorkspaceTabs
+                            ).find(
+                                (button) =>
+                                    button.dataset.agentTab ===
+                                    "files"
+                            );
+
+                        if (filesTab) {
+                            filesTab.click();
+                        }
+                        // Highlight this result row
+                        agentResultFiles
+                            ?.querySelectorAll(
+                                ".agent-review-file-selected"
+                            )
+                            .forEach((element) => {
+                                element.classList.remove(
+                                    "agent-review-file-selected"
+                                );
+                            });
+
+                        row.classList.add(
+                            "agent-review-file-selected"
+                        );
+                        // Open this exact file
+                        await loadAgentFile(
+                            currentAgentRunId,
+                            file.path
+                        );
+                    }
+                );
+            }
+            // Highlight the same file in the file tree
+            agentFileTree
+                ?.querySelectorAll(
+                    ".agent-file-row"
+                )
+                .forEach((fileRow) => {
+                    const label =
+                        fileRow.textContent?.trim();
+
+                    if (
+                        label &&
+                        file.path.endsWith(label)
+                    ) {
+                        agentFileTree
+                            ?.querySelectorAll(
+                                ".agent-file-row-selected"
+                            )
+                            .forEach((element) => {
+                                element.classList.remove(
+                                    "agent-file-row-selected"
+                                );
+                            });
+
+                        fileRow.classList.add(
+                            "agent-file-row-selected"
+                        );
+                    }
+                });
+
+
+            agentResultFiles.appendChild(
+                row
+            );
+
+            agentResultFiles.appendChild(
+                row
+            );
+        }
+    }
+
+
+    // Verification
+
+    if (
+        agentResultVerificationSection &&
+        agentResultVerification
+    ) {
+        agentResultVerificationSection.hidden =
+            verification.length === 0;
+
+        agentResultVerification.innerHTML =
+            "";
+
+        for (
+            const verificationItem
+            of verification
+        ) {
+            const item =
+                document.createElement(
+                    "div"
+                );
+
+            item.className =
+                "agent-review-item";
+
+
+            const icon =
+                document.createElement(
+                    "span"
+                );
+
+            icon.className =
+                "agent-review-check";
+
+            icon.textContent =
+                "✓";
+
+
+            const text =
+                document.createElement(
+                    "span"
+                );
+
+            text.textContent =
+                verificationItem;
+
+
+            item.appendChild(icon);
+            item.appendChild(text);
+
+            agentResultVerification.appendChild(
+                item
+            );
+        }
+    }
+
+
+    // Warnings
+
+    if (
+        agentResultWarningsSection &&
+        agentResultWarnings
+    ) {
+        agentResultWarningsSection.hidden =
+            warnings.length === 0;
+
+        agentResultWarnings.innerHTML =
+            "";
+
+        for (const warning of warnings) {
+            const item =
+                document.createElement(
+                    "div"
+                );
+
+            item.className =
+                "agent-review-item";
+
+
+            const icon =
+                document.createElement(
+                    "span"
+                );
+
+            icon.className =
+                "agent-review-warning-icon";
+
+            icon.textContent =
+                "!";
+
+
+            const text =
+                document.createElement(
+                    "span"
+                );
+
+            text.textContent =
+                warning;
+
+
+            item.appendChild(icon);
+            item.appendChild(text);
+
+            agentResultWarnings.appendChild(
+                item
+            );
+        }
+    }
+}
+
+
+    // =========================
+    // UPDATE AGENT WINDOW
+    // =========================
+
+    function updateAgentWindow(data) {
+        agentRunProjectId = data.project_id;
+        agentRunTaskId = data.task_id;
+    const status =
+        data.status || "unknown";
+
+    const isQueued =
+        status === "queued";
+
+    const isRunning =
+        status === "running";
+
+    const isBlocked =
+        status === "blocked";
+
+    const isFailed =
+        status === "failed";
+
+    const isCancelled =
+        status === "cancelled";
+
+    const isCompleted =
+        status === "completed";
+
+    const approval =
+        data.pending_approval || null;
+
+    const hasPendingApproval =
+        isBlocked && Boolean(approval);
+
+
+    // =========================
+    // MAIN INFORMATION
+    // =========================
+
+    if (agentTitle) {
+        agentTitle.textContent =
+            data.task_title ||
+            "AI Agent";
+    }
+
+    if (agentModel) {
+        agentModel.textContent =
+            data.model ||
+            "GPT-6 Astra";
+    }
+
+    if (agentStatus) {
+        agentStatus.textContent =
+            status;
+    }
+
+    if (agentCurrentStep) {
+        if (isCompleted) {
+            agentCurrentStep.textContent =
+                "Complete";
+
+        } else if (isCancelled) {
+            agentCurrentStep.textContent =
+                data.current_step ||
+                "Stopped";
+
+        } else if (isFailed) {
+            agentCurrentStep.textContent =
+                data.current_step ||
+                "Agent failed";
+
+        } else {
+            agentCurrentStep.textContent =
+                data.current_step ||
+                "Working...";
+        }
+    }
+
+
+    // =========================
+    // PROGRESS
+    // =========================
+
+    let progress =
+        Number(data.progress || 0);
+
+    progress =
+        Math.max(
+            0,
+            Math.min(100, progress)
+        );
+
+    if (isCompleted) {
+        progress = 100;
+    }
+
+    if (agentProgressNumber) {
+        agentProgressNumber.textContent =
+            `${progress}%`;
+    }
+
+    if (agentProgressFill) {
+        agentProgressFill.style.width =
+            `${progress}%`;
+    }
+
+
+// =========================
+// RESULT / REVIEW
+// =========================
+
+if (isCompleted) {
+    renderAgentCompletionReview(
+        data
+    );
+
+} else {
+    if (agentResultDefault) {
+        agentResultDefault.hidden =
+            false;
+    }
+
+    if (agentCompletionReview) {
+        agentCompletionReview.hidden =
+            true;
+    }
+
+    if (agentResult) {
+        if (data.error) {
+            agentResult.textContent =
+                `Agent failed:\n\n${data.error}`;
+
+        } else if (data.result) {
+            agentResult.textContent =
+                data.result;
+
+        } else if (isCancelled) {
+            agentResult.textContent =
+                "The agent run was stopped.";
+
+        } else {
+            agentResult.textContent =
+                "The result will appear here when "
+                + "the agent finishes.";
+        }
+    }
+}
+
+
+    // =========================
+    // STOP
+    //
+    // ONLY queued/running runs
+    // may show Stop Agent.
+    // =========================
+
+    const canStop =
+        isQueued || isRunning;
+
+    if (agentStopButton) {
+        agentStopButton.hidden =
+            !canStop;
+
+        agentStopButton.disabled =
+            !canStop ||
+            stopRequestInProgress;
+
+        if (!stopRequestInProgress) {
+            agentStopButton.textContent =
+                "Stop Agent";
+        }
+    }
+
+
+    // =========================
+    // APPROVAL
+    //
+    // ONLY blocked runs with a
+    // pending approval show this.
+    // =========================
+
+    if (
+        hasPendingApproval &&
+        agentApprovalContainer
+    ) {
+        currentAgentApprovalId =
+            approval.id;
+
+        agentApprovalContainer.hidden =
+            false;
+
+        if (agentApprovalTitle) {
+            agentApprovalTitle.textContent =
+                approval.title ||
+                "Approval required";
+        }
+
+        if (agentApprovalDescription) {
+            agentApprovalDescription.textContent =
+                approval.description ||
+                "";
+        }
+
+        const actionParts = [];
+
+        if (approval.tool_name) {
+            actionParts.push(
+                approval.tool_name
+            );
+        }
+
+        if (approval.tool_arguments) {
+            actionParts.push(
+                JSON.stringify(
+                    approval.tool_arguments,
+                    null,
+                    2
+                )
+            );
+        }
+
+        if (agentApprovalAction) {
+            agentApprovalAction.textContent =
+                actionParts.join(
+                    "\n\n"
+                );
+        }
+
+    } else {
+        currentAgentApprovalId =
+            null;
+
+        if (agentApprovalContainer) {
+            agentApprovalContainer.hidden =
+                true;
+        }
+    }
+
+
+    // =========================
+    // RESUME
+    //
+    // Blocked runs may resume only
+    // when there is NO approval.
+    //
+    // Failed runs may resume when
+    // backend says recovery exists.
+    // =========================
+
+    const canResume =
+        Boolean(data.can_resume) &&
+        !hasPendingApproval &&
+        (
+            isBlocked ||
+            isFailed
+        );
+
+    if (agentResumeContainer) {
+        agentResumeContainer.hidden =
+            !canResume;
+    }
+
+    if (agentResumeButton) {
+        agentResumeButton.disabled =
+            false;
+
+        agentResumeButton.textContent =
+            "↻ Resume Agent";
+    }
+
+    if (agentResumeMessage) {
+        if (
+            canResume &&
+            isBlocked
+        ) {
+            agentResumeMessage.textContent =
+                "The agent is blocked. Its work "
+                + "has been preserved and can be resumed.";
+
+        } else if (
+            canResume &&
+            isFailed
+        ) {
+            agentResumeMessage.textContent =
+                "The agent stopped unexpectedly. "
+                + "Its preserved work can be resumed.";
+
+        } else {
+            agentResumeMessage.textContent =
+                "";
+        }
+    }
+
+
+    // =========================
+    // RETRY
+    //
+    // Fresh retries are allowed
+    // only for failed/cancelled runs.
+    // =========================
+
+    const canRetry =
+        Boolean(data.can_retry) &&
+        (
+            isFailed ||
+            isCancelled
+        );
+
+    if (agentRetryContainer) {
+        agentRetryContainer.hidden =
+            !canRetry;
+    }
+
+    if (agentRetryButton) {
+        agentRetryButton.disabled =
+            false;
+
+        agentRetryButton.textContent =
+            "↻ Retry Agent";
+    }
+
+    if (agentRetryMessage) {
+        if (
+            canRetry &&
+            isCancelled
+        ) {
+            agentRetryMessage.textContent =
+                "The agent was stopped. "
+                + "Start a fresh attempt from scratch.";
+
+        } else if (
+            canRetry &&
+            isFailed
+        ) {
+            agentRetryMessage.textContent =
+                "Start a fresh attempt without "
+                + "restoring the previous workspace.";
+
+        } else {
+            agentRetryMessage.textContent =
+                "";
+        }
+    }
+
+
+    // =========================
+    // TERMINAL STATES
+    //
+    // Defensive cleanup so stale
+    // controls can never remain from
+    // the previous poll.
+    // =========================
+
+    if (
+        isCompleted ||
+        isCancelled
+    ) {
+        if (agentApprovalContainer) {
+            agentApprovalContainer.hidden =
+                true;
+        }
+
+        if (agentResumeContainer) {
+            agentResumeContainer.hidden =
+                true;
+        }
+    }
+
+    if (isCompleted) {
+        if (agentRetryContainer) {
+            agentRetryContainer.hidden =
+                true;
+        }
+
+        currentAgentApprovalId =
+            null;
+    }
+}
+
+
+    // =========================
+    // FILES
+    // =========================
+
+    async function loadAgentFiles(
+        runId,
+        path = ".",
+        container = agentFileTree
+    ) {
+        if (
+            !runId ||
+            !container
+        ) {
+            return;
+        }
+
+        try {
+            const response =
+                await fetch(
+                    `/projects/agent-runs/${runId}/files/`
+                    + `?path=${encodeURIComponent(path)}`
+                );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+                console.error(
+                    "Unable to load agent files:",
+                    data.error
+                );
+
+                return;
+            }
+
+            if (path === ".") {
+                container.innerHTML =
+                    "";
+            }
+
+            for (
+                const item
+                of data.files
+            ) {
+                const row =
+                    document.createElement(
+                        "button"
+                    );
+
+                row.type =
+                    "button";
+
+                row.className =
+                    "agent-file-row";
+
+                row.dataset.path =
+                    item.path;
+
+
+                const icon =
+                    document.createElement(
+                        "span"
+                    );
+
+                icon.className =
+                    "agent-file-icon";
+
+
+                const name =
+                    document.createElement(
+                        "span"
+                    );
+
+                name.textContent =
+                    item.name;
+
+
+                row.appendChild(icon);
+                row.appendChild(name);
+
+
+                if (
+                    item.type ===
+                        "file" &&
+                    item.path ===
+                        currentAgentFilePath
+                ) {
+                    row.classList.add(
+                        "agent-file-row-selected"
+                    );
+                }
+
+
+                container.appendChild(
+                    row
+                );
+
+
+                // Directory
+
+                if (
+                    item.type ===
+                    "directory"
+                ) {
+                    const children =
+                        document.createElement(
+                            "div"
+                        );
+
+                    children.className =
+                        "agent-directory-children";
+
+                    const shouldExpand =
+                        expandedAgentDirectories.has(
+                            item.path
+                        );
+
+                    children.hidden =
+                        !shouldExpand;
+
+                    icon.textContent =
+                        shouldExpand
+                            ? "▾"
+                            : "▸";
+
+                    container.appendChild(
+                        children
+                    );
+
+                    let loaded =
+                        false;
+
+                    if (shouldExpand) {
+                        loaded = true;
+
+                        await loadAgentFiles(
+                            runId,
+                            item.path,
+                            children
+                        );
+                    }
+
+                    row.addEventListener(
+                        "click",
+                        async () => {
+                            const opening =
+                                children.hidden;
+
+                            children.hidden =
+                                !children.hidden;
+
+                            if (opening) {
+                                expandedAgentDirectories.add(
+                                    item.path
+                                );
+
+                                icon.textContent =
+                                    "▾";
+
+                                if (!loaded) {
+                                    loaded = true;
+
+                                    await loadAgentFiles(
+                                        runId,
+                                        item.path,
+                                        children
+                                    );
+                                }
+
+                            } else {
+                                expandedAgentDirectories.delete(
+                                    item.path
+                                );
+
+                                icon.textContent =
+                                    "▸";
+                            }
+                        }
+                    );
+
+                } else {
+                    // File
+
+                    icon.textContent =
+                        "•";
+
+                    row.addEventListener(
+                        "click",
+                        async () => {
+                            currentAgentFilePath =
+                                item.path;
+
+                            agentFileTree
+                                ?.querySelectorAll(
+                                    ".agent-file-row-selected"
+                                )
+                                .forEach(
+                                    (
+                                        element
+                                    ) => {
+                                        element.classList.remove(
+                                            "agent-file-row-selected"
+                                        );
+                                    }
+                                );
+
+                            row.classList.add(
+                                "agent-file-row-selected"
+                            );
+
+                            await loadAgentFile(
+                                runId,
+                                item.path
+                            );
+                        }
+                    );
+                }
+            }
+
+
+            if (
+                path === "." &&
+                data.files.length === 0
+            ) {
+                container.innerHTML = `
+                    <div class="agent-files-empty">
+                        Workspace is empty.
+                    </div>
+                `;
+            }
+
+        } catch (error) {
+            console.error(
+                "Agent file loading failed:",
+                error
+            );
+        }
+    }
+
+
+    async function loadAgentFile(
+        runId,
+        path
+    ) {
+        if (
+            !runId ||
+            !path ||
+            !agentEditorContent
+        ) {
+            return;
+        }
+
+        currentAgentFilePath =
+            path;
+
+        if (agentEditorHeader) {
+            agentEditorHeader.textContent =
+                path;
+        }
+
+        agentEditorContent.textContent =
+            "Loading...";
+
+        try {
+            const response =
+                await fetch(
+                    `/projects/agent-runs/${runId}/file/`
+                    + `?path=${encodeURIComponent(path)}`
+                );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+                agentEditorContent.textContent =
+                    data.error ||
+                    "Unable to read file.";
+
+                return;
+            }
+
+            agentEditorContent.textContent =
+                data.content;
+
+        } catch (error) {
+            agentEditorContent.textContent =
+                "Unable to load file.";
+
+            console.error(error);
+        }
+    }
+
+
+    // =========================
+    // TERMINAL
+    // =========================
+
+    async function loadAgentTerminal(
+        runId
+    ) {
+        if (
+            !runId ||
+            !agentTerminal
+        ) {
+            return;
+        }
+
+        try {
+            const response =
+                await fetch(
+                    `/projects/agent-runs/${runId}/events/`
+                );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error ||
+                    "Unable to load terminal."
+                );
+            }
+
+            const events =
+                data.events || [];
+
+            if (
+                events.length === 0
+            ) {
+                agentTerminal.textContent =
+                    "Waiting for terminal activity...";
+
+                return;
+            }
+
+            const lines = [];
+
+            for (
+                const event
+                of events
+            ) {
+                if (
+                    event.event_type ===
+                    "terminal_command"
+                ) {
+                    const command =
+                        event.data?.command ||
+                        "";
+
+                    lines.push(
+                        `$ ${command}`
+                    );
+                }
+
+                if (
+                    event.event_type ===
+                    "terminal_result"
+                ) {
+                    const stdout =
+                        event.data?.stdout ||
+                        "";
+
+                    const stderr =
+                        event.data?.stderr ||
+                        "";
+
+                    const returncode =
+                        event.data
+                            ?.returncode;
+
+                    if (stdout) {
+                        lines.push(
+                            stdout.trimEnd()
+                        );
+                    }
+
+                    if (stderr) {
+                        lines.push(
+                            stderr.trimEnd()
+                        );
+                    }
+
+                    if (
+                        returncode !== null &&
+                        returncode !== undefined &&
+                        returncode !== 0
+                    ) {
+                        lines.push(
+                            `[exit ${returncode}]`
+                        );
+                    }
+
+                    lines.push("");
+                }
+            }
+
+            agentTerminal.textContent =
+                lines.length
+                    ? lines.join("\n")
+                    : "Waiting for terminal activity...";
+
+            agentTerminal.scrollTop =
+                agentTerminal.scrollHeight;
+
+        } catch (error) {
+            console.error(
+                "Agent terminal loading failed:",
+                error
+            );
+
+            agentTerminal.textContent =
+                `Unable to load terminal:\n${error.message}`;
+        }
+    }
+
+
+    // =========================
+    // ACTIVITY
+    // =========================
+
+    async function loadAgentActivity(
+        runId
+    ) {
+        if (
+            !runId ||
+            !agentActivity
+        ) {
+            return;
+        }
+
+        try {
+            const response =
+                await fetch(
+                    `/projects/agent-runs/${runId}/events/`
+                );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error ||
+                    "Unable to load agent activity."
+                );
+            }
+
+            const events =
+                data.events || [];
+
+            if (
+                events.length === 0
+            ) {
+                agentActivity.innerHTML = `
+                    <div class="agent-activity-empty">
+                        Waiting for agent activity...
+                    </div>
+                `;
+
+                return;
+            }
+
+            agentActivity.innerHTML =
+                "";
+
+            for (
+                const event
+                of events
+            ) {
+                const item =
+                    document.createElement(
+                        "div"
+                    );
+
+                item.className =
+                    "agent-activity-item";
+
+
+                const icon =
+                    document.createElement(
+                        "span"
+                    );
+
+                icon.className =
+                    "agent-activity-icon";
+
+
+                const text =
+                    document.createElement(
+                        "span"
+                    );
+
+                text.className =
+                    "agent-activity-text";
+
+
+                const eventData =
+                    event.data || {};
+
+
+                switch (
+                    event.event_type
+                ) {
+                    case "terminal_command":
+                        icon.textContent =
+                            "$";
+
+                        text.textContent =
+                            eventData.command
+                                ? `Running ${eventData.command}`
+                                : "Running command";
+
+                        break;
+
+
+                    case "terminal_result": {
+                        const returnCode =
+                            eventData.returncode;
+
+                        if (
+                            returnCode === 0 ||
+                            returnCode === null ||
+                            returnCode === undefined
+                        ) {
+                            icon.textContent =
+                                "✓";
+
+                            text.textContent =
+                                "Command completed";
+
+                        } else {
+                            icon.textContent =
+                                "!";
+
+                            text.textContent =
+                                `Command exited with code ${returnCode}`;
+                        }
+
+                        break;
+                    }
+
+
+                    case "tool_call":
+                        icon.textContent =
+                            "●";
+
+                        text.textContent =
+                            eventData.message ||
+                            event.tool_name ||
+                            "Using tool";
+
+                        break;
+
+
+                    case "tool_result":
+                        icon.textContent =
+                            "✓";
+
+                        text.textContent =
+                            eventData.message ||
+                            (
+                                event.tool_name
+                                    ? `${event.tool_name} completed`
+                                    : "Tool completed"
+                            );
+
+                        break;
+
+
+                    case "agent_cancelled":
+                        icon.textContent =
+                            "■";
+
+                        text.textContent =
+                            eventData.message ||
+                            "Agent stopped.";
+
+                        break;
+
+
+                    case "agent_retry":
+                        icon.textContent =
+                            "↻";
+
+                        text.textContent =
+                            eventData.message ||
+                            "Agent restarted from scratch.";
+
+                        break;
+
+
+                    case "file_read":
+                        icon.textContent =
+                            "→";
+
+                        text.textContent =
+                            eventData.path
+                                ? `Reading ${eventData.path}`
+                                : "Reading file";
+
+                        break;
+
+
+                    case "file_write":
+                        icon.textContent =
+                            "✎";
+
+                        text.textContent =
+                            eventData.path
+                                ? `Updated ${eventData.path}`
+                                : "Updated file";
+
+                        break;
+
+
+                    case "repository_loaded":
+                        icon.textContent =
+                            "✓";
+
+                        text.textContent =
+                            "Repository loaded";
+
+                        break;
+
+
+                    case "repository_synced":
+                        icon.textContent =
+                            "✓";
+
+                        text.textContent =
+                            "Changes synced to GitHub";
+
+                        break;
+
+
+                    default:
+                        icon.textContent =
+                            "●";
+
+                        text.textContent =
+                            eventData.message ||
+                            event.tool_name ||
+                            event.event_type
+                                .replaceAll(
+                                    "_",
+                                    " "
+                                );
+                }
+
+
+                item.appendChild(
+                    icon
+                );
+
+                item.appendChild(
+                    text
+                );
+
+                agentActivity.appendChild(
+                    item
+                );
+            }
+
+            agentActivity.scrollTop =
+                agentActivity.scrollHeight;
+
+        } catch (error) {
+            console.error(
+                "Agent activity loading failed:",
+                error
+            );
+        }
+    }
+
+
+    // =========================
+    // WORKSPACE TABS
+    // =========================
+
+    agentWorkspaceTabs.forEach(
+        (button) => {
+            button.addEventListener(
+                "click",
+                () => {
+                    const tab =
+                        button.dataset.agentTab;
+
+                    agentWorkspaceTabs.forEach(
+                        (
+                            otherButton
+                        ) => {
+                            otherButton.classList.remove(
+                                "agent-workspace-tab-active"
+                            );
+                        }
+                    );
+
+                    button.classList.add(
+                        "agent-workspace-tab-active"
+                    );
+
+                    if (
+                        agentFilesPanel
+                    ) {
+                        agentFilesPanel.hidden =
+                            tab !== "files";
+                    }
+
+                    if (
+                        agentTerminalPanel
+                    ) {
+                        agentTerminalPanel.hidden =
+                            tab !== "terminal";
+                    }
+
+                    if (
+                        tab ===
+                            "terminal" &&
+                        currentAgentRunId
+                    ) {
+                        loadAgentTerminal(
+                            currentAgentRunId
+                        );
+                    }
+                }
+            );
+        }
+    );
+
+
+    // =========================
+    // POLLING
+    // =========================
+
+    async function pollAgentRun(
+        runId
+    ) {
+        currentAgentRunId =
+            runId;
+
+        if (agentPollTimer) {
+            clearTimeout(
+                agentPollTimer
+            );
+
+            agentPollTimer =
+                null;
+        }
+
+        try {
+            const response =
+                await fetch(
+                    `/projects/agent-runs/${runId}/status/`
+                );
+
+            const responseText =
+                await response.text();
+
+            if (!response.ok) {
+                throw new Error(
+                    `Could not read agent status (${response.status})`
+                );
+            }
+
+            const data =
+                JSON.parse(
+                    responseText
+                );
+
+            updateAgentWindow(
+                data
+            );
+
+            loadAgentFiles(
+                runId
+            );
+
+            loadAgentTerminal(
+                runId
+            );
+
+            loadAgentActivity(
+                runId
+            );
+
+
+            const button =
+                document.getElementById(
+                    "deploy-agent-button"
+                );
+
+
+            // Completed
+
+            if (
+                data.status ===
+                "completed"
+            ) {
+                if (button) {
+                    button.disabled =
+                        false;
+
+                    button.textContent =
+                        "✓ Agent Complete";
+                }
+
+                if (
+                    agentCurrentStep
+                ) {
+                    agentCurrentStep.textContent =
+                        "Complete";
+                }
+
+                return;
+            }
+
+
+            // Blocked
+
+            if (
+                data.status ===
+                "blocked"
+            ) {
+                if (button) {
+                    button.disabled =
+                        false;
+
+                    button.textContent =
+                        "✦ Agent Blocked";
+                }
+
+                if (
+                    agentCurrentStep
+                ) {
+                    agentCurrentStep.textContent =
+                        data.current_step ||
+                        "Agent blocked";
+                }
+
+                return;
+            }
+
+
+            // Failed
+
+            if (
+                data.status ===
+                "failed"
+            ) {
+                if (button) {
+                    button.disabled =
+                        false;
+
+                    button.textContent =
+                        "✦ Deploy AI Agent";
+                }
+
+                return;
+            }
+
+
+            // Cancelled
+
+            if (
+                data.status ===
+                "cancelled"
+            ) {
+                if (button) {
+                    button.disabled =
+                        false;
+
+                    button.textContent =
+                        "✦ Deploy AI Agent";
+                }
+
+                
+
+                return;
+            }
+
+
+            // Still running
+
+            if (button) {
+                button.textContent =
+                    `✦ ${
+                        data.current_step ||
+                        "Running"
+                    } (${data.progress}%)`;
+            }
+
+            agentPollTimer =
+                setTimeout(
+                    () => {
+                        pollAgentRun(
+                            runId
+                        );
+                    },
+                    2000
+                );
+
+        } catch (error) {
+            console.error(
+                "Agent polling error:",
+                error
+            );
+
+            if (
+                agentCurrentStep
+            ) {
+                agentCurrentStep.textContent =
+                    "Connection error";
+            }
+
+            if (agentResult) {
+                agentResult.textContent =
+                    error.message;
+            }
+
+            const button =
+                document.getElementById(
+                    "deploy-agent-button"
+                );
+
+            if (button) {
+                button.disabled =
+                    false;
+
+                button.textContent =
+                    "✦ Deploy AI Agent";
+            }
+        }
+    }
+
+
+    // =========================
+    // STOP AGENT
+    // =========================
+
+    if (agentStopButton) {
+        agentStopButton.addEventListener(
+            "click",
+            async function () {
+                if (
+                    !currentAgentRunId ||
+                    stopRequestInProgress
+                ) {
+                    return;
+                }
+
+                const runId =
+                    currentAgentRunId;
+
+                stopRequestInProgress =
+                    true;
+
+                agentStopButton.disabled =
+                    true;
+
+                agentStopButton.textContent =
+                    "Stopping...";
+
+                try {
+                    const response =
+                        await fetch(
+                            `/projects/agent-runs/${runId}/cancel/`,
+                            {
+                                method:
+                                    "POST",
+
+                                headers: {
+                                    "X-CSRFToken":
+                                        getCookie(
+                                            "csrftoken"
+                                        ),
+
+                                    "X-Requested-With":
+                                        "XMLHttpRequest",
+                                },
+                            }
+                        );
+
+                    const responseText =
+                        await response.text();
+
+                    let data = {};
+
+                    try {
+                        data =
+                            JSON.parse(
+                                responseText
+                            );
+                    } catch {
+                        // Response body is not JSON.
+                    }
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            `Stop request failed (${response.status})`
+                        );
+                    }
+
+                    agentStopButton.hidden =
+                        true;
+
+                    if (
+                        agentPollTimer
+                    ) {
+                        clearTimeout(
+                            agentPollTimer
+                        );
+
+                        agentPollTimer =
+                            null;
+                    }
+
+                    await pollAgentRun(
+                        runId
+                    );
+
+                } catch (error) {
+                    console.error(
+                        "Agent stop request failed:",
+                        error
+                    );
+
+                    if (agentResult) {
+                        agentResult.textContent =
+                            `Stop request failed: ${error.message}`;
+                    }
+
+                    agentStopButton.disabled =
+                        false;
+
+                    agentStopButton.textContent =
+                        "Stop Agent";
+
+                } finally {
+                    stopRequestInProgress =
+                        false;
+                }
+            }
+        );
+    }
+
+
+    // =========================
+    // DEPLOY AGENT
+    // =========================
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        function () {
+            const button =
+                document.getElementById(
+                    "deploy-agent-button"
+                );
+
+            if (!button) {
+                return;
+            }
+
+            button.addEventListener(
+                "click",
+                async function () {
+                    openAgentModal();
+
+
+                    // Reopen existing active run.
+
+                    if (
+                        currentAgentRunId
+                    ) {
+                        try {
+                            const existingResponse =
+                                await fetch(
+                                    `/projects/agent-runs/${currentAgentRunId}/status/`
+                                );
+
+                            if (
+                                existingResponse.ok
+                            ) {
+                                const existingRun =
+                                    await existingResponse.json();
+
+                                if (
+                                    existingRun.status ===
+                                        "queued" ||
+                                    existingRun.status ===
+                                        "running"
+                                ) {
+                                    pollAgentRun(
+                                        currentAgentRunId
+                                    );
+
+                                    return;
+                                }
+                            }
+                        } catch (error) {
+                            console.error(
+                                "Could not inspect existing run:",
+                                error
+                            );
+                        }
+
+                        currentAgentRunId =
+                            null;
+                    }
+
+
+                    resetAgentWindow();
+
+                    button.disabled =
+                        true;
+
+                    button.textContent =
+                        "✦ Deploying...";
+
+                    if (agentStatus) {
+                        agentStatus.textContent =
+                            "Deploying";
+                    }
+
+                    if (
+                        agentCurrentStep
+                    ) {
+                        agentCurrentStep.textContent =
+                            "Creating agent run...";
+                    }
+
+
+                    try {
+                        const response =
+                            await fetch(
+                                button.dataset.deployUrl,
+                                {
+                                    method:
+                                        "POST",
+
+                                    headers: {
+                                        "X-CSRFToken":
+                                            getCookie(
+                                                "csrftoken"
+                                            ),
+
+                                        "X-Requested-With":
+                                            "XMLHttpRequest",
+                                    },
+                                }
+                            );
+
+                        const responseText =
+                            await response.text();
+
+                        let data;
+
+                        try {
+                            data =
+                                JSON.parse(
+                                    responseText
+                                );
+                        } catch {
+                            throw new Error(
+                                "The server returned an invalid response."
+                            );
+                        }
+
+                        if (
+                            !response.ok
+                        ) {
+                            console.error(
+                                "Deploy response:",
+                                response.status,
+                                responseText
+                            );
+
+                            throw new Error(
+                                data.error ||
+                                `Agent deployment failed (${response.status})`
+                            );
+                        }
+
+                        currentAgentRunId =
+                            data.run_id;
+
+                        button.textContent =
+                            "✦ Agent Running";
+
+                        pollAgentRun(
+                            data.run_id
+                        );
+
+                    } catch (error) {
+                        console.error(
+                            "Agent deployment error:",
+                            error
+                        );
+
+                        button.disabled =
+                            false;
+
+                        button.textContent =
+                            "✦ Deploy AI Agent";
+
+                        if (
+                            agentStatus
+                        ) {
+                            agentStatus.textContent =
+                                "Failed";
+                        }
+
+                        if (
+                            agentCurrentStep
+                        ) {
+                            agentCurrentStep.textContent =
+                                "Deployment failed";
+                        }
+
+                        if (
+                            agentResult
+                        ) {
+                            agentResult.textContent =
+                                error.message;
+                        }
+                    }
+                }
+            );
+        }
+    );
+
+
+    // =========================
+    // APPROVE
+    // =========================
+
+    if (
+        agentApproveApprovalButton
+    ) {
+        agentApproveApprovalButton.addEventListener(
+            "click",
+            async function () {
+                if (
+                    !currentAgentApprovalId
+                ) {
+                    return;
+                }
+
+                const approvalId =
+                    currentAgentApprovalId;
+
+                agentApproveApprovalButton.disabled =
+                    true;
+
+                agentApproveApprovalButton.textContent =
+                    "Approving...";
+
+                if (
+                    agentDenyApprovalButton
+                ) {
+                    agentDenyApprovalButton.disabled =
+                        true;
+                }
+
+                try {
+                    const response =
+                        await fetch(
+                            `/projects/agent-approvals/${approvalId}/approve/`,
+                            {
+                                method:
+                                    "POST",
+
+                                headers: {
+                                    "X-CSRFToken":
+                                        getCookie(
+                                            "csrftoken"
+                                        ),
+
+                                    "X-Requested-With":
+                                        "XMLHttpRequest",
+                                },
+                            }
+                        );
+
+                    const responseText =
+                        await response.text();
+
+                    let data;
+
+                    try {
+                        data =
+                            JSON.parse(
+                                responseText
+                            );
+                    } catch {
+                        throw new Error(
+                            "The server returned an invalid response."
+                        );
+                    }
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            `Approval failed (${response.status})`
+                        );
+                    }
+
+                    currentAgentRunId =
+                        data.run_id;
+
+                    currentAgentApprovalId =
+                        null;
+
+                    if (
+                        agentApprovalContainer
+                    ) {
+                        agentApprovalContainer.hidden =
+                            true;
+                    }
+
+                    agentApproveApprovalButton.disabled =
+                        false;
+
+                    agentApproveApprovalButton.textContent =
+                        "Approve";
+
+                    if (
+                        agentDenyApprovalButton
+                    ) {
+                        agentDenyApprovalButton.disabled =
+                            false;
+                    }
+
+                    if (
+                        agentCurrentStep
+                    ) {
+                        agentCurrentStep.textContent =
+                            "Continuing after approval...";
+                    }
+
+                    pollAgentRun(
+                        data.run_id
+                    );
+
+                } catch (error) {
+                    console.error(
+                        "Agent approval failed:",
+                        error
+                    );
+
+                    agentApproveApprovalButton.disabled =
+                        false;
+
+                    agentApproveApprovalButton.textContent =
+                        "Approve";
+
+                    if (
+                        agentDenyApprovalButton
+                    ) {
+                        agentDenyApprovalButton.disabled =
+                            false;
+                    }
+
+                    if (agentResult) {
+                        agentResult.textContent =
+                            `Approval failed: ${error.message}`;
+                    }
+                }
+            }
+        );
+    }
+
+
+    // =========================
+    // DENY
+    // =========================
+
+    if (
+        agentDenyApprovalButton
+    ) {
+        agentDenyApprovalButton.addEventListener(
+            "click",
+            async function () {
+                if (
+                    !currentAgentApprovalId
+                ) {
+                    return;
+                }
+
+                const approvalId =
+                    currentAgentApprovalId;
+
+                agentDenyApprovalButton.disabled =
+                    true;
+
+                agentDenyApprovalButton.textContent =
+                    "Denying...";
+
+                if (
+                    agentApproveApprovalButton
+                ) {
+                    agentApproveApprovalButton.disabled =
+                        true;
+                }
+
+                try {
+                    const response =
+                        await fetch(
+                            `/projects/agent-approvals/${approvalId}/deny/`,
+                            {
+                                method:
+                                    "POST",
+
+                                headers: {
+                                    "X-CSRFToken":
+                                        getCookie(
+                                            "csrftoken"
+                                        ),
+
+                                    "X-Requested-With":
+                                        "XMLHttpRequest",
+                                },
+                            }
+                        );
+
+                    const responseText =
+                        await response.text();
+
+                    let data;
+
+                    try {
+                        data =
+                            JSON.parse(
+                                responseText
+                            );
+                    } catch {
+                        throw new Error(
+                            "The server returned an invalid response."
+                        );
+                    }
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            `Denial failed (${response.status})`
+                        );
+                    }
+
+                    currentAgentApprovalId =
+                        null;
+
+                    if (
+                        agentApprovalContainer
+                    ) {
+                        agentApprovalContainer.hidden =
+                            true;
+                    }
+
+                    if (agentStatus) {
+                        agentStatus.textContent =
+                            "Cancelled";
+                    }
+
+                    if (
+                        agentCurrentStep
+                    ) {
+                        agentCurrentStep.textContent =
+                            "Approval denied";
+                    }
+
+                    if (agentResult) {
+                        agentResult.textContent =
+                            "The requested action was denied. "
+                            + "The agent run has been cancelled.";
+                    }
+
+                    agentDenyApprovalButton.disabled =
+                        false;
+
+                    agentDenyApprovalButton.textContent =
+                        "Deny";
+
+                    if (
+                        agentApproveApprovalButton
+                    ) {
+                        agentApproveApprovalButton.disabled =
+                            false;
+                    }
+
+                    pollAgentRun(
+                        data.run_id
+                    );
+
+                } catch (error) {
+                    console.error(
+                        "Agent denial failed:",
+                        error
+                    );
+
+                    agentDenyApprovalButton.disabled =
+                        false;
+
+                    agentDenyApprovalButton.textContent =
+                        "Deny";
+
+                    if (
+                        agentApproveApprovalButton
+                    ) {
+                        agentApproveApprovalButton.disabled =
+                            false;
+                    }
+
+                    if (agentResult) {
+                        agentResult.textContent =
+                            `Denial failed: ${error.message}`;
+                    }
+                }
+            }
+        );
+    }
+
+
+    // =========================
+    // RESUME
+    // =========================
+
+    if (agentResumeButton) {
+        agentResumeButton.addEventListener(
+            "click",
+            async function () {
+                if (
+                    !currentAgentRunId
+                ) {
+                    return;
+                }
+
+                const sourceRunId =
+                    currentAgentRunId;
+
+                agentResumeButton.disabled =
+                    true;
+
+                agentResumeButton.textContent =
+                    "↻ Restoring...";
+
+                if (
+                    agentResumeMessage
+                ) {
+                    agentResumeMessage.textContent =
+                        "Restoring the previous "
+                        + "agent workspace...";
+                }
+
+                try {
+                    const response =
+                        await fetch(
+                            `/projects/agent-runs/${sourceRunId}/resume/`,
+                            {
+                                method:
+                                    "POST",
+
+                                headers: {
+                                    "X-CSRFToken":
+                                        getCookie(
+                                            "csrftoken"
+                                        ),
+
+                                    "X-Requested-With":
+                                        "XMLHttpRequest",
+                                },
+                            }
+                        );
+
+                    const responseText =
+                        await response.text();
+
+                    let data;
+
+                    try {
+                        data =
+                            JSON.parse(
+                                responseText
+                            );
+                    } catch {
+                        throw new Error(
+                            "The server returned an invalid response."
+                        );
+                    }
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            `Resume failed (${response.status})`
+                        );
+                    }
+
+                    if (
+                        agentPollTimer
+                    ) {
+                        clearTimeout(
+                            agentPollTimer
+                        );
+
+                        agentPollTimer =
+                            null;
+                    }
+
+                    currentAgentRunId =
+                        data.run_id;
+
+                    if (
+                        agentResumeContainer
+                    ) {
+                        agentResumeContainer.hidden =
+                            true;
+                    }
+
+                    agentResumeButton.disabled =
+                        false;
+
+                    agentResumeButton.textContent =
+                        "↻ Resume Agent";
+
+                    pollAgentRun(
+                        data.run_id
+                    );
+
+                } catch (error) {
+                    console.error(
+                        "Agent resume failed:",
+                        error
+                    );
+
+                    agentResumeButton.disabled =
+                        false;
+
+                    agentResumeButton.textContent =
+                        "↻ Resume Agent";
+
+                    if (
+                        agentResumeMessage
+                    ) {
+                        agentResumeMessage.textContent =
+                            `Resume failed: ${error.message}`;
+                    }
+                }
+            }
+        );
+    }
+
+
+    // =========================
+    // RETRY
+    // =========================
+
+    if (agentRetryButton) {
+        agentRetryButton.addEventListener(
+            "click",
+            async function () {
+                if (
+                    !currentAgentRunId
+                ) {
+                    return;
+                }
+
+                const sourceRunId =
+                    currentAgentRunId;
+
+                agentRetryButton.disabled =
+                    true;
+
+                agentRetryButton.textContent =
+                    "↻ Retrying...";
+
+                if (
+                    agentRetryMessage
+                ) {
+                    agentRetryMessage.textContent =
+                        "Starting a fresh agent run...";
+                }
+
+                try {
+                    const response =
+                        await fetch(
+                            `/projects/agent-runs/${sourceRunId}/retry/`,
+                            {
+                                method:
+                                    "POST",
+
+                                headers: {
+                                    "X-CSRFToken":
+                                        getCookie(
+                                            "csrftoken"
+                                        ),
+
+                                    "X-Requested-With":
+                                        "XMLHttpRequest",
+                                },
+                            }
+                        );
+
+                    const responseText =
+                        await response.text();
+
+                    let data;
+
+                    try {
+                        data =
+                            JSON.parse(
+                                responseText
+                            );
+                    } catch {
+                        throw new Error(
+                            "The server returned an invalid response."
+                        );
+                    }
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            `Retry failed (${response.status})`
+                        );
+                    }
+
+                    if (
+                        agentPollTimer
+                    ) {
+                        clearTimeout(
+                            agentPollTimer
+                        );
+
+                        agentPollTimer =
+                            null;
+                    }
+
+                    resetAgentWindow();
+
+                    currentAgentRunId =
+                        data.run_id;
+
+                    if (
+                        agentRetryContainer
+                    ) {
+                        agentRetryContainer.hidden =
+                            true;
+                    }
+
+                    if (
+                        agentCurrentStep
+                    ) {
+                        agentCurrentStep.textContent =
+                            "Starting fresh attempt...";
+                    }
+
+                    pollAgentRun(
+                        data.run_id
+                    );
+
+                } catch (error) {
+                    console.error(
+                        "Agent retry failed:",
+                        error
+                    );
+
+                    agentRetryButton.disabled =
+                        false;
+
+                    agentRetryButton.textContent =
+                        "↻ Retry Agent";
+
+                    if (
+                        agentRetryMessage
+                    ) {
+                        agentRetryMessage.textContent =
+                            `Retry failed: ${error.message}`;
+                    }
+                }
+            }
+        );
+    }
+
+
+    // =========================
+    // CLOSE MODAL
+    // =========================
+
+    if (agentCloseButton) {
+        agentCloseButton.addEventListener(
+            "click",
+            closeAgentModal
+        );
+    }
+
+
+    if (agentModal) {
+        const backdrop =
+            agentModal.querySelector(
+                ".agent-modal-backdrop"
+            );
+
+        if (backdrop) {
+            backdrop.addEventListener(
+                "click",
+                closeAgentModal
+            );
+        }
+    }
+
+
+    document.addEventListener(
+        "keydown",
+        function (event) {
+            if (
+                event.key ===
+                    "Escape" &&
+                agentModal &&
+                !agentModal.hidden
+            ) {
+                closeAgentModal();
+            }
+        }
+    );
+    // =========================
+// MARK AGENT TASK COMPLETE
+// =========================
+
+if (agentMarkCompleteButton) {
+    agentMarkCompleteButton.addEventListener(
+        "click",
+        function () {
+            const completeUrl =
+                agentMarkCompleteButton.dataset.completeUrl;
+
+            if (!completeUrl) {
+                console.error(
+                    "Missing agent task completion URL."
+                );
+                return;
+            }
+
+            const form =
+                document.createElement("form");
+
+            form.method = "POST";
+            form.action = completeUrl;
+
+            const csrfInput =
+                document.createElement("input");
+
+            csrfInput.type = "hidden";
+            csrfInput.name =
+                "csrfmiddlewaretoken";
+            csrfInput.value =
+                getCookie("csrftoken");
+
+            const statusInput =
+                document.createElement("input");
+
+            statusInput.type = "hidden";
+            statusInput.name = "status";
+            statusInput.value = "done";
+
+            const returnInput =
+                document.createElement("input");
+
+            returnInput.type = "hidden";
+            returnInput.name = "return_to";
+            returnInput.value = "workspace";
+
+            form.appendChild(csrfInput);
+            form.appendChild(statusInput);
+            form.appendChild(returnInput);
+
+            document.body.appendChild(form);
+            form.submit();
+        }
+    );
+}
+//=========================
+// REVIEW AGENT WORK
+// =========================
+
+if (agentReviewWorkButton) {
+    agentReviewWorkButton.addEventListener(
+        "click",
+        async () => {
+            if (
+                !currentAgentRunId ||
+                currentAgentResultFiles.length === 0
+            ) {
+                console.warn(
+                    "No changed files available to review."
+                );
+                return;
+            }
+
+            const firstFile =
+                currentAgentResultFiles[0];
+
+            if (!firstFile.path) {
+                return;
+            }
+
+            // Find the existing Files tab
+            const filesTab =
+                Array.from(agentWorkspaceTabs).find(
+                    (button) =>
+                        button.dataset.agentTab === "files"
+                );
+
+            // Use the existing tab behavior
+            if (filesTab) {
+                filesTab.click();
+            }
+
+            // Refresh the file tree
+            await loadAgentFiles(
+                currentAgentRunId
+            );
+
+            // Open the first changed file
+            await loadAgentFile(
+                currentAgentRunId,
+                firstFile.path
+            );
+        }
+    );
+}
 </script>
 {% endblock %}

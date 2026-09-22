@@ -4,6 +4,17 @@ import time
 
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
+import secrets
+from datetime import timedelta
+
+import requests
+
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect
+from django.utils import timezone
+
+from projects.models import ConnectedAccount
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -22,6 +33,7 @@ from django.views.decorators.http import require_POST
 from openai import project
 
 from projects.analytics import capture_event
+from django.db import transaction
 
 from .ai.services import (
     generate_additional_tasks,
@@ -36,6 +48,9 @@ from .ai.services import (
     classify_workspace_assistant_intent,
 )
 from .models import (
+    AgentRun,
+    AgentRunLog,
+    AgentRunEvent,
     Project,
     ProjectChange,
     ProjectConflict,
@@ -54,7 +69,11 @@ from .models import (
     ProjectResource,
     ProjectRole,
     Notification,
+    AgentWorkspaceRecord,
+    AgentApprovalRequest,
 )
+from projects.ai.agent_tools import AgentWorkspace
+from .tasks import execute_agent_run_task
 from django.db.models import Q
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -12812,3 +12831,1412 @@ def send_due_task_reminders():
             user=user,
             reminder_type=reminder_type,
         )
+@login_required
+def inbox(request):
+    notifications = (
+        request.user.notifications
+        .select_related(
+            "project",
+            "task",
+            "actor",
+        )
+        .all()
+    )
+
+    return render(
+        request,
+        "inbox.html",
+        {
+            "notifications": notifications,
+        },
+    )
+@login_required
+@require_POST
+def mark_notification_read(
+    request,
+    notification_pk,
+):
+    notification = get_object_or_404(
+        Notification,
+        pk=notification_pk,
+        recipient=request.user,
+    )
+
+    notification.is_read = True
+    notification.save(
+        update_fields=["is_read"]
+    )
+
+    return redirect("inbox")
+def notify_task_assigned(
+    *,
+    task,
+    recipient,
+    actor,
+):
+    Notification.objects.create(
+        recipient=recipient,
+        actor=actor,
+        project=task.project,
+        task=task,
+        notification_type=(
+            Notification.Type.TASK_ASSIGNED
+        ),
+        message=(
+            f"You were assigned "
+            f"'{task.title}'."
+        ),
+    )
+from .models import Notification
+
+
+def notify_project_added(
+    *,
+    recipient,
+    project,
+    actor=None,
+):
+    if actor and recipient == actor:
+        return
+
+    actor_name = (
+        actor.get_full_name()
+        or actor.username
+        if actor
+        else "Someone"
+    )
+
+    Notification.objects.create(
+        recipient=recipient,
+        notification_type=(
+            Notification.Type.PROJECT_ADDED
+        ),
+        project=project,
+        actor=actor,
+        message=(
+            f"{actor_name} added you to "
+            f"{project.name}."
+        ),
+    )
+
+
+def notify_task_assigned(
+    *,
+    recipient,
+    project,
+    task,
+    actor=None,
+):
+    if actor and recipient == actor:
+        return
+
+    actor_name = (
+        actor.get_full_name()
+        or actor.username
+        if actor
+        else "Someone"
+    )
+
+    Notification.objects.create(
+        recipient=recipient,
+        notification_type=(
+            Notification.Type.TASK_ASSIGNED
+        ),
+        project=project,
+        task=task,
+        actor=actor,
+        message=(
+            f"{actor_name} assigned you "
+            f'"{task.title}".'
+        ),
+    )
+
+
+def notify_task_completed(
+    *,
+    recipient,
+    project,
+    task,
+    actor=None,
+):
+    if actor and recipient == actor:
+        return
+
+    actor_name = (
+        actor.get_full_name()
+        or actor.username
+        if actor
+        else "Someone"
+    )
+
+    Notification.objects.create(
+        recipient=recipient,
+        notification_type=(
+            Notification.Type.TASK_COMPLETED
+        ),
+        project=project,
+        task=task,
+        actor=actor,
+        message=(
+            f"{actor_name} completed "
+            f'"{task.title}".'
+        ),
+    )
+@login_required
+@require_POST
+def resume_agent_run(request, run_pk):
+    source_run = get_object_or_404(
+        AgentRun.objects.select_related(
+            "project",
+            "task",
+            "user",
+        ),
+        pk=run_pk,
+        user=request.user,
+    )
+
+    if source_run.status not in {
+        AgentRun.Status.BLOCKED,
+        AgentRun.Status.FAILED,
+    }:
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": (
+                    "Only blocked or failed "
+                    "agent runs can be resumed."
+                ),
+            },
+            status=400,
+        )
+
+    try:
+        workspace_record = (
+            source_run.workspace_record
+        )
+    except AgentWorkspaceRecord.DoesNotExist:
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": (
+                    "This agent run has no "
+                    "preserved workspace."
+                ),
+            },
+            status=400,
+        )
+
+    if (
+        workspace_record.status
+        != AgentWorkspaceRecord.Status.PRESERVED
+    ):
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": (
+                    "This agent run's workspace "
+                    "has not been preserved."
+                ),
+            },
+            status=400,
+        )
+
+    if workspace_record.manifest.get(
+        "patch_truncated",
+        False,
+    ):
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": (
+                    "This run's recovery data was "
+                    "truncated and cannot be safely "
+                    "resumed automatically."
+                ),
+            },
+            status=400,
+        )
+
+    # Prevent repeated clicks from creating several
+    # active resume jobs for the same source run.
+    existing_resume = (
+        source_run.resumed_runs
+        .filter(
+            status__in=[
+                AgentRun.Status.QUEUED,
+                AgentRun.Status.RUNNING,
+            ]
+        )
+        .order_by("-created_at")
+        .first()
+    )
+
+    if existing_resume:
+        return JsonResponse(
+            {
+                "ok": True,
+                "run_id": existing_resume.pk,
+                "status": existing_resume.status,
+                "existing": True,
+            }
+        )
+
+    resumed_run = AgentRun.objects.create(
+        project=source_run.project,
+        task=source_run.task,
+        user=request.user,
+        model_name=source_run.model_name,
+        resumed_from=source_run,
+        status=AgentRun.Status.QUEUED,
+        progress=0,
+        current_step="Queued for recovery",
+    )
+
+    AgentRunLog.objects.create(
+        run=resumed_run,
+        message=(
+            "Resume requested from "
+            f"AgentRun {source_run.pk}."
+        ),
+    )
+
+    try:
+        execute_agent_run_task.delay(
+            resumed_run.pk
+        )
+    except Exception as exc:
+        resumed_run.status = (
+            AgentRun.Status.FAILED
+        )
+        resumed_run.error = (
+            "The resumed agent could not be "
+            "queued for execution."
+        )
+        resumed_run.current_step = (
+            "Failed to queue"
+        )
+        resumed_run.completed_at = timezone.now()
+
+        resumed_run.save(
+            update_fields=[
+                "status",
+                "error",
+                "current_step",
+                "completed_at",
+            ]
+        )
+
+        AgentRunLog.objects.create(
+            run=resumed_run,
+            message=(
+                "Resume queueing failed: "
+                f"{exc}"
+            ),
+        )
+
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": (
+                    "The resumed agent could "
+                    "not be queued."
+                ),
+                "run_id": resumed_run.pk,
+            },
+            status=500,
+        )
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "run_id": resumed_run.pk,
+            "status": resumed_run.status,
+            "resumed_from": source_run.pk,
+            "existing": False,
+        },
+        status=201,
+    )
+@login_required
+@require_POST
+def deploy_task_agent(request, project_pk, task_pk):
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+    )
+
+    task = get_object_or_404(
+        Task,
+        pk=task_pk,
+        project=project,
+    )
+
+    agent_run = AgentRun.objects.create(
+        project=project,
+        task=task,
+        user=request.user,
+        model_name="gpt-6-astra",
+        status=AgentRun.Status.QUEUED,
+        progress=0,
+        current_step="Queued",
+    )
+    
+
+    AgentRunLog.objects.create(
+        run=agent_run,
+        message="Agent deployment requested.",
+    )
+    execute_agent_run_task.delay(
+        agent_run.pk
+    )
+
+    return JsonResponse({
+        "run_id": agent_run.id,
+        "status": agent_run.status,
+    })
+@login_required
+def agent_run_status(request, run_pk):
+    run = get_object_or_404(
+        AgentRun,
+        pk=run_pk,
+        user=request.user,
+    )
+
+    try:
+        workspace_record = run.workspace_record
+    except AgentWorkspaceRecord.DoesNotExist:
+        workspace_record = None
+
+    # Check whether this run is currently waiting
+    # for the user to approve something.
+    pending_approval = (
+        run.approval_requests
+        .filter(
+            status=AgentApprovalRequest.Status.PENDING,
+        )
+        .order_by("-created_at")
+        .first()
+    )
+
+    # A run waiting for approval must NOT be resumable
+    # through the generic Resume Agent flow.
+    can_resume = (
+        pending_approval is None
+        and run.status in {
+            AgentRun.Status.BLOCKED,
+            AgentRun.Status.FAILED,
+        }
+        and workspace_record is not None
+        and workspace_record.status
+            == AgentWorkspaceRecord.Status.PRESERVED
+        and not workspace_record.manifest.get(
+            "patch_truncated",
+            False,
+        )
+    )
+
+    pending_approval_data = None
+
+    if pending_approval is not None:
+        pending_approval_data = {
+            "id": pending_approval.id,
+            "action_type": pending_approval.action_type,
+            "title": pending_approval.title,
+            "description": pending_approval.description,
+            "tool_name": pending_approval.tool_name,
+            "tool_arguments": pending_approval.tool_arguments,
+            "created_at": (
+                pending_approval.created_at.isoformat()
+            ),
+        }
+    can_retry = (
+        run.status
+        in {
+            AgentRun.Status.CANCELLED,
+            AgentRun.Status.FAILED,
+        }
+    )
+
+    return JsonResponse({
+        "id": run.id,
+        "status": run.status,
+        "progress": run.progress,
+        "current_step": run.current_step,
+        "result": run.result,
+        "error": run.error,
+        "resumed_from": run.resumed_from_id,
+        "can_retry": can_retry,
+        "result_summary": run.result_summary,
+        "result_actions": run.result_actions,
+        "result_files": run.result_files,
+        "result_verification": run.result_verification,
+        "result_warnings": run.result_warnings,
+        "project_id": run.project_id,
+        "task_id": run.task_id,
+        # Recovery
+        "can_resume": can_resume,
+
+        # Approval
+        "pending_approval": pending_approval_data,
+
+        "logs": [
+            {
+                "message": log.message,
+                "created_at": (
+                    log.created_at.isoformat()
+                ),
+            }
+            for log in run.logs.all()
+        ],
+    })
+@login_required
+def agent_run_files(request, run_pk):
+    run = get_object_or_404(
+        AgentRun,
+        pk=run_pk,
+        user=request.user,
+    )
+
+    workspace = AgentWorkspace(run.pk)
+
+    path = request.GET.get(
+        "path",
+        ".",
+    )
+
+    try:
+        files = workspace.list_files(path)
+
+        return JsonResponse(
+            {
+                "path": path,
+                "files": files,
+            }
+        )
+
+    except Exception as exc:
+        return JsonResponse(
+            {
+                "error": str(exc),
+            },
+            status=400,
+        )
+
+
+@login_required
+def agent_run_file_content(
+    request,
+    run_pk,
+):
+    run = get_object_or_404(
+        AgentRun,
+        pk=run_pk,
+        user=request.user,
+    )
+
+    workspace = AgentWorkspace(run.pk)
+
+    path = request.GET.get("path")
+
+    if not path:
+        return JsonResponse(
+            {
+                "error": "Missing path.",
+            },
+            status=400,
+        )
+
+    try:
+        content = workspace.read_file(path)
+
+        return JsonResponse(
+            {
+                "path": path,
+                "content": content,
+            }
+        )
+
+    except Exception as exc:
+        return JsonResponse(
+            {
+                "error": str(exc),
+            },
+            status=400,
+        )
+
+@login_required
+def agent_run_events(
+    request,
+    run_pk,
+):
+    run = get_object_or_404(
+        AgentRun,
+        pk=run_pk,
+        user=request.user,
+    )
+
+    events = run.events.all()
+
+    return JsonResponse(
+        {
+            "events": [
+                {
+                    "id": event.pk,
+                    "event_type": (
+                        event.event_type
+                    ),
+                    "tool_name": (
+                        event.tool_name
+                    ),
+                    "data": event.data,
+                    "created_at": (
+                        event.created_at
+                        .isoformat()
+                    ),
+                }
+                for event in events
+            ],
+        }
+    )
+@login_required
+def github_connect(request):
+    if not settings.GITHUB_APP_CLIENT_ID:
+        raise RuntimeError(
+            "GITHUB_APP_CLIENT_ID is not configured."
+        )
+
+    state = secrets.token_urlsafe(32)
+
+    request.session["github_oauth_state"] = state
+
+    params = {
+        "client_id": settings.GITHUB_APP_CLIENT_ID,
+        "redirect_uri": settings.GITHUB_CALLBACK_URL,
+        "state": state,
+    }
+
+    query = requests.compat.urlencode(params)
+
+    return redirect(
+        "https://github.com/login/oauth/authorize?"
+        + query
+    )
+@login_required
+def github_callback(request):
+    expected_state = request.session.pop(
+        "github_oauth_state",
+        None,
+    )
+
+    received_state = request.GET.get("state")
+
+    if (
+        not expected_state
+        or not received_state
+        or not secrets.compare_digest(
+            expected_state,
+            received_state,
+        )
+    ):
+        raise ValueError(
+            "Invalid GitHub OAuth state."
+        )
+
+    code = request.GET.get("code")
+
+    if not code:
+        raise ValueError(
+            "GitHub did not return an authorization code."
+        )
+
+    token_response = requests.post(
+        "https://github.com/login/oauth/access_token",
+        data={
+            "client_id": settings.GITHUB_APP_CLIENT_ID,
+            "client_secret": (
+                settings.GITHUB_APP_CLIENT_SECRET
+            ),
+            "code": code,
+            "redirect_uri": (
+                settings.GITHUB_CALLBACK_URL
+            ),
+        },
+        headers={
+            "Accept": "application/json",
+        },
+        timeout=20,
+    )
+
+    token_response.raise_for_status()
+
+    token_data = token_response.json()
+
+    access_token = token_data.get(
+        "access_token"
+    )
+
+    if not access_token:
+        raise ValueError(
+            "GitHub returned no access token."
+        )
+
+    user_response = requests.get(
+        "https://api.github.com/user",
+        headers={
+            "Accept": (
+                "application/vnd.github+json"
+            ),
+            "Authorization": (
+                f"Bearer {access_token}"
+            ),
+            "User-Agent": "Projivo",
+        },
+        timeout=20,
+    )
+
+    user_response.raise_for_status()
+
+    github_user = user_response.json()
+
+    access_expires_at = None
+    refresh_expires_at = None
+
+    expires_in = token_data.get("expires_in")
+
+    if expires_in:
+        access_expires_at = (
+            timezone.now()
+            + timedelta(
+                seconds=int(expires_in)
+            )
+        )
+
+    refresh_token = token_data.get(
+        "refresh_token",
+        "",
+    )
+
+    refresh_expires_in = token_data.get(
+        "refresh_token_expires_in"
+    )
+
+    if refresh_expires_in:
+        refresh_expires_at = (
+            timezone.now()
+            + timedelta(
+                seconds=int(
+                    refresh_expires_in
+                )
+            )
+        )
+
+    ConnectedAccount.objects.update_or_create(
+        user=request.user,
+        provider=(
+            ConnectedAccount.Provider.GITHUB
+        ),
+        external_account_id=str(
+            github_user["id"]
+        ),
+        defaults={
+            "external_username": (
+                github_user["login"]
+            ),
+            "access_token": (
+                access_token
+            ),
+            "refresh_token": (
+                refresh_token
+            ),
+            "token_type": (
+                token_data.get(
+                    "token_type",
+                    "",
+                )
+            ),
+            "scope": (
+                token_data.get(
+                    "scope",
+                    "",
+                )
+            ),
+            "access_token_expires_at": (
+                access_expires_at
+            ),
+            "refresh_token_expires_at": (
+                refresh_expires_at
+            ),
+            "metadata": {
+                "avatar_url": (
+                    github_user.get(
+                        "avatar_url"
+                    )
+                ),
+                "profile_url": (
+                    github_user.get(
+                        "html_url"
+                    )
+                ),
+            },
+        },
+    )
+
+    return redirect(
+        "project_list"
+    )
+@login_required
+@require_POST
+def resume_agent_run(request, run_pk):
+    source_run = get_object_or_404(
+        AgentRun.objects.select_related(
+            "project",
+            "task",
+            "user",
+        ),
+        pk=run_pk,
+        user=request.user,
+    )
+
+    if source_run.status not in {
+        AgentRun.Status.BLOCKED,
+        AgentRun.Status.FAILED,
+    }:
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": (
+                    "Only blocked or failed "
+                    "agent runs can be resumed."
+                ),
+            },
+            status=400,
+        )
+
+    try:
+        workspace_record = (
+            source_run.workspace_record
+        )
+    except AgentWorkspaceRecord.DoesNotExist:
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": (
+                    "This agent run has no "
+                    "preserved workspace."
+                ),
+            },
+            status=400,
+        )
+
+    if (
+        workspace_record.status
+        != AgentWorkspaceRecord.Status.PRESERVED
+    ):
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": (
+                    "This agent run's workspace "
+                    "has not been preserved."
+                ),
+            },
+            status=400,
+        )
+
+    if workspace_record.manifest.get(
+        "patch_truncated",
+        False,
+    ):
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": (
+                    "This workspace's recovery "
+                    "patch was truncated and cannot "
+                    "be safely resumed."
+                ),
+            },
+            status=400,
+        )
+
+    # Prevent double-clicks from creating two
+    # simultaneous resumed agents.
+    existing_run = (
+        source_run.resumed_runs
+        .filter(
+            status__in=[
+                AgentRun.Status.QUEUED,
+                AgentRun.Status.RUNNING,
+            ]
+        )
+        .order_by("-created_at")
+        .first()
+    )
+
+    if existing_run:
+        return JsonResponse(
+            {
+                "ok": True,
+                "run_id": existing_run.id,
+                "status": existing_run.status,
+                "already_resumed": True,
+            }
+        )
+
+    resumed_run = AgentRun.objects.create(
+        project=source_run.project,
+        task=source_run.task,
+        user=request.user,
+        model_name=source_run.model_name,
+        resumed_from=source_run,
+        status=AgentRun.Status.QUEUED,
+        progress=0,
+        current_step="Queued for recovery",
+    )
+
+    AgentRunLog.objects.create(
+        run=resumed_run,
+        message=(
+            "Resume requested from "
+            f"AgentRun {source_run.id}."
+        ),
+    )
+
+    try:
+        execute_agent_run_task.delay(
+            resumed_run.id
+        )
+    except Exception as exc:
+        resumed_run.status = (
+            AgentRun.Status.FAILED
+        )
+        resumed_run.error = (
+            "The resumed agent could not be "
+            f"queued: {exc}"
+        )
+        resumed_run.current_step = (
+            "Failed to queue"
+        )
+        resumed_run.completed_at = (
+            timezone.now()
+        )
+        resumed_run.save(
+            update_fields=[
+                "status",
+                "error",
+                "current_step",
+                "completed_at",
+            ]
+        )
+
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": resumed_run.error,
+                "run_id": resumed_run.id,
+            },
+            status=500,
+        )
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "run_id": resumed_run.id,
+            "status": resumed_run.status,
+            "resumed_from": source_run.id,
+            "already_resumed": False,
+        }
+    )
+@login_required
+@require_POST
+def approve_agent_approval(
+    request,
+    approval_pk,
+):
+    try:
+        with transaction.atomic():
+            approval = get_object_or_404(
+                AgentApprovalRequest.objects
+                .select_for_update()
+                .select_related(
+                    "run",
+                    "run__project",
+                    "run__task",
+                    "continuation_run",
+                ),
+                pk=approval_pk,
+                run__user=request.user,
+            )
+
+            source_run = approval.run
+
+            # ---------------------------------
+            # Already handled
+            # ---------------------------------
+
+            if (
+                approval.status
+                == AgentApprovalRequest.Status.APPROVED
+                and approval.continuation_run_id
+            ):
+                continuation = (
+                    approval.continuation_run
+                )
+
+                return JsonResponse(
+                    {
+                        "ok": True,
+                        "approval_id": approval.id,
+                        "run_id": continuation.id,
+                        "status": continuation.status,
+                        "existing": True,
+                    }
+                )
+
+            if (
+                approval.status
+                != AgentApprovalRequest.Status.PENDING
+            ):
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "error": (
+                            "This approval request has "
+                            "already been resolved."
+                        ),
+                    },
+                    status=400,
+                )
+
+            # ---------------------------------
+            # Source run must still be blocked
+            # ---------------------------------
+
+            if (
+                source_run.status
+                != AgentRun.Status.BLOCKED
+            ):
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "error": (
+                            "The source agent run is "
+                            "not waiting for approval."
+                        ),
+                    },
+                    status=400,
+                )
+
+            # ---------------------------------
+            # Verify preserved workspace
+            # ---------------------------------
+
+            try:
+                workspace_record = (
+                    source_run.workspace_record
+                )
+            except AgentWorkspaceRecord.DoesNotExist:
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "error": (
+                            "This agent run has no "
+                            "preserved workspace."
+                        ),
+                    },
+                    status=400,
+                )
+
+            if (
+                workspace_record.status
+                != AgentWorkspaceRecord.Status.PRESERVED
+            ):
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "error": (
+                            "This agent run's workspace "
+                            "has not been preserved."
+                        ),
+                    },
+                    status=400,
+                )
+
+            if workspace_record.manifest.get(
+                "patch_truncated",
+                False,
+            ):
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "error": (
+                            "This run's recovery data "
+                            "was truncated and cannot "
+                            "be safely continued."
+                        ),
+                    },
+                    status=400,
+                )
+
+            # ---------------------------------
+            # Create continuation run
+            # ---------------------------------
+
+            continuation = AgentRun.objects.create(
+                project=source_run.project,
+                task=source_run.task,
+                user=request.user,
+                model_name=source_run.model_name,
+                resumed_from=source_run,
+                status=AgentRun.Status.QUEUED,
+                progress=0,
+                current_step=(
+                    "Queued after approval"
+                ),
+            )
+
+            approval.status = (
+                AgentApprovalRequest.Status.APPROVED
+            )
+
+            approval.resolved_by = request.user
+            approval.resolved_at = timezone.now()
+            approval.continuation_run = continuation
+
+            approval.save(
+                update_fields=[
+                    "status",
+                    "resolved_by",
+                    "resolved_at",
+                    "continuation_run",
+                ]
+            )
+
+            AgentRunLog.objects.create(
+                run=source_run,
+                message=(
+                    "User approved requested action "
+                    f"'{approval.title}'."
+                ),
+            )
+
+            AgentRunLog.objects.create(
+                run=continuation,
+                message=(
+                    "Continuation created after "
+                    f"approval {approval.id} from "
+                    f"AgentRun {source_run.id}."
+                ),
+            )
+
+            continuation_id = continuation.id
+            approval_id = approval.id
+
+            # Queue only after the DB transaction
+            # successfully commits.
+            transaction.on_commit(
+                lambda: execute_agent_run_task.delay(
+                    continuation_id
+                )
+            )
+
+    except Exception as exc:
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": (
+                    "Could not approve the agent "
+                    f"request: {exc}"
+                ),
+            },
+            status=500,
+        )
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "approval_id": approval_id,
+            "run_id": continuation_id,
+            "status": AgentRun.Status.QUEUED,
+            "existing": False,
+        },
+        status=201,
+    )
+@login_required
+@require_POST
+def deny_agent_approval(request, approval_pk):
+    with transaction.atomic():
+        approval = get_object_or_404(
+            AgentApprovalRequest.objects
+            .select_for_update()
+            .select_related("run"),
+            pk=approval_pk,
+            run__user=request.user,
+        )
+
+        # Make repeated deny requests harmless.
+        if (
+            approval.status
+            == AgentApprovalRequest.Status.DENIED
+        ):
+            return JsonResponse({
+                "approval_id": approval.id,
+                "status": approval.status,
+                "run_id": approval.run_id,
+            })
+
+        if (
+            approval.status
+            != AgentApprovalRequest.Status.PENDING
+        ):
+            return JsonResponse(
+                {
+                    "error": (
+                        "This approval request "
+                        "is no longer pending."
+                    ),
+                },
+                status=400,
+            )
+
+        source_run = approval.run
+
+        if (
+            source_run.status
+            != AgentRun.Status.BLOCKED
+        ):
+            return JsonResponse(
+                {
+                    "error": (
+                        "The agent run is not "
+                        "waiting for approval."
+                    ),
+                },
+                status=400,
+            )
+
+        now = timezone.now()
+
+        approval.status = (
+            AgentApprovalRequest.Status.DENIED
+        )
+        approval.resolved_by = request.user
+        approval.resolved_at = now
+
+        approval.save(
+            update_fields=[
+                "status",
+                "resolved_by",
+                "resolved_at",
+            ]
+        )
+
+        source_run.status = (
+            AgentRun.Status.CANCELLED
+        )
+        source_run.current_step = (
+            "Approval denied"
+        )
+        source_run.result = (
+            "The requested action was "
+            "denied by the user."
+        )
+        source_run.error = ""
+        source_run.completed_at = now
+
+        source_run.save(
+            update_fields=[
+                "status",
+                "current_step",
+                "result",
+                "error",
+                "completed_at",
+            ]
+        )
+
+        AgentRunLog.objects.create(
+            run=source_run,
+            message=(
+                "User denied approval request "
+                f"{approval.pk}: "
+                f"{approval.title}"
+            ),
+        )
+
+    return JsonResponse({
+        "approval_id": approval.id,
+        "status": approval.status,
+        "run_id": source_run.id,
+    })
+@login_required
+@require_POST
+def cancel_agent_run(request, run_pk):
+    run = get_object_or_404(
+        AgentRun,
+        pk=run_pk,
+        user=request.user,
+    )
+
+    if run.status not in {
+        AgentRun.Status.QUEUED,
+        AgentRun.Status.RUNNING,
+    }:
+        return JsonResponse(
+            {
+                "error": (
+                    "Only queued or running "
+                    "agent runs can be stopped."
+                ),
+                "run_id": run.pk,
+                "status": run.status,
+            },
+            status=400,
+        )
+
+    run.status = AgentRun.Status.CANCELLED
+    run.current_step = "Stopped by user"
+    run.completed_at = timezone.now()
+
+    run.save(
+        update_fields=[
+            "status",
+            "current_step",
+            "completed_at",
+        ]
+    )
+
+    AgentRunLog.objects.create(
+        run=run,
+        message="Agent stopped by user.",
+    )
+
+    AgentRunEvent.objects.create(
+        run=run,
+        event_type="agent_cancelled",
+        data={
+            "message": "Agent stopped by user.",
+        },
+    )
+
+    return JsonResponse(
+        {
+            "run_id": run.pk,
+            "status": run.status,
+            "current_step": run.current_step,
+        }
+    )
+@login_required
+@require_POST
+def retry_agent_run(request, run_pk):
+    source_run = get_object_or_404(
+        AgentRun.objects.select_related(
+            "project",
+            "task",
+        ),
+        pk=run_pk,
+        user=request.user,
+    )
+
+    if source_run.status not in {
+        AgentRun.Status.CANCELLED,
+        AgentRun.Status.FAILED,
+    }:
+        return JsonResponse(
+            {
+                "error": (
+                    "Only cancelled or failed "
+                    "agent runs can be retried."
+                ),
+                "run_id": source_run.pk,
+                "status": source_run.status,
+            },
+            status=400,
+        )
+
+    # Prevent accidentally creating multiple
+    # retries from repeated requests.
+    existing_run = (
+        AgentRun.objects
+        .filter(
+            project=source_run.project,
+            task=source_run.task,
+            user=request.user,
+            status__in=[
+                AgentRun.Status.QUEUED,
+                AgentRun.Status.RUNNING,
+            ],
+        )
+        .exclude(pk=source_run.pk)
+        .order_by("-created_at")
+        .first()
+    )
+
+    if existing_run:
+        return JsonResponse(
+            {
+                "run_id": existing_run.pk,
+                "status": existing_run.status,
+                "retried_from": source_run.pk,
+                "existing": True,
+            }
+        )
+
+    try:
+        with transaction.atomic():
+            new_run = AgentRun.objects.create(
+                project=source_run.project,
+                task=source_run.task,
+                user=request.user,
+                model_name=source_run.model_name,
+                status=AgentRun.Status.QUEUED,
+                progress=0,
+                current_step="Queued for retry",
+            )
+
+            AgentRunLog.objects.create(
+                run=new_run,
+                message=(
+                    "Fresh retry started from "
+                    f"agent run {source_run.pk}."
+                ),
+            )
+
+            AgentRunEvent.objects.create(
+                run=new_run,
+                event_type="agent_retry",
+                data={
+                    "message": (
+                        "Agent restarted from scratch."
+                    ),
+                    "source_run_id":
+                        source_run.pk,
+                },
+            )
+
+            new_run_id = new_run.pk
+
+            transaction.on_commit(
+                lambda: execute_agent_run_task.delay(
+                    new_run_id
+                )
+            )
+
+    except Exception as exc:
+        return JsonResponse(
+            {
+                "error": (
+                    "Could not retry agent run."
+                ),
+                "details": str(exc),
+            },
+            status=500,
+        )
+
+    return JsonResponse(
+        {
+            "run_id": new_run.pk,
+            "status": new_run.status,
+            "retried_from": source_run.pk,
+            "existing": False,
+        },
+        status=201,
+    )

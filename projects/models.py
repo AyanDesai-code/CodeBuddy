@@ -1,4 +1,7 @@
+import io
+import tarfile
 
+from django.core.files.base import ContentFile
 # Create your models here.
 from django.conf import settings
 from django.db import models
@@ -962,7 +965,15 @@ class GitHubRepository(models.Model):
         related_name="github_repository",
     )
 
-    installation_id = models.BigIntegerField()
+    installation_id = models.BigIntegerField(
+    null=True,
+    blank=True,
+)
+
+    default_branch = models.CharField(
+        max_length=255,
+        default="main",
+    )
 
     repository_id = models.BigIntegerField(
         unique=True,
@@ -1108,49 +1119,48 @@ class FeedbackSubmission(models.Model):
         )
 class Notification(models.Model):
     class Type(models.TextChoices):
-        TASK_DUE_SOON = (
-            "task_due_soon",
-            "Task Due Soon",
-        )
-        TASK_DUE_TODAY = (
-            "task_due_today",
-            "Task Due Today",
-        )
-        TASK_OVERDUE = (
-            "task_overdue",
-            "Task Overdue",
-        )
+        PROJECT_ADDED = "project_added", "Added to project"
+        TASK_ASSIGNED = "task_assigned", "Task assigned"
+        TASK_COMPLETED = "task_completed", "Task completed"
 
-    user = models.ForeignKey(
+    recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="notifications",
     )
 
-    project = models.ForeignKey(
-        Project,
-        on_delete=models.CASCADE,
-        related_name="notifications",
+    notification_type = models.CharField(
+        max_length=50,
+        choices=Type.choices,
     )
 
-    task = models.ForeignKey(
-        Task,
+    project = models.ForeignKey(
+        "Project",
         on_delete=models.CASCADE,
         related_name="notifications",
         null=True,
         blank=True,
     )
 
-    notification_type = models.CharField(
-        max_length=40,
-        choices=Type.choices,
+    task = models.ForeignKey(
+        "Task",
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        null=True,
+        blank=True,
     )
 
-    title = models.CharField(
-        max_length=200,
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="notifications_created",
+        null=True,
+        blank=True,
     )
 
-    message = models.TextField()
+    message = models.CharField(
+        max_length=300,
+    )
 
     is_read = models.BooleanField(
         default=False,
@@ -1161,9 +1171,7 @@ class Notification(models.Model):
     )
 
     class Meta:
-        ordering = [
-            "-created_at",
-        ]
+        ordering = ["-created_at"]
 class TaskEmailReminder(models.Model):
     class ReminderType(models.TextChoices):
         THREE_DAYS = (
@@ -1217,4 +1225,404 @@ class TaskEmailReminder(models.Model):
                 ),
             ),
         ]
-        
+
+from django.conf import settings
+from django.db import models
+
+
+class AgentRun(models.Model):
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Queued"
+        RUNNING = "running", "Running"
+        COMPLETED = "completed", "Completed"
+        BLOCKED = "blocked", "Blocked"
+        FAILED = "failed", "Failed"
+        CANCELLED = "cancelled", "Cancelled"
+
+    project = models.ForeignKey(
+        "Project",
+        on_delete=models.CASCADE,
+        related_name="agent_runs",
+    )
+
+    task = models.ForeignKey(
+        "Task",
+        on_delete=models.CASCADE,
+        related_name="agent_runs",
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="agent_runs",
+    )
+    resumed_from = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="resumed_runs",
+    )
+
+    model_name = models.CharField(
+        max_length=100,
+        default="gpt-6-astra",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.QUEUED,
+    )
+
+    progress = models.PositiveSmallIntegerField(
+        default=0,
+    )
+
+    current_step = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    result = models.TextField(
+        blank=True,
+    )
+    result = models.TextField(
+        blank=True,
+    )
+
+    result_summary = models.TextField(
+        blank=True,
+    )
+
+    result_actions = models.JSONField(
+        default=list,
+        blank=True,
+    )
+
+    result_files = models.JSONField(
+        default=list,
+        blank=True,
+    )
+
+    result_verification = models.JSONField(
+        default=list,
+        blank=True,
+    )
+
+    result_warnings = models.JSONField(
+        default=list,
+        blank=True,
+    )
+
+    error = models.TextField(
+        blank=True,
+    )
+
+    error = models.TextField(
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    started_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+
+class AgentRunLog(models.Model):
+    run = models.ForeignKey(
+        AgentRun,
+        on_delete=models.CASCADE,
+        related_name="logs",
+    )
+
+    message = models.TextField()
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        ordering = ["created_at"]
+
+class AgentRunEvent(models.Model):
+    run = models.ForeignKey(
+        AgentRun,
+        on_delete=models.CASCADE,
+        related_name="events",
+    )
+
+    event_type = models.CharField(
+        max_length=30,
+    )
+
+    tool_name = models.CharField(
+        max_length=50,
+        blank=True,
+    )
+
+    data = models.JSONField(
+        default=dict,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        ordering = ["created_at"]
+
+class ConnectedAccount(models.Model):
+    class Provider(models.TextChoices):
+        GITHUB = "github", "GitHub"
+        GOOGLE = "google", "Google"
+        SLACK = "slack", "Slack"
+        NOTION = "notion", "Notion"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="connected_accounts",
+    )
+
+    provider = models.CharField(
+        max_length=50,
+        choices=Provider.choices,
+    )
+
+    external_account_id = models.CharField(
+        max_length=255,
+    )
+
+    external_username = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    access_token = models.TextField()
+
+    refresh_token = models.TextField(
+        blank=True,
+    )
+
+    token_type = models.CharField(
+        max_length=50,
+        blank=True,
+    )
+
+    scope = models.TextField(
+        blank=True,
+    )
+
+    access_token_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    refresh_token_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "user",
+                    "provider",
+                    "external_account_id",
+                ],
+                name=(
+                    "unique_connected_account"
+                ),
+            ),
+        ]
+
+    def __str__(self):
+        name = (
+            self.external_username
+            or self.external_account_id
+        )
+
+        return (
+            f"{self.user} → "
+            f"{self.provider}: {name}"
+        )
+
+class AgentWorkspaceRecord(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        PRESERVED = "preserved", "Preserved"
+        DELETED = "deleted", "Deleted"
+
+    run = models.OneToOneField(
+        AgentRun,
+        on_delete=models.CASCADE,
+        related_name="workspace_record",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+    )
+
+    # Where the execution workspace currently lives.
+    workspace_path = models.TextField(
+        blank=True,
+    )
+
+    # Repository state at the time it was loaded.
+    repository_owner = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    repository_name = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    repository_branch = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    base_commit_sha = models.CharField(
+        max_length=64,
+        blank=True,
+    )
+
+    last_synced_commit_sha = models.CharField(
+        max_length=64,
+        blank=True,
+    )
+
+    # Recovery information.
+    manifest = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    patch = models.TextField(
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    preserved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    workspace_snapshot = models.FileField(
+        upload_to="agent_workspace_snapshots/",
+        blank=True,
+    )
+
+    workspace_snapshot_manifest = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    def __str__(self):
+        return f"Workspace for AgentRun {self.run_id}"
+class AgentApprovalRequest(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        DENIED = "denied", "Denied"
+        CANCELLED = "cancelled", "Cancelled"
+
+    run = models.ForeignKey(
+        AgentRun,
+        on_delete=models.CASCADE,
+        related_name="approval_requests",
+    )
+
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="resolved_agent_approvals",
+    )
+
+    action_type = models.CharField(
+        max_length=100,
+    )
+
+    title = models.CharField(
+        max_length=255,
+    )
+
+    description = models.TextField()
+
+    tool_name = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    tool_arguments = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    resolved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    consumed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    continuation_run = models.OneToOneField(
+        AgentRun,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="continued_approval",
+    )
+
+    def __str__(self):
+        return (
+            f"Approval {self.pk}: "
+            f"{self.title} ({self.status})"
+        )

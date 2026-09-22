@@ -1,3 +1,4 @@
+from pdb import run
 from unittest import result
 
 from django.core.mail import message
@@ -8,6 +9,22 @@ from typing import Literal
 from datetime import date
 import time
 import json
+import json
+
+from django.utils import timezone
+from openai import OpenAI
+
+from projects.models import AgentRun, AgentRunLog, AgentRunEvent,AgentApprovalRequest
+
+from .agent_tools import (
+    AgentWorkspace,
+    AGENT_TOOLS,
+    execute_agent_tool,
+    preserve_workspace_state,
+    restore_workspace_state,
+)
+
+from projects.models import AgentRun, AgentRunLog,AgentRunEvent
 
 client = OpenAI()
 
@@ -156,6 +173,29 @@ TaskStatus = Literal[
     "review",
     "done",
 ]
+def describe_tool_call(name, arguments):
+    if name == "write_file":
+        path = arguments.get("path", "file")
+        return f"Writing {path}"
+
+    if name == "read_file":
+        path = arguments.get("path", "file")
+        return f"Reading {path}"
+
+    if name == "list_files":
+        path = arguments.get("path", ".")
+        return f"Inspecting {path}"
+
+    if name == "run_command":
+        command = arguments.get("command", "")
+        short_command = command[:180]
+
+        if len(command) > 180:
+            short_command += "..."
+
+        return f"Running: {short_command}"
+
+    return f"Using {name}"
 
 def generate_reply(project) -> ProjectInterviewReply:
     messages = [
@@ -3541,3 +3581,1349 @@ USER QUESTION:
         )
 
     return result
+import json
+
+from django.utils import timezone
+from openai import OpenAI
+
+from projects.models import (
+    AgentRun,
+    AgentRunLog,
+    AgentRunEvent
+)
+
+from .agent_tools import (
+    AgentWorkspace,
+    AGENT_TOOLS,
+    execute_agent_tool,
+)
+AGENT_FINISH_TOOL = {
+    "type": "function",
+    "name": "finish_agent_run",
+    "description": (
+        "Finish the current Projivo agent run. "
+        "Use completed only when the requested task has actually "
+        "been accomplished. Use blocked when useful work was done "
+        "but the task cannot be fully completed without user action, "
+        "credentials, permissions, unavailable external services, "
+        "hardware, or another external dependency."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "status": {
+                "type": "string",
+                "enum": [
+                    "completed",
+                    "blocked",
+                ],
+            },
+            "summary": {
+                "type": "string",
+                "description": (
+                    "Concise summary of what the agent accomplished."
+                ),
+            },
+            "blocker_reason": {
+                "type": "string",
+                "description": (
+                    "Why the task could not be fully completed. "
+                    "Use an empty string when status is completed."
+                ),
+            },
+            "user_action_required": {
+                "type": "string",
+                "description": (
+                    "What the user needs to do to unblock the task. "
+                    "Use an empty string when no user action is needed."
+                ),
+            },
+        },
+        "required": [
+            "status",
+            "summary",
+            "blocker_reason",
+            "user_action_required",
+        ],
+        "additionalProperties": False,
+    },
+    "strict": True,
+}
+
+
+AGENT_RUNTIME_TOOLS = [
+    *AGENT_TOOLS,
+    AGENT_FINISH_TOOL,
+]
+def agent_run_was_cancelled(run):
+    run.refresh_from_db(
+        fields=[
+            "status",
+            "current_step",
+            "completed_at",
+        ]
+    )
+
+    return (
+        run.status
+        == AgentRun.Status.CANCELLED
+    )
+def build_agent_result_details(
+    *,
+    run,
+    summary,
+    blocker_reason="",
+):
+    events = list(
+        run.events
+        .order_by("created_at")
+        .values(
+            "event_type",
+            "tool_name",
+            "data",
+        )
+    )
+
+    actions = []
+    files_by_path = {}
+    verification = []
+    warnings = []
+
+    for event in events:
+        event_type = event["event_type"]
+        tool_name = event["tool_name"]
+        data = event["data"] or {}
+
+        # ---------------------------------
+        # Files
+        # ---------------------------------
+
+        if tool_name == "write_file":
+            path = data.get("path")
+
+            if path:
+                files_by_path[path] = {
+                    "path": path,
+                    "action": "modified",
+                }
+
+        elif tool_name == "delete_file":
+            path = data.get("path")
+
+            if path:
+                files_by_path[path] = {
+                    "path": path,
+                    "action": "deleted",
+                }
+
+        # ---------------------------------
+        # Terminal verification
+        # ---------------------------------
+
+        if (
+            tool_name == "run_command"
+            and event_type == "tool_result"
+        ):
+            returncode = data.get("returncode")
+
+            if returncode == 0:
+                verification.append(
+                    "Terminal command completed successfully."
+                )
+
+            elif returncode is not None:
+                warnings.append(
+                    "A terminal command exited with "
+                    f"status {returncode}."
+                )
+        if (
+            tool_name == "read_file"
+            and event_type == "tool_call"
+        ):
+            message = data.get("message")
+
+            if message:
+                verification.append(
+                    message.replace(
+                        "Reading ",
+                        "Read ",
+                        1,
+                    )
+                    + " successfully"
+                )
+
+        # ---------------------------------
+        # Human-readable actions
+        # ---------------------------------
+
+        if tool_name == "write_file":
+            path = data.get("path")
+
+            if path:
+                actions.append(
+                    f"Updated {path}"
+                )
+
+        elif tool_name == "delete_file":
+            path = data.get("path")
+
+            if path:
+                actions.append(
+                    f"Deleted {path}"
+                )
+
+        elif tool_name == "sync_project_repository":
+            actions.append(
+                "Synced repository changes."
+            )
+
+        elif tool_name == "connected_app_request":
+            actions.append(
+                "Performed a connected-app action."
+            )
+
+    if blocker_reason:
+        warnings.append(blocker_reason)
+
+    # Remove duplicates while preserving order.
+    actions = list(dict.fromkeys(actions))
+    verification = list(
+        dict.fromkeys(verification)
+    )
+    warnings = list(dict.fromkeys(warnings))
+
+    return {
+        "summary": summary,
+        "actions": actions,
+        "files": list(
+            files_by_path.values()
+        ),
+        "verification": verification,
+        "warnings": warnings,
+    }
+def build_agent_task_context(task):
+    """
+    Build a compact snapshot of the task the agent
+    is currently working on.
+    """
+
+    context = {
+        "id": task.pk,
+        "title": task.title,
+        "description": task.description or "",
+        "status": task.status,
+        "priority": task.priority,
+        "start_date": (
+            task.start_date.isoformat()
+            if task.start_date
+            else None
+        ),
+        "due_date": (
+            task.due_date.isoformat()
+            if task.due_date
+            else None
+        ),
+        "dependencies": [],
+    }
+
+    try:
+        dependencies = task.dependencies.all()
+
+        for dependency in dependencies:
+            context["dependencies"].append(
+                {
+                    "id": dependency.pk,
+                    "title": dependency.title,
+                    "status": dependency.status,
+                }
+            )
+
+    except Exception:
+        pass
+
+    try:
+        assignee = task.assignee
+
+        if assignee:
+            context["assignee"] = {
+                "id": assignee.pk,
+                "username": assignee.username,
+            }
+        else:
+            context["assignee"] = None
+
+    except Exception:
+        context["assignee"] = None
+
+    return context
+def build_agent_project_context(project):
+    """
+    Build a compact snapshot of the current Projivo project
+    for the autonomous agent.
+
+    This gives the agent awareness of the project's tasks,
+    milestones, workspace documentation, budget, and members
+    without exposing credentials or unrelated user data.
+    """
+
+    context = {
+        "project": {
+            "id": project.pk,
+            "name": project.name,
+        },
+        "tasks": [],
+        "milestones": [],
+        "workspace": [],
+        "budget": [],
+        "members": [],
+    }
+
+    # ---------------------------------
+    # Tasks
+    # ---------------------------------
+
+    try:
+        tasks = (
+            project.tasks
+            .all()
+            .order_by("pk")
+        )
+
+        for task in tasks:
+            context["tasks"].append(
+                {
+                    "id": task.pk,
+                    "title": task.title,
+                    "description": (
+                        task.description or ""
+                    ),
+                    "status": task.status,
+                    "priority": task.priority,
+                    "start_date": (
+                        task.start_date.isoformat()
+                        if task.start_date
+                        else None
+                    ),
+                    "due_date": (
+                        task.due_date.isoformat()
+                        if task.due_date
+                        else None
+                    ),
+                }
+            )
+
+    except Exception:
+        pass
+
+    # ---------------------------------
+    # Milestones
+    # ---------------------------------
+
+    try:
+        milestones = (
+            project.milestones
+            .all()
+            .order_by("pk")
+        )
+
+        for milestone in milestones:
+            context["milestones"].append(
+                {
+                    "id": milestone.pk,
+                    "title": milestone.title,
+                    "description": (
+                        getattr(
+                            milestone,
+                            "description",
+                            "",
+                        )
+                        or ""
+                    ),
+                    "due_date": (
+                        milestone.due_date.isoformat()
+                        if getattr(
+                            milestone,
+                            "due_date",
+                            None,
+                        )
+                        else None
+                    ),
+                }
+            )
+
+    except Exception:
+        pass
+
+    # ---------------------------------
+    # Workspace folders
+    # ---------------------------------
+
+    try:
+        folders = (
+            project.workspace_folders
+            .all()
+            .order_by("pk")
+        )
+
+        for folder in folders:
+            context["workspace"].append(
+                {
+                    "type": folder.folder_type,
+                    "title": (
+                        getattr(
+                            folder,
+                            "title",
+                            "",
+                        )
+                        or folder.folder_type
+                    ),
+                    "description": (
+                        folder.description or ""
+                    ),
+                }
+            )
+
+    except Exception:
+        pass
+
+    # ---------------------------------
+    # Budget
+    # ---------------------------------
+
+    try:
+        budget_items = (
+            project.budget_items
+            .all()
+            .order_by("pk")
+        )
+
+        for item in budget_items:
+            context["budget"].append(
+                {
+                    "name": (
+                        getattr(
+                            item,
+                            "name",
+                            "",
+                        )
+                        or getattr(
+                            item,
+                            "title",
+                            "",
+                        )
+                    ),
+                    "category": (
+                        getattr(
+                            item,
+                            "category",
+                            "",
+                        )
+                        or ""
+                    ),
+                    "estimated_cost": str(
+                        getattr(
+                            item,
+                            "estimated_cost",
+                            "",
+                        )
+                        or ""
+                    ),
+                    "actual_cost": str(
+                        getattr(
+                            item,
+                            "actual_cost",
+                            "",
+                        )
+                        or ""
+                    ),
+                }
+            )
+
+    except Exception:
+        pass
+
+    # ---------------------------------
+    # Project members
+    # ---------------------------------
+
+    try:
+        memberships = (
+            project.memberships
+            .select_related(
+                "user",
+                "project_role",
+            )
+            .all()
+        )
+
+        for membership in memberships:
+            context["members"].append(
+                {
+                    "username": (
+                        membership.user.username
+                    ),
+                    "permission": (
+                        membership.role
+                    ),
+                    "project_role": (
+                        membership.project_role.name
+                        if membership.project_role
+                        else ""
+                    ),
+                }
+            )
+
+    except Exception:
+        pass
+
+    return context
+def execute_agent_run(run_id):
+    run = (
+        AgentRun.objects
+        .select_related(
+            "project",
+            "task",
+            "resumed_from",
+        )
+        .get(pk=run_id)
+    )
+
+    workspace = AgentWorkspace(run.id)
+
+    try:
+        # ---------------------------------
+        # Atomically start run
+        # ---------------------------------
+
+        started_at = timezone.now()
+
+        updated = AgentRun.objects.filter(
+            pk=run.pk,
+            status=AgentRun.Status.QUEUED,
+        ).update(
+            status=AgentRun.Status.RUNNING,
+            progress=10,
+            current_step="Preparing workspace",
+            started_at=started_at,
+            error="",
+            completed_at=None,
+        )
+
+        if updated == 0:
+            run.refresh_from_db(
+                fields=[
+                    "status",
+                    "progress",
+                    "current_step",
+                    "started_at",
+                    "error",
+                    "completed_at",
+                ]
+            )
+
+            if run.status == AgentRun.Status.CANCELLED:
+                AgentRunLog.objects.create(
+                    run=run,
+                    message=(
+                        "Agent execution skipped because "
+                        "the run was cancelled before starting."
+                    ),
+                )
+                return
+
+            AgentRunLog.objects.create(
+                run=run,
+                message=(
+                    "Agent execution did not start because "
+                    f"the run is already {run.status}."
+                ),
+            )
+            return
+
+        run.refresh_from_db(
+            fields=[
+                "status",
+                "progress",
+                "current_step",
+                "started_at",
+                "error",
+                "completed_at",
+            ]
+        )
+
+        AgentRunLog.objects.create(
+            run=run,
+            message="Agent workspace created.",
+        )
+
+        # ---------------------------------
+        # Restore previous workspace
+        # ---------------------------------
+
+        resume_context = ""
+
+        if run.resumed_from_id:
+            run.current_step = "Restoring previous work"
+            run.progress = 15
+
+            run.save(
+                update_fields=[
+                    "current_step",
+                    "progress",
+                ]
+            )
+
+            AgentRunLog.objects.create(
+                run=run,
+                message=(
+                    "Restoring preserved workspace "
+                    f"from AgentRun {run.resumed_from_id}."
+                ),
+            )
+
+            restore_result = restore_workspace_state(
+                source_run=run.resumed_from,
+                workspace=workspace,
+            )
+
+            AgentRunLog.objects.create(
+                run=run,
+                message=(
+                    "Previous workspace restored. "
+                    f"Mode: {restore_result.get('mode')}."
+                ),
+            )
+
+            resume_context = (
+                "\n\nThis run is continuing from a previous "
+                "agent run. The previous workspace has been "
+                "restored. Inspect the existing files and "
+                "continue from the preserved work instead of "
+                "starting over."
+            )
+
+        # ---------------------------------
+        # Load project context
+        # ---------------------------------
+
+        if agent_run_was_cancelled(run):
+            AgentRunLog.objects.create(
+                run=run,
+                message=(
+                    "Agent execution stopped before "
+                    "loading project context."
+                ),
+            )
+            return
+
+        run.progress = 20
+        run.current_step = "Loading project context"
+
+        run.save(
+            update_fields=[
+                "progress",
+                "current_step",
+            ]
+        )
+
+        project_context = build_agent_project_context(
+            run.project
+        )
+
+        task_context = build_agent_task_context(
+            run.task
+        )
+
+        # ---------------------------------
+        # Approved continuation context
+        # ---------------------------------
+
+        approved_request = None
+
+        if run.resumed_from_id:
+            try:
+                approved_request = (
+                    run.continued_approval
+                )
+
+            except AgentApprovalRequest.DoesNotExist:
+                approved_request = None
+
+        approval_context = ""
+
+        if approved_request is not None:
+            approval_context = (
+                "\n\nThe user already approved the following "
+                "action in the previous run:\n"
+                f"Tool: {approved_request.tool_name}\n"
+                "Arguments:\n"
+                f"{json.dumps(approved_request.arguments, default=str)}\n"
+                "\nYou may execute that exact approved action "
+                "without requesting approval again."
+            )
+
+        # ---------------------------------
+        # Build prompt
+        # ---------------------------------
+
+        prompt = f"""
+You are an autonomous project execution agent working inside Projivo.
+
+Your job is to complete the assigned project task using the tools available
+to you.
+
+PROJECT CONTEXT:
+{project_context}
+
+TASK CONTEXT:
+{task_context}
+
+You have access to a persistent workspace and execution tools.
+
+Important rules:
+
+1. Inspect the workspace before making assumptions.
+2. Use tools to perform the work instead of merely explaining what should
+   be done.
+3. Verify your work when possible.
+4. Do not claim that work was completed unless it actually was.
+5. If you need an action requiring explicit user approval, use
+   request_user_approval.
+6. When the task is finished or genuinely blocked, call finish_agent_run.
+7. Do not continue after calling finish_agent_run.
+
+When finishing, provide:
+- status
+- summary
+- blocker_reason
+- user_action_required
+
+{resume_context}
+
+{approval_context}
+"""
+
+        # ---------------------------------
+        # Initial model request
+        # ---------------------------------
+
+        if agent_run_was_cancelled(run):
+            AgentRunLog.objects.create(
+                run=run,
+                message=(
+                    "Agent execution stopped before "
+                    "the first model request."
+                ),
+            )
+            return
+
+        run.progress = 25
+        run.current_step = "Planning task"
+
+        run.save(
+            update_fields=[
+                "progress",
+                "current_step",
+            ]
+        )
+
+        client = OpenAI()
+
+        response = client.responses.create(
+            model=run.model_name,
+            input=prompt,
+            tools=AGENT_RUNTIME_TOOLS,
+        )
+
+        max_iterations = 30
+        iteration = 0
+        final_outcome = None
+
+        # ---------------------------------
+        # Agent loop
+        # ---------------------------------
+
+        while iteration < max_iterations:
+            iteration += 1
+
+            if agent_run_was_cancelled(run):
+                AgentRunLog.objects.create(
+                    run=run,
+                    message=(
+                        "Agent execution stopped because "
+                        "the run was cancelled."
+                    ),
+                )
+                return
+
+            function_calls = [
+                item
+                for item in response.output
+                if item.type == "function_call"
+            ]
+
+            if not function_calls:
+                break
+
+            tool_outputs = []
+
+            for call in function_calls:
+                if agent_run_was_cancelled(run):
+                    AgentRunLog.objects.create(
+                        run=run,
+                        message=(
+                            "Agent execution stopped before "
+                            "the next tool call."
+                        ),
+                    )
+                    return
+
+                arguments = json.loads(
+                    call.arguments
+                )
+
+                # -------------------------
+                # Agent explicitly finished
+                # -------------------------
+
+                if call.name == "finish_agent_run":
+                    final_outcome = arguments
+
+                    AgentRunLog.objects.create(
+                        run=run,
+                        message=(
+                            "Agent reported outcome: "
+                            f"{arguments.get('status')}."
+                        ),
+                    )
+
+                    break
+
+                # -------------------------
+                # Progress
+                # -------------------------
+
+                run.current_step = (
+                    f"Using {call.name}"
+                )
+
+                run.progress = min(
+                    25 + iteration * 2,
+                    85,
+                )
+
+                run.save(
+                    update_fields=[
+                        "current_step",
+                        "progress",
+                    ]
+                )
+
+                AgentRunLog.objects.create(
+                    run=run,
+                    message=describe_tool_call(
+                        call.name,
+                        arguments,
+                    ),
+                )
+
+                # -------------------------
+                # Cancellation immediately
+                # before tool execution
+                # -------------------------
+
+                if agent_run_was_cancelled(run):
+                    AgentRunLog.objects.create(
+                        run=run,
+                        message=(
+                            "Agent execution stopped before "
+                            f"executing {call.name}."
+                        ),
+                    )
+                    return
+
+                # -------------------------
+                # Execute tool
+                # -------------------------
+
+                result = execute_agent_tool(
+                    workspace=workspace,
+                    tool_name=call.name,
+                    arguments=arguments,
+                    run=run,
+                )
+
+                # -------------------------
+                # Approval pause
+                # -------------------------
+
+                if (
+                    call.name == "request_user_approval"
+                    and result.get("approval_required")
+                ):
+                    approval_id = result[
+                        "approval_id"
+                    ]
+
+                    approval_time = timezone.now()
+
+                    new_progress = min(
+                        max(run.progress, 1),
+                        99,
+                    )
+
+                    updated = AgentRun.objects.filter(
+                        pk=run.pk,
+                        status=AgentRun.Status.RUNNING,
+                    ).update(
+                        status=AgentRun.Status.BLOCKED,
+                        progress=new_progress,
+                        current_step=(
+                            "Waiting for user approval"
+                        ),
+                        result=(
+                            "The agent requires user "
+                            "approval before continuing."
+                        ),
+                        error="",
+                        completed_at=approval_time,
+                    )
+
+                    if updated == 0:
+                        run.refresh_from_db(
+                            fields=[
+                                "status",
+                                "progress",
+                                "current_step",
+                                "result",
+                                "error",
+                                "completed_at",
+                            ]
+                        )
+
+                        if (
+                            run.status
+                            == AgentRun.Status.CANCELLED
+                        ):
+                            AgentRunLog.objects.create(
+                                run=run,
+                                message=(
+                                    "Agent approval pause "
+                                    "skipped because the run "
+                                    "was cancelled."
+                                ),
+                            )
+                            return
+
+                        AgentRunLog.objects.create(
+                            run=run,
+                            message=(
+                                "Agent approval pause was "
+                                "not written because the "
+                                "run is already "
+                                f"{run.status}."
+                            ),
+                        )
+                        return
+
+                    run.refresh_from_db(
+                        fields=[
+                            "status",
+                            "progress",
+                            "current_step",
+                            "result",
+                            "error",
+                            "completed_at",
+                        ]
+                    )
+
+                    AgentRunLog.objects.create(
+                        run=run,
+                        message=(
+                            "Agent paused for user "
+                            "approval. Approval request: "
+                            f"{approval_id}."
+                        ),
+                    )
+
+                    return
+
+                # -------------------------
+                # Terminal result event
+                # -------------------------
+
+                if call.name == "run_command":
+                    AgentRunEvent.objects.create(
+                        run=run,
+                        event_type="terminal_result",
+                        tool_name=call.name,
+                        data={
+                            "returncode": result.get(
+                                "returncode",
+                            ),
+                            "stdout": result.get(
+                                "stdout",
+                                "",
+                            ),
+                            "stderr": result.get(
+                                "stderr",
+                                "",
+                            ),
+                        },
+                    )
+
+                AgentRunLog.objects.create(
+                    run=run,
+                    message=(
+                        f"{call.name} completed."
+                    ),
+                )
+
+                # -------------------------
+                # Return tool result to AI
+                # -------------------------
+
+                tool_outputs.append(
+                    {
+                        "type": (
+                            "function_call_output"
+                        ),
+                        "call_id": call.call_id,
+                        "output": json.dumps(
+                            result,
+                            default=str,
+                        ),
+                    }
+                )
+
+            if final_outcome is not None:
+                break
+
+            # -----------------------------
+            # Cancellation before next
+            # model request
+            # -----------------------------
+
+            if agent_run_was_cancelled(run):
+                AgentRunLog.objects.create(
+                    run=run,
+                    message=(
+                        "Agent execution stopped "
+                        "before the next model request."
+                    ),
+                )
+                return
+
+            response = client.responses.create(
+                model=run.model_name,
+                previous_response_id=response.id,
+                input=tool_outputs,
+                tools=AGENT_RUNTIME_TOOLS,
+            )
+
+        # ---------------------------------
+        # Agent must explicitly finish
+        # ---------------------------------
+
+        if final_outcome is None:
+            raise RuntimeError(
+                "Agent ended without reporting "
+                "a final outcome."
+            )
+
+        # ---------------------------------
+        # Build final result
+        # ---------------------------------
+
+        run.progress = 90
+        run.current_step = "Saving result"
+
+        run.save(
+            update_fields=[
+                "progress",
+                "current_step",
+            ]
+        )
+
+        outcome_status = final_outcome.get(
+            "status"
+        )
+
+        summary = (
+            final_outcome.get(
+                "summary",
+                "",
+            ).strip()
+        )
+
+        blocker_reason = (
+            final_outcome.get(
+                "blocker_reason",
+                "",
+            ).strip()
+        )
+
+        user_action_required = (
+            final_outcome.get(
+                "user_action_required",
+                "",
+            ).strip()
+        )
+
+        result_parts = []
+
+        if summary:
+            result_parts.append(
+                summary
+            )
+
+        if blocker_reason:
+            result_parts.append(
+                "\nBlocker:\n"
+                + blocker_reason
+            )
+
+        if user_action_required:
+            result_parts.append(
+                "\nUser action required:\n"
+                + user_action_required
+            )
+
+        run.result = "\n".join(
+            result_parts
+        )
+
+        result_details = build_agent_result_details(
+            run=run,
+            summary=summary,
+            blocker_reason=blocker_reason,
+        )
+
+        # ---------------------------------
+        # Determine final status
+        # ---------------------------------
+
+        if outcome_status == "completed":
+            final_status = (
+                AgentRun.Status.COMPLETED
+            )
+
+            final_step = "Complete"
+
+            log_message = (
+                "Agent completed the task."
+            )
+
+        elif outcome_status == "blocked":
+            final_status = (
+                AgentRun.Status.BLOCKED
+            )
+
+            final_step = "Blocked"
+
+            log_message = (
+                "Agent is blocked and requires "
+                "external action."
+            )
+
+        else:
+            raise ValueError(
+                "Agent returned invalid outcome "
+                f"status: {outcome_status}"
+            )
+
+        # ---------------------------------
+        # Atomic final transition
+        # ---------------------------------
+
+        completion_time = timezone.now()
+
+        updated = AgentRun.objects.filter(
+            pk=run.pk,
+            status=AgentRun.Status.RUNNING,
+        ).update(
+            result=run.result,
+            result_summary=(
+                result_details["summary"]
+            ),
+            result_actions=(
+                result_details["actions"]
+            ),
+            result_files=(
+                result_details["files"]
+            ),
+            result_verification=(
+                result_details["verification"]
+            ),
+            result_warnings=(
+                result_details["warnings"]
+            ),
+            progress=100,
+            status=final_status,
+            current_step=final_step,
+            completed_at=completion_time,
+        )
+
+        if updated == 0:
+            run.refresh_from_db(
+                fields=[
+                    "status",
+                    "current_step",
+                    "completed_at",
+                ]
+            )
+
+            if (
+                run.status
+                == AgentRun.Status.CANCELLED
+            ):
+                AgentRunLog.objects.create(
+                    run=run,
+                    message=(
+                        "Agent completion skipped because "
+                        "the run was cancelled."
+                    ),
+                )
+                return
+
+            AgentRunLog.objects.create(
+                run=run,
+                message=(
+                    "Agent completion was not written "
+                    "because the run is already "
+                    f"{run.status}."
+                ),
+            )
+            return
+
+        run.refresh_from_db(
+            fields=[
+                "result",
+                "result_summary",
+                "result_actions",
+                "result_files",
+                "result_verification",
+                "result_warnings",
+                "progress",
+                "status",
+                "current_step",
+                "completed_at",
+            ]
+        )
+
+        AgentRunLog.objects.create(
+            run=run,
+            message=log_message,
+        )
+
+    # -------------------------------------
+    # Failure
+    # -------------------------------------
+
+    except Exception as exc:
+        failure_time = timezone.now()
+
+        updated = AgentRun.objects.filter(
+            pk=run.pk,
+            status=AgentRun.Status.RUNNING,
+        ).update(
+            status=AgentRun.Status.FAILED,
+            current_step="Failed",
+            error=str(exc),
+            completed_at=failure_time,
+        )
+
+        if updated == 0:
+            run.refresh_from_db(
+                fields=[
+                    "status",
+                    "current_step",
+                    "error",
+                    "completed_at",
+                ]
+            )
+
+            if (
+                run.status
+                == AgentRun.Status.CANCELLED
+            ):
+                AgentRunLog.objects.create(
+                    run=run,
+                    message=(
+                        "Agent failure state skipped because "
+                        "the run was cancelled."
+                    ),
+                )
+                return
+
+            AgentRunLog.objects.create(
+                run=run,
+                message=(
+                    "Agent failure state was not written "
+                    "because the run is already "
+                    f"{run.status}."
+                ),
+            )
+            return
+
+        run.refresh_from_db(
+            fields=[
+                "status",
+                "current_step",
+                "error",
+                "completed_at",
+            ]
+        )
+
+        AgentRunLog.objects.create(
+            run=run,
+            message=f"Agent failed: {exc}",
+        )
+
+        raise
+
+    # -------------------------------------
+    # Always preserve workspace
+    # -------------------------------------
+
+    finally:
+        try:
+            preservation_result = (
+                preserve_workspace_state(
+                    workspace=workspace,
+                    run=run,
+                )
+            )
+
+            AgentRunLog.objects.create(
+                run=run,
+                message=(
+                    "Agent workspace preserved. "
+                    f"Changed files: "
+                    f"{len(preservation_result.get('changed_files', []))}. "
+                    f"Patch bytes: "
+                    f"{preservation_result.get('patch_bytes', 0)}."
+                ),
+            )
+
+        except Exception as preservation_exc:
+            AgentRunLog.objects.create(
+                run=run,
+                message=(
+                    "Agent workspace preservation "
+                    "failed: "
+                    f"{preservation_exc}"
+                ),
+            )
+
+        try:
+            workspace.stop_container()
+
+        except Exception as cleanup_exc:
+            AgentRunLog.objects.create(
+                run=run,
+                message=(
+                    "Agent container cleanup failed: "
+                    f"{cleanup_exc}"
+                ),
+            )

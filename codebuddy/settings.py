@@ -415,3 +415,27 @@ GITHUB_APP_SLUG = os.environ.get(
     "",
 )
 SOCIALACCOUNT_LOGIN_ON_GET = True
+
+CELERY_BROKER_URL = os.environ.get(
+    "REDIS_URL",
+    "redis://127.0.0.1:6379/0",
+)
+
+CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+
+CELERY_TASK_TRACK_STARTED = True
+
+CELERY_TASK_TIME_LIMIT = 60 * 30
+
+GITHUB_APP_CLIENT_ID = os.environ.get(
+    "GITHUB_APP_CLIENT_ID"
+)
+
+GITHUB_APP_CLIENT_SECRET = os.environ.get(
+    "GITHUB_APP_CLIENT_SECRET"
+)
+
+GITHUB_CALLBACK_URL = os.environ.get(
+    "GITHUB_CALLBACK_URL",
+    "http://127.0.0.1:8000/projects/github/callback/",
+)
