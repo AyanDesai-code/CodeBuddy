@@ -1266,7 +1266,7 @@ class AgentRun(models.Model):
 
     model_name = models.CharField(
         max_length=100,
-        default="gpt-6-astra",
+        default="gpt-5.6-sol",
     )
 
     status = models.CharField(

@@ -8,13 +8,16 @@ import subprocess
 import tempfile
 import io
 import tarfile
+import requests
 
+from projects.integrations.base import IntegrationError
 from django.core.files.base import ContentFile
 import os
 from weakref import ref
 from projects.models import AgentRunEvent, AgentRunLog, ConnectedAccount, AgentApprovalRequest, GitHubRepository
 from projects.integrations import get_user_integration, github
 from projects.integrations.policy import (
+    ConnectedAppPermissionError,
     validate_connected_app_request,
 )
 
@@ -2927,6 +2930,40 @@ def record_agent_tool_result(
     )
 
     return result
+def finish_recoverable_tool_error(
+    *,
+    run,
+    tool_name,
+    error,
+    message,
+):
+    result = {
+        "ok": False,
+        "error": error,
+        "message": message,
+        "recoverable": True,
+    }
+
+    AgentRunLog.objects.create(
+        run=run,
+        message=(
+            f"{tool_name} could not complete: "
+            f"{message}"
+        ),
+    )
+
+    AgentRunEvent.objects.create(
+        run=run,
+        event_type="tool_error",
+        tool_name=tool_name,
+        data={
+            "error": error,
+            "message": message,
+            "recoverable": True,
+        },
+    )
+
+    return result
 def execute_agent_tool(
     *,
     workspace,
@@ -3189,22 +3226,73 @@ def execute_agent_tool(
                 "body_json must decode to a JSON object."
             )
 
-        validate_connected_app_request(
-            provider=provider,
-            method=method,
-            path=path,
-        )
+        try:
+            validate_connected_app_request(
+                provider=provider,
+                method=method,
+                path=path,
+            )
 
-        integration = get_user_integration(
-            user=run.user,
-            provider=provider,
-        )
-        
-        result = integration.request(
-            method,
-            path,
-            json=body,
-        )
+        except ConnectedAppPermissionError as exc:
+            return finish_recoverable_tool_error(
+                run=run,
+                tool_name=tool_name,
+                error="permission_denied",
+                message=str(exc),
+            )
+
+        try:
+            integration = get_user_integration(
+                user=run.user,
+                provider=provider,
+            )
+
+            result = integration.request(
+                method,
+                path,
+                json=body,
+            )
+
+        except IntegrationError as exc:
+            return finish_recoverable_tool_error(
+                run=run,
+                tool_name=tool_name,
+                error="integration_error",
+                message=str(exc),
+            )
+
+        except requests.Timeout:
+            return finish_recoverable_tool_error(
+                run=run,
+                tool_name=tool_name,
+                error="timeout",
+                message=(
+                    f"{provider.title()} did not respond "
+                    "before the request timed out."
+                ),
+            )
+
+        except requests.ConnectionError:
+            return finish_recoverable_tool_error(
+                run=run,
+                tool_name=tool_name,
+                error="connection_error",
+                message=(
+                    f"Could not connect to "
+                    f"{provider.title()}."
+                ),
+            )
+
+        except requests.RequestException as exc:
+            return finish_recoverable_tool_error(
+                run=run,
+                tool_name=tool_name,
+                error="request_error",
+                message=(
+                    f"{provider.title()} request failed: "
+                    f"{exc}"
+                ),
+    )
 
         return finish_tool_execution(
             result=result,
