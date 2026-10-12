@@ -3,6 +3,7 @@ from unittest import result
 
 from django.core.mail import message
 from django.http import response
+from psycopg import logger
 from pydantic import BaseModel, Field
 from openai import OpenAI
 from typing import Literal
@@ -14,8 +15,12 @@ import json
 from django.utils import timezone
 from openai import OpenAI
 
+from codebuddy import settings
+from projects.ai.project_executor import handle_agent_completion
 from projects.models import AgentRun, AgentRunLog, AgentRunEvent,AgentApprovalRequest
+import logging
 
+logger = logging.getLogger(__name__)
 from .agent_tools import (
     AgentWorkspace,
     AGENT_TOOLS,
@@ -4257,7 +4262,7 @@ def execute_agent_run(run_id):
                 "action in the previous run:\n"
                 f"Tool: {approved_request.tool_name}\n"
                 "Arguments:\n"
-                f"{json.dumps(approved_request.arguments, default=str)}\n"
+                f"{json.dumps(approved_request.tool_arguments, default=str)}\n"
                 "\nYou may execute that exact approved action "
                 "without requesting approval again."
             )
@@ -4291,6 +4296,76 @@ Important rules:
    request_user_approval.
 6. When the task is finished or genuinely blocked, call finish_agent_run.
 7. Do not continue after calling finish_agent_run.
+8. You have access to a real web browser through browser tools.
+
+9. Use browser_open to open a new webpage. Use browser_navigate when
+   you want to navigate the current tab to another URL.
+
+10. After opening, navigating, submitting, or otherwise changing a page,
+    use browser_read_page to inspect the current state and obtain fresh
+    interactive element refs.
+
+11. Use browser_click to click elements and browser_type to enter text
+    using refs returned by browser_read_page.
+
+12. Use browser_press for keyboard actions such as Enter, Tab, Escape,
+    or arrow keys. Typing into a field does not automatically submit it.
+
+13. Use browser_fill when multiple form fields need to be filled.
+
+14. Use browser_select for dropdown/select elements.
+
+15. Use browser_scroll to move through a page and
+    browser_scroll_into_view when a known element needs to be brought
+    into view.
+
+16. Use browser_hover when an interaction requires hovering over an
+    element.
+
+17. Use browser_wait when the page needs time to load or update.
+
+18. Use browser_tabs to inspect open tabs, browser_focus_tab to switch
+    tabs, and browser_close_tab to close a tab.
+
+19. Use browser_drag when an element must be dragged from one location
+    to another.
+
+20. browser_dialog arms the NEXT browser dialog. Call it BEFORE the
+    action expected to trigger an alert, confirmation, or prompt.
+
+21. Use browser_download when the task requires downloading a file from
+    a downloadable element ref.
+
+22. Use browser_screenshot_page when a screenshot of the rendered page
+    is required. Use browser_save_pdf when the page needs to be saved
+    as a PDF. These tools do not replace browser_read_page for
+    understanding or verifying page contents.
+
+23. Browser refs may become stale whenever the page changes. Read the
+    page again before continuing when necessary.
+
+24. Never invent a browser ref. Only use refs returned by
+    browser_read_page.
+
+24a. Use browser_upload to upload an existing file from the agent
+     workspace. Provide a fresh file-input ref and a workspace-relative
+     file path. Never invent a file path or upload a file that does not
+     exist.
+
+24b. The following browser actions require explicit user approval:
+     browser_click, browser_type, browser_press, browser_select,
+     browser_drag, browser_fill, browser_dialog, and browser_upload.
+     Before attempting one of these actions, call
+     request_user_approval with the exact tool name and arguments.
+
+24c. If a browser tool returns approval_required, do not repeatedly
+     retry the action. Request approval for the exact action instead.
+     Once approval is granted and execution resumes, perform only
+     the approved action using the approved arguments.
+
+25. Do not call finish_agent_run with status completed until the
+    requested outcome has actually occurred and, when possible, has
+    been verified with the available tools.
 
 When finishing, provide:
 - status
@@ -4795,31 +4870,41 @@ When finishing, provide:
                 ),
             )
             return
-
-        run.refresh_from_db(
-            fields=[
-                "result",
-                "result_summary",
-                "result_actions",
-                "result_files",
-                "result_verification",
-                "result_warnings",
-                "progress",
-                "status",
-                "current_step",
-                "completed_at",
-            ]
-        )
-
         AgentRunLog.objects.create(
             run=run,
             message=log_message,
         )
+        run.status = final_status
+        
+        # ---------------------------------
+        # Projivo Execute: Agent completion
+        # ---------------------------------
 
-    # -------------------------------------
-    # Failure
-    # -------------------------------------
+        if run.project_execution_id is not None:
+            from projects.ai.project_executor import (
+                handle_agent_completion,
+                continue_project_execution,
+            )
 
+            if run.status == AgentRun.Status.COMPLETED:
+                try:
+                    handle_agent_completion(run.pk)
+                except Exception:
+                    logger.exception(
+                        "Failed to update Execute task."
+                    )
+
+            try:
+                continue_project_execution(
+                    run.pk,
+                    dispatch=settings.PROJIVO_EXECUTE_LIVE_DISPATCH,
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to continue Projivo Execute."
+                )
+
+   
     except Exception as exc:
         failure_time = timezone.now()
 
@@ -4843,10 +4928,7 @@ When finishing, provide:
                 ]
             )
 
-            if (
-                run.status
-                == AgentRun.Status.CANCELLED
-            ):
+            if run.status == AgentRun.Status.CANCELLED:
                 AgentRunLog.objects.create(
                     run=run,
                     message=(
@@ -4880,8 +4962,26 @@ When finishing, provide:
             message=f"Agent failed: {exc}",
         )
 
-        raise
+        # ---------------------------------
+        # Projivo Execute: Failure recovery
+        # ---------------------------------
 
+        if run.project_execution_id is not None:
+            try:
+                from projects.ai.project_executor import (
+                    continue_project_execution,
+                )
+
+                continue_project_execution(
+                    run.pk,
+                    dispatch=settings.PROJIVO_EXECUTE_LIVE_DISPATCH,
+                )
+
+            except Exception:
+                logger.exception(
+                    "Failed to continue Projivo Execute "
+                    "after agent failure."
+                )
     # -------------------------------------
     # Always preserve workspace
     # -------------------------------------

@@ -69,4 +69,10 @@ urlpatterns = [
     path("agent-runs/<int:run_pk>/status/",views.agent_run_status,name="agent_run_status",),
     path("agent-runs/<int:run_pk>/cancel/",views.cancel_agent_run,name="cancel_agent_run",),
     path("agent-runs/<int:run_pk>/retry/",views.retry_agent_run,name="retry_agent_run",),
+    path("<int:project_pk>/execute/start/",views.start_project_execution_view,name="start_project_execution",),
+    path("<int:project_pk>/execute/pause/",views.pause_project_execution_view,name="pause_project_execution",),
+    path("<int:project_pk>/execute/resume/",views.resume_project_execution_view,name="resume_project_execution",),
+    path("<int:project_pk>/execute/stop/",views.stop_project_execution_view,name="stop_project_execution",),
+    path("<int:project_pk>/execute/status/",views.project_execution_status_view,name="project_execution_status",),
+    path("<int:project_pk>/execute/",views.project_execute_view,name="project_execute",),
 ]

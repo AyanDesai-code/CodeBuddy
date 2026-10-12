@@ -1,0 +1,428 @@
+{% extends "projects/base.html" %}
+
+{% block title %}
+    Execute | {{ project.name }}
+{% endblock %}
+{% block extra_css %}
+<style>
+
+.execute-agent-section {
+    margin-top: 42px;
+}
+
+.execute-agent-section h2 {
+    font-size: 22px;
+    font-weight: 650;
+    margin-bottom: 8px;
+}
+
+.execute-agent-description {
+    opacity: 0.65;
+    margin-bottom: 24px;
+}
+
+.execute-agent-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.execute-agent-card {
+    background: #171c24;
+    border: 1px solid #303844;
+    border-radius: 12px;
+    padding: 22px;
+    min-height: 160px;
+    transition: border-color 0.2s ease;
+}
+
+.execute-agent-card:hover {
+    border-color: #66758a;
+}
+
+.execute-agent-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.execute-agent-header > span:first-child {
+    font-weight: 650;
+    font-size: 15px;
+}
+
+.execute-agent-status {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    border-radius: 6px;
+    padding: 6px 9px;
+    background: #303844;
+    color: #cbd5e1;
+}
+
+.execute-agent-card p {
+    font-size: 14px;
+    line-height: 1.6;
+    opacity: 0.8;
+}
+
+@media (max-width: 850px) {
+    .execute-agent-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+</style>
+{% endblock %}
+{% block content %}
+
+<div style="max-width: 1180px; margin: 40px auto;">
+
+    <h1>Projivo Execute</h1>
+
+    <p>
+        Deploy AI agents to work on your project automatically.
+    </p>
+    <div id="execute-controls" style="margin: 28px 0;">
+
+    <h3>Execution Controls</h3>
+
+    <p id="execution-status">
+        Checking execution status...
+    </p>
+
+    <div style="
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 16px;
+    ">
+
+        <button
+            id="execute-start"
+            type="button"
+            onclick="controlExecution('start')"
+        >
+            ▶ Start Execution
+        </button>
+
+        <button
+            id="execute-pause"
+            type="button"
+            onclick="controlExecution('pause')"
+        >
+            ⏸ Pause
+        </button>
+
+        <button
+            id="execute-resume"
+            type="button"
+            onclick="controlExecution('resume')"
+        >
+            ▶ Resume
+        </button>
+
+        <button
+            id="execute-stop"
+            type="button"
+            onclick="controlExecution('stop')"
+        >
+            ■ Stop
+        </button>
+
+    </div>
+
+    <p id="execution-message"></p>
+
+</div>
+    <h3>Project Overview</h3>
+
+    <p>
+        Total tasks: {{ overview.total_tasks }}
+    </p>
+
+    <p>
+        Completed tasks: {{ overview.completed_tasks }}
+    </p>
+
+    <p>
+        Remaining tasks: {{ overview.remaining_tasks }}
+    </p>
+
+    <p>
+        Maximum concurrent agents:
+        {{ overview.max_concurrent_agents }}
+    </p>
+<!-- ============================= -->
+<!-- AGENT ACTIVITY DASHBOARD -->
+<!-- ============================= -->
+
+<div class="execute-agent-section">
+
+    <h2>Agent Activity</h2>
+
+    <p class="execute-agent-description">
+        Monitor the AI agents working on your project.
+    </p>
+
+    <div class="execute-agent-grid" id="execute-agent-grid">
+
+        <div class="execute-agent-card">
+            <div class="execute-agent-header">
+                <span>Agent 1</span>
+                <span class="execute-agent-status">IDLE</span>
+            </div>
+
+            <p>Waiting for execution...</p>
+        </div>
+
+        <div class="execute-agent-card">
+            <div class="execute-agent-header">
+                <span>Agent 2</span>
+                <span class="execute-agent-status">IDLE</span>
+            </div>
+
+            <p>Waiting for execution...</p>
+        </div>
+
+        <div class="execute-agent-card">
+            <div class="execute-agent-header">
+                <span>Agent 3</span>
+                <span class="execute-agent-status">IDLE</span>
+            </div>
+
+            <p>Waiting for execution...</p>
+        </div>
+
+    </div>
+
+</div>
+</div>
+<script>
+const executionUrls = {
+    start: "{% url 'start_project_execution' project.pk %}",
+    pause: "{% url 'pause_project_execution' project.pk %}",
+    resume: "{% url 'resume_project_execution' project.pk %}",
+    stop: "{% url 'stop_project_execution' project.pk %}",
+    status: "{% url 'project_execution_status' project.pk %}"
+};
+
+function getCookie(name) {
+    const cookies = document.cookie.split(";");
+
+    for (const cookie of cookies) {
+        const trimmed = cookie.trim();
+
+        if (trimmed.startsWith(name + "=")) {
+            return decodeURIComponent(
+                trimmed.substring(name.length + 1)
+            );
+        }
+    }
+
+    return null;
+}
+
+let executionRequestPending = false;
+
+async function controlExecution(action) {
+    if (executionRequestPending) return;
+
+    if (
+        action === "stop" &&
+        !confirm("Are you sure you want to stop execution?")
+    ) {
+        return;
+    }
+
+    const message = document.getElementById(
+        "execution-message"
+    );
+
+    executionRequestPending = true;
+    message.textContent = "Processing request...";
+
+    document.querySelectorAll(
+        "#execute-controls button"
+    ).forEach(button => {
+        button.disabled = true;
+    });
+
+    try {
+        const response = await fetch(
+            executionUrls[action],
+            {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "X-CSRFToken": getCookie("csrftoken"),
+                    "Accept": "application/json"
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || data.success === false) {
+            throw new Error(
+                data.error ||
+                data.message ||
+                "Execution request failed."
+            );
+        }
+
+        message.textContent =
+            action.charAt(0).toUpperCase() +
+            action.slice(1) +
+            " successful.";
+
+        await refreshExecutionStatus();
+
+    } catch (error) {
+        message.textContent = error.message;
+
+    } finally {
+        executionRequestPending = false;
+        await refreshExecutionStatus();
+    }
+}
+function renderAgentCards(agents) {
+    const grid = document.getElementById("execute-agent-grid");
+
+    if (!grid) return;
+
+    // The API returns newest runs first.
+    // Show active runs before historical ones.
+    const activeStatuses = ["queued", "running", "blocked"];
+
+    const activeAgents = agents.filter(agent =>
+        activeStatuses.includes(
+            String(agent.status).toLowerCase()
+        )
+    );
+
+    // Clear the previous cards.
+    grid.replaceChildren();
+
+    // Display up to three active execution slots.
+    for (let i = 0; i < 3; i++) {
+        const agent = activeAgents[i];
+
+        const card = document.createElement("div");
+        card.className = "execute-agent-card";
+
+        const header = document.createElement("div");
+        header.className = "execute-agent-header";
+
+        const title = document.createElement("span");
+        title.textContent = `Agent ${i + 1}`;
+
+        const status = document.createElement("span");
+        status.className = "execute-agent-status";
+        status.textContent = agent
+            ? String(agent.status).toUpperCase()
+            : "IDLE";
+
+        header.append(title, status);
+
+        const description = document.createElement("p");
+
+        if (agent) {
+            description.textContent =
+                agent.task_title || "Untitled task";
+        } else {
+            description.textContent =
+                "No active agent assigned.";
+        }
+
+        card.append(header, description);
+
+        if (agent) {
+            const runId = document.createElement("small");
+            runId.textContent = `Run #${agent.id}`;
+            runId.style.opacity = "0.55";
+            card.appendChild(runId);
+        }
+
+        grid.appendChild(card);
+    }
+}
+async function refreshExecutionStatus() {
+    try {
+        const response = await fetch(
+            executionUrls.status,
+            {
+                credentials: "same-origin",
+                headers: {
+                    "Accept": "application/json"
+                }
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error("Unable to load execution status.");
+        }
+
+        const data = await response.json();
+        renderAgentCards(data.agents || []);
+        const status = (
+            data.status || "idle"
+        ).toLowerCase();
+
+        const statusElement = document.getElementById(
+            "execution-status"
+        );
+
+        statusElement.textContent =
+            "Execution status: " + status.toUpperCase();
+
+        document.getElementById(
+            "execute-start"
+        ).disabled =
+            executionRequestPending ||
+            status === "running" ||
+            status === "paused";
+
+        document.getElementById(
+            "execute-pause"
+        ).disabled =
+            executionRequestPending ||
+            status !== "running";
+
+        document.getElementById(
+            "execute-resume"
+        ).disabled =
+            executionRequestPending ||
+            status !== "paused";
+
+        document.getElementById(
+            "execute-stop"
+        ).disabled =
+            executionRequestPending ||
+            !["running", "paused"].includes(status);
+
+    } catch (error) {
+        document.getElementById(
+            "execution-status"
+        ).textContent = error.message;
+
+        document.querySelectorAll(
+            "#execute-controls button"
+        ).forEach(button => {
+            button.disabled = true;
+        });
+    }
+}
+
+refreshExecutionStatus();
+
+setInterval(() => {
+    if (!executionRequestPending) {
+        refreshExecutionStatus();
+    }
+}, 5000);
+</script>
+{% endblock %}

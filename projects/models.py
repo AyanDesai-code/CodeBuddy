@@ -9,6 +9,7 @@ from django.utils import timezone
 from pydantic import BaseModel, Field
 from decimal import Decimal
 from django import forms
+from django.conf import settings
 class Project(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
@@ -1336,6 +1337,13 @@ class AgentRun(models.Model):
         null=True,
         blank=True,
     )
+    project_execution = models.ForeignKey(
+        "ProjectExecution",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="agent_runs",
+    )
 
 
 class AgentRunLog(models.Model):
@@ -1625,4 +1633,65 @@ class AgentApprovalRequest(models.Model):
         return (
             f"Approval {self.pk}: "
             f"{self.title} ({self.status})"
+        )
+class ProjectExecution(models.Model):
+    """
+    Tracks the lifecycle of Projivo Execute
+    for an individual project.
+    """
+
+    class Status(models.TextChoices):
+        IDLE = "idle", "Idle"
+        RUNNING = "running", "Running"
+        PAUSED = "paused", "Paused"
+        COMPLETED = "completed", "Completed"
+        STOPPED = "stopped", "Stopped"
+        FAILED = "failed", "Failed"
+
+    project = models.OneToOneField(
+        "Project",
+        on_delete=models.CASCADE,
+        related_name="execution",
+    )
+
+    started_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="started_project_executions",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.IDLE,
+    )
+
+    generation = models.PositiveIntegerField(
+        default=0,
+    )
+
+    started_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    def __str__(self):
+        return (
+            f"{self.project} Execute "
+            f"({self.status})"
         )

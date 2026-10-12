@@ -15,7 +15,8 @@ from django.shortcuts import redirect
 from django.utils import timezone
 
 from projects.models import ConnectedAccount
-
+from django.db.models import Q
+from django.views.decorators.http import require_GET
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
@@ -3123,6 +3124,14 @@ def toggle_task(
             "status",
             "updated_at",
         ]
+    )
+    from projects.ai.project_executor import (
+        sync_project_execution_after_task_change,
+    )
+
+    sync_project_execution_after_task_change(
+        project,
+        dispatch=False,
     )
 
     cascade = (
@@ -7236,6 +7245,16 @@ def update_task_status(
             "updated_at",
         ]
     )
+        # Update Projivo Execute when a task changes status.
+    from projects.ai.project_executor import (
+        sync_project_execution_after_task_change,
+    )
+
+    if previous_status != new_status:
+        sync_project_execution_after_task_change(
+            project,
+            dispatch=False,
+        )
 
     cascade = (
         apply_manual_project_cascade(
@@ -7487,6 +7506,17 @@ def move_task_on_board(
                     ),
                 },
             )
+                # Synchronize Projivo Execute after the Kanban
+    # transaction has successfully committed.
+    if previous_status != new_status:
+        from projects.ai.project_executor import (
+            sync_project_execution_after_task_change,
+        )
+
+        sync_project_execution_after_task_change(
+            project,
+            dispatch=False,
+        )
 
     cascade_success = True
 
@@ -13170,29 +13200,76 @@ def deploy_task_agent(request, project_pk, task_pk):
         project=project,
     )
 
-    agent_run = AgentRun.objects.create(
-        project=project,
-        task=task,
-        user=request.user,
-        model_name="gpt-6-astra",
-        status=AgentRun.Status.QUEUED,
-        progress=0,
-        current_step="Queued",
-    )
-    
-
-    AgentRunLog.objects.create(
-        run=agent_run,
-        message="Agent deployment requested.",
-    )
-    execute_agent_run_task.delay(
-        agent_run.pk
+    # Prevent repeated deploy requests from creating
+    # multiple active agents for the same task/user.
+    existing_run = (
+        AgentRun.objects
+        .filter(
+            project=project,
+            task=task,
+            user=request.user,
+            status__in=[
+                AgentRun.Status.QUEUED,
+                AgentRun.Status.RUNNING,
+            ],
+        )
+        .order_by("-created_at")
+        .first()
     )
 
-    return JsonResponse({
-        "run_id": agent_run.id,
-        "status": agent_run.status,
-    })
+    if existing_run:
+        return JsonResponse(
+            {
+                "run_id": existing_run.pk,
+                "status": existing_run.status,
+                "existing": True,
+            }
+        )
+
+    try:
+        with transaction.atomic():
+            agent_run = AgentRun.objects.create(
+                project=project,
+                task=task,
+                user=request.user,
+                model_name="gpt-6-astra",
+                status=AgentRun.Status.QUEUED,
+                progress=0,
+                current_step="Queued",
+            )
+
+            AgentRunLog.objects.create(
+                run=agent_run,
+                message="Agent deployment requested.",
+            )
+
+            agent_run_id = agent_run.pk
+
+            transaction.on_commit(
+                lambda: execute_agent_run_task.delay(
+                    agent_run_id
+                )
+            )
+
+    except Exception as exc:
+        return JsonResponse(
+            {
+                "error": (
+                    "Could not deploy agent."
+                ),
+                "details": str(exc),
+            },
+            status=500,
+        )
+
+    return JsonResponse(
+        {
+            "run_id": agent_run.pk,
+            "status": agent_run.status,
+            "existing": False,
+        },
+        status=201,
+    )
 @login_required
 def agent_run_status(request, run_pk):
     run = get_object_or_404(
@@ -14239,4 +14316,302 @@ def retry_agent_run(request, run_pk):
             "existing": False,
         },
         status=201,
+    )
+@login_required
+@require_POST
+def start_project_execution_view(request, project_pk):
+    """
+    Start Projivo Execute for a project.
+    """
+
+    from django.conf import settings
+    from django.core.exceptions import PermissionDenied
+    from django.http import JsonResponse
+    from django.shortcuts import get_object_or_404
+
+    from projects.models import Project
+    from projects.ai.project_executor import (
+        start_project_execution,
+    )
+
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+    )
+
+    try:
+        result = start_project_execution(
+            project,
+            request.user,
+            dispatch=settings.PROJIVO_EXECUTE_LIVE_DISPATCH,
+        )
+
+    except PermissionDenied:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "You do not have permission to execute this project.",
+            },
+            status=403,
+        )
+
+    except ValueError as exc:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": str(exc),
+            },
+            status=400,
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            **result,
+        }
+    )
+@login_required
+@require_POST
+def pause_project_execution_view(request, project_pk):
+    """
+    Pause Projivo Execute for a project.
+    """
+
+    from django.core.exceptions import PermissionDenied
+    from django.http import JsonResponse
+    from django.shortcuts import get_object_or_404
+
+    from projects.models import Project
+    from projects.ai.project_executor import (
+        pause_project_execution,
+    )
+
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+    )
+
+    try:
+        result = pause_project_execution(
+            project,
+            request.user,
+        )
+
+    except PermissionDenied:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "You do not have permission to pause this project.",
+            },
+            status=403,
+        )
+
+    except ValueError as exc:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": str(exc),
+            },
+            status=400,
+        )
+
+    return JsonResponse({
+        "success": True,
+        "execution_id": result.pk,
+        "status": result.status,
+    })
+@login_required
+@require_POST
+def resume_project_execution_view(request, project_pk):
+    """
+    Resume a paused Projivo Execute session.
+    """
+
+    from django.conf import settings
+    from django.core.exceptions import PermissionDenied
+    from django.http import JsonResponse
+    from django.shortcuts import get_object_or_404
+
+    from projects.models import Project
+    from projects.ai.project_executor import (
+        resume_project_execution,
+    )
+
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+    )
+
+    try:
+        result = resume_project_execution(
+            project,
+            request.user,
+            dispatch=settings.PROJIVO_EXECUTE_LIVE_DISPATCH,
+        )
+
+    except PermissionDenied:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "You do not have permission to resume this project.",
+            },
+            status=403,
+        )
+
+    except ValueError as exc:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": str(exc),
+            },
+            status=400,
+        )
+
+    return JsonResponse({
+        "success": True,
+        **result,
+    })
+@login_required
+@require_POST
+def stop_project_execution_view(request, project_pk):
+    """
+    Stop a Projivo Execute session.
+    """
+
+    from django.core.exceptions import PermissionDenied
+    from django.http import JsonResponse
+    from django.shortcuts import get_object_or_404
+
+    from projects.models import Project
+    from projects.ai.project_executor import (
+        stop_project_execution,
+    )
+
+    project = get_object_or_404(
+        Project,
+        pk=project_pk,
+    )
+
+    try:
+        result = stop_project_execution(
+            project,
+            request.user,
+        )
+
+    except PermissionDenied:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "You do not have permission to stop this project.",
+            },
+            status=403,
+        )
+
+    except ValueError as exc:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": str(exc),
+            },
+            status=400,
+        )
+
+    return JsonResponse({
+        "success": True,
+        "execution_id": result.pk,
+        "status": result.status,
+    })
+@login_required
+@require_GET
+def project_execution_status_view(request, project_pk):
+    """
+    Return the current Projivo Execute session status.
+    """
+
+    from django.http import JsonResponse
+    from django.shortcuts import get_object_or_404
+
+    from projects.models import (
+        Project,
+        ProjectExecution,
+        AgentRun,
+    )
+    from projects.ai.project_executor import (
+        get_execution_overview,
+    )
+
+    project = get_object_or_404(
+        Project.objects.filter(
+            pk=project_pk,
+        ).filter(
+            Q(owner=request.user)
+            | Q(memberships__user=request.user)
+        ).distinct()
+    )
+
+    execution = ProjectExecution.objects.filter(
+        project=project,
+    ).first()
+
+    overview = get_execution_overview(project)
+
+    agents = []
+
+    if execution:
+        runs = (
+            AgentRun.objects
+            .filter(project_execution=execution)
+            .select_related("task")
+            .order_by("-created_at")[:30]
+        )
+
+        agents = [
+            {
+                "id": run.pk,
+                "task_id": run.task_id,
+                "task_title": (
+                    run.task.title if run.task else None
+                ),
+                "status": run.status,
+            }
+            for run in runs
+        ]
+
+    return JsonResponse({
+        "success": True,
+        "execution_id": execution.pk if execution else None,
+        "status": (
+            execution.status
+            if execution
+            else "idle"
+        ),
+        "overview": overview,
+        "agents": agents,
+    })
+@login_required
+def project_execute_view(request, project_pk):
+    """
+    Render the Projivo Execute dashboard.
+    """
+
+    from django.shortcuts import render
+
+    from projects.ai.project_executor import (
+        get_execution_overview,
+    )
+
+    project = get_project_for_user(
+        project_pk=project_pk,
+        user=request.user,
+    )
+
+    overview = get_execution_overview(project)
+
+    return render(
+        request,
+        "projects/project_execute.html",
+        {
+            "project": project,
+            "overview": overview,
+        },
     )

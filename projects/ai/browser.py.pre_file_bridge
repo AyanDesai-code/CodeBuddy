@@ -1,0 +1,810 @@
+import ipaddress
+import json
+import os
+import re
+import shutil
+import socket
+import subprocess
+import tempfile
+from pathlib import Path
+from urllib.parse import urlparse
+
+
+OPENCLAW_PROFILE = "openclaw"
+OPENCLAW_TIMEOUT = 45
+
+
+def validate_browser_url(url):
+    parsed = urlparse(url)
+
+    if parsed.scheme not in {
+        "http",
+        "https",
+    }:
+        raise ValueError(
+            "Browser only supports HTTP "
+            "and HTTPS URLs."
+        )
+
+    hostname = parsed.hostname
+
+    if not hostname:
+        raise ValueError(
+            "URL must contain a hostname."
+        )
+
+    hostname = hostname.lower()
+
+    if hostname in {
+        "localhost",
+        "localhost.localdomain",
+    }:
+        raise ValueError(
+            "Browser cannot access localhost."
+        )
+
+    try:
+        addresses = socket.getaddrinfo(
+            hostname,
+            parsed.port or (
+                443
+                if parsed.scheme == "https"
+                else 80
+            ),
+            type=socket.SOCK_STREAM,
+        )
+
+    except socket.gaierror as exc:
+        raise ValueError(
+            "Unable to resolve website hostname."
+        ) from exc
+
+    for address in addresses:
+        ip = ipaddress.ip_address(
+            address[4][0]
+        )
+
+        if not ip.is_global:
+            raise ValueError(
+                "Browser cannot access "
+                "private or local networks."
+            )
+
+    return url
+
+
+class BrowserSession:
+    def __init__(self, run_id):
+        self.run_id = run_id
+
+        self.base_dir = (
+            Path(tempfile.gettempdir())
+            / "projivo_browsers"
+            / f"run_{run_id}"
+        )
+
+        self.base_dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        self.profile = (
+            f"projivo-run-{run_id}"
+        )
+
+        self._openclaw_path = (
+            self._find_openclaw()
+        )
+
+        self._ensure_profile_exists()
+        self._ensure_browser_running()
+
+    def _find_openclaw(self):
+        path = shutil.which("openclaw")
+
+        if path:
+            return path
+
+        fallback = (
+            Path.home()
+            / ".openclaw"
+            / "bin"
+            / "openclaw"
+        )
+
+        if fallback.exists():
+            return str(fallback)
+
+        raise RuntimeError(
+            "OpenClaw is not installed or "
+            "is not available on PATH."
+        )
+    def _ensure_profile_exists(self):
+        result = subprocess.run(
+            [
+                self._openclaw_path,
+                "browser",
+                "profiles",
+            ],
+            capture_output=True,
+            text=True,
+            env=os.environ.copy(),
+            timeout=OPENCLAW_TIMEOUT,
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                "Unable to inspect OpenClaw "
+                "browser profiles: "
+                + (
+                    result.stderr.strip()
+                    or result.stdout.strip()
+                )
+            )
+
+        profile_pattern = re.compile(
+            rf"(?m)^{re.escape(self.profile)}:"
+        )
+
+        if profile_pattern.search(result.stdout):
+            return
+
+        create_result = subprocess.run(
+            [
+                self._openclaw_path,
+                "browser",
+                "create-profile",
+                "--name",
+                self.profile,
+                "--driver",
+                "openclaw",
+            ],
+            capture_output=True,
+            text=True,
+            env=os.environ.copy(),
+            timeout=OPENCLAW_TIMEOUT,
+        )
+
+        if create_result.returncode != 0:
+            # Another worker may have created the
+            # same profile between our two commands.
+            verify_result = subprocess.run(
+                [
+                    self._openclaw_path,
+                    "browser",
+                    "profiles",
+                ],
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                timeout=OPENCLAW_TIMEOUT,
+            )
+
+            if (
+                verify_result.returncode != 0
+                or not profile_pattern.search(
+                    verify_result.stdout
+                )
+            ):
+                raise RuntimeError(
+                    "Unable to create OpenClaw "
+                    f"profile {self.profile}: "
+                    + (
+                        create_result.stderr.strip()
+                        or create_result.stdout.strip()
+                    )
+                )
+    def _command(
+        self,
+        *arguments,
+        timeout=OPENCLAW_TIMEOUT,
+        check=True,
+    ):
+        command = [
+            self._openclaw_path,
+            "browser",
+            "--browser-profile",
+            self.profile,
+            *[
+                str(argument)
+                for argument in arguments
+            ],
+        ]
+
+        env = os.environ.copy()
+
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env,
+        )
+
+        if (
+            check
+            and result.returncode != 0
+        ):
+            message = (
+                result.stderr.strip()
+                or result.stdout.strip()
+                or "Unknown OpenClaw browser error."
+            )
+
+            raise RuntimeError(
+                "OpenClaw browser command failed: "
+                f"{message}"
+            )
+
+        return result
+    def _ensure_browser_running(self):
+        result = self._command(
+            "doctor",
+            check=False,
+        )
+
+        output = (
+            result.stdout
+            + "\n"
+            + result.stderr
+        )
+
+        if (
+            result.returncode == 0
+            and "browser: not running"
+            not in output.lower()
+        ):
+            return
+
+        start_result = self._command(
+            "start",
+            timeout=60,
+            check=False,
+        )
+
+        if start_result.returncode != 0:
+            message = (
+                start_result.stderr.strip()
+                or start_result.stdout.strip()
+            )
+
+            raise RuntimeError(
+                "Unable to start OpenClaw "
+                f"browser: {message}"
+            )
+
+    def _extract_url(self, text):
+        matches = re.findall(
+            r"https?://[^\s]+",
+            text,
+        )
+
+        if not matches:
+            return None
+
+        return matches[-1].rstrip(
+            ".,);]"
+        )
+
+    def _parse_snapshot(self, snapshot):
+        elements = []
+
+        pattern = re.compile(
+            r"(?P<kind>[a-zA-Z]+)"
+            r'(?:\s+"(?P<label>[^"]*)")?'
+            r".*?\[ref=(?P<ref>[^\]]+)\]"
+        )
+
+        for line in snapshot.splitlines():
+            match = pattern.search(line)
+
+            if not match:
+                continue
+
+            elements.append({
+                "ref": match.group("ref"),
+                "type": match.group("kind"),
+                "label": (
+                    match.group("label")
+                    or ""
+                ),
+            })
+
+        return elements
+
+    def open(self, url):
+        url = validate_browser_url(url)
+
+        result = self._command(
+            "open",
+            url,
+            timeout=60,
+        )
+
+        output = result.stdout.strip()
+
+        opened_url = (
+            self._extract_url(output)
+            or url
+        )
+
+        validate_browser_url(
+            opened_url
+        )
+
+        return {
+            "url": opened_url,
+            "status": None,
+            "output": output,
+        }
+
+    def read_page(self):
+        result = self._command(
+            "snapshot",
+            timeout=60,
+        )
+
+        snapshot = result.stdout.strip()
+
+        elements = self._parse_snapshot(
+            snapshot
+        )
+
+        return {
+            "snapshot": snapshot,
+            "elements": elements,
+        }
+
+    def click(self, ref):
+        if not ref:
+            raise ValueError(
+                "Browser element ref is required."
+            )
+
+        result = self._command(
+            "click",
+            ref,
+        )
+
+        return {
+            "ok": True,
+            "ref": ref,
+            "output": result.stdout.strip(),
+        }
+
+    def type(self, ref, text):
+        if not ref:
+            raise ValueError(
+                "Browser element ref is required."
+            )
+
+        if text is None:
+            raise ValueError(
+                "Browser text is required."
+            )
+
+        result = self._command(
+            "type",
+            ref,
+            text,
+        )
+
+        return {
+            "ok": True,
+            "ref": ref,
+            "output": result.stdout.strip(),
+        }
+    def press(self, key):
+        if not key:
+            raise ValueError("Browser key is required.")
+
+        result = self._command(
+            "press",
+            key,
+        )
+
+        return {
+            "ok": True,
+            "key": key,
+            "output": result.stdout.strip(),
+        }
+    def scroll(self, amount=700):
+        amount = int(amount)
+
+        if amount == 0:
+            return {
+                "ok": True,
+                "amount": 0,
+            }
+
+        if amount > 0:
+            key = "PageDown"
+        else:
+            key = "PageUp"
+
+        result = self._command(
+            "press",
+            key,
+        )
+
+        return {
+            "ok": True,
+            "amount": amount,
+            "key": key,
+            "output": result.stdout.strip(),
+        }
+    def select(self, ref, values):
+        if not ref:
+            raise ValueError("Browser ref is required.")
+
+        if not values:
+            raise ValueError("At least one select value is required.")
+
+        if isinstance(values, str):
+            values = [values]
+
+        result = self._command(
+            "select",
+            ref,
+            *values,
+        )
+
+        return {
+            "ok": True,
+            "ref": ref,
+            "values": values,
+            "output": result.stdout.strip(),
+        }
+
+
+    def wait(self, time_ms=1000):
+        time_ms = int(time_ms)
+
+        if time_ms < 0:
+            raise ValueError("Wait time cannot be negative.")
+
+        result = self._command(
+            "wait",
+            "--time",
+            str(time_ms),
+        )
+
+        return {
+            "ok": True,
+            "time_ms": time_ms,
+            "output": result.stdout.strip(),
+        }
+
+
+    def hover(self, ref):
+        if not ref:
+            raise ValueError("Browser ref is required.")
+
+        result = self._command(
+            "hover",
+            ref,
+        )
+
+        return {
+            "ok": True,
+            "ref": ref,
+            "output": result.stdout.strip(),
+        }
+    def navigate(self, url):
+        url = validate_browser_url(url)
+
+        result = self._command(
+            "navigate",
+            url,
+        )
+
+        return {
+            "ok": True,
+            "url": url,
+            "output": result.stdout.strip(),
+        }
+
+    def tabs(self):
+        result = self._command("tabs")
+
+        return {
+            "ok": True,
+            "tabs": result.stdout.strip(),
+        }
+
+
+    def focus_tab(self, target_id):
+        if not target_id:
+            raise ValueError("Browser target id is required.")
+
+        result = self._command(
+            "focus",
+            target_id,
+        )
+
+        return {
+            "ok": True,
+            "target_id": target_id,
+            "output": result.stdout.strip(),
+        }
+
+
+    def close_tab(self, target_id):
+        if not target_id:
+            raise ValueError("Browser target id is required.")
+
+        result = self._command(
+            "close",
+            target_id,
+        )
+
+        return {
+            "ok": True,
+            "target_id": target_id,
+            "output": result.stdout.strip(),
+        }
+
+
+    def drag(self, start_ref, end_ref):
+        if not start_ref or not end_ref:
+            raise ValueError(
+                "Start and end browser refs are required."
+            )
+
+        result = self._command(
+            "drag",
+            start_ref,
+            end_ref,
+        )
+
+        return {
+            "ok": True,
+            "start_ref": start_ref,
+            "end_ref": end_ref,
+            "output": result.stdout.strip(),
+        }
+
+
+    def fill(self, fields):
+        if not fields:
+            raise ValueError(
+                "At least one form field is required."
+            )
+
+        fields_json = json.dumps(fields)
+
+        result = self._command(
+            "fill",
+            "--fields",
+            fields_json,
+        )
+
+        return {
+            "ok": True,
+            "fields": fields,
+            "output": result.stdout.strip(),
+        }
+
+
+    def scroll_into_view(self, ref):
+        if not ref:
+            raise ValueError("Browser ref is required.")
+
+        result = self._command(
+            "scrollintoview",
+            ref,
+        )
+
+        return {
+            "ok": True,
+            "ref": ref,
+            "output": result.stdout.strip(),
+        }
+
+
+    def dialog(self, action, prompt_text=None):
+        if action not in {"accept", "dismiss"}:
+            raise ValueError(
+                "Dialog action must be 'accept' or 'dismiss'."
+            )
+
+        arguments = [
+            "dialog",
+            f"--{action}",
+        ]
+
+        if prompt_text is not None:
+            arguments.extend(
+                [
+                    "--prompt",
+                    prompt_text,
+                ]
+            )
+
+        result = self._command(
+            *arguments,
+        )
+
+        return {
+            "ok": True,
+            "action": action,
+            "prompt_text": prompt_text,
+            "output": result.stdout.strip(),
+        }
+    def screenshot(self):
+        result = self._command(
+            "screenshot",
+            timeout=60,
+        )
+
+        output = result.stdout.strip()
+
+        # OpenClaw may return JSON or ordinary
+        # human-readable CLI output depending
+        # on the command/version.
+        screenshot_path = None
+
+        try:
+            data = json.loads(output)
+
+            if isinstance(data, dict):
+                screenshot_path = (
+                    data.get("path")
+                    or data.get("file")
+                )
+
+        except json.JSONDecodeError:
+            pass
+
+        if screenshot_path:
+            path = Path(screenshot_path)
+
+            if path.exists():
+                return path
+
+        return {
+            "ok": True,
+            "output": output,
+        }
+    def download(self, ref, filename):
+        if not ref:
+            raise ValueError(
+                "Browser ref is required."
+            )
+
+        if not filename:
+            raise ValueError(
+                "Download filename is required."
+            )
+
+        # Never allow the model to choose a filesystem path.
+        filename = os.path.basename(filename)
+
+        if filename in {"", ".", ".."}:
+            raise ValueError(
+                "Invalid download filename."
+            )
+
+        workspace_root = (
+            Path(tempfile.gettempdir())
+            / "projivo_agents"
+            / f"run_{self.run_id}"
+        )
+
+        workspace_root.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        destination = (
+            workspace_root
+            / filename
+        ).resolve()
+
+        # Defense in depth: ensure the final destination
+        # is still inside this run's workspace.
+        if workspace_root.resolve() not in destination.parents:
+            raise ValueError(
+                "Download path escapes agent workspace."
+            )
+
+        result = self._command(
+            "download",
+            ref,
+            str(destination),
+            timeout=120,
+        )
+
+        return {
+            "ok": True,
+            "ref": ref,
+            "filename": filename,
+            "path": filename,
+            "output": result.stdout.strip(),
+        }
+    def upload(self, ref, workspace_path):
+        if not ref:
+            raise ValueError(
+                "Browser ref is required."
+            )
+
+        if not workspace_path:
+            raise ValueError(
+                "Workspace file path is required."
+            )
+
+        workspace_root = (
+            Path(tempfile.gettempdir())
+            / "projivo_agents"
+            / f"run_{self.run_id}"
+        ).resolve()
+
+        file_path = (
+            workspace_root
+            / workspace_path.lstrip("/")
+        ).resolve()
+
+        # Never allow the model to access files
+        # outside this agent run's workspace.
+        if (
+            file_path != workspace_root
+            and workspace_root not in file_path.parents
+        ):
+            raise ValueError(
+                "Upload path escapes agent workspace."
+            )
+
+        if not file_path.exists():
+            raise FileNotFoundError(
+                f"Workspace file not found: {workspace_path}"
+            )
+
+        if not file_path.is_file():
+            raise ValueError(
+                "Upload path is not a file."
+            )
+
+        # OpenClaw upload arms the next file chooser.
+        result = self._command(
+            "upload",
+            "--input-ref",
+            ref,
+            str(file_path),
+            timeout=120,
+        )
+
+        return {
+            "ok": True,
+            "ref": ref,
+            "path": workspace_path,
+            "filename": file_path.name,
+            "output": result.stdout.strip(),
+        }
+    def screenshot_page(self, full_page=False):
+        arguments = ["screenshot"]
+
+        if full_page:
+            arguments.append("--full-page")
+
+        result = self._command(*arguments)
+
+        return {
+            "ok": True,
+            "full_page": full_page,
+            "output": result.stdout.strip(),
+        }
+
+    def save_pdf(self):
+        result = self._command("pdf")
+
+        return {
+            "ok": True,
+            "output": result.stdout.strip(),
+        }
+    def close(self):
+        # Do not stop the shared OpenClaw browser.
+        #
+        # Other Projivo runs may be using the
+        # OpenClaw browser service at the same
+        # time.
+        return None

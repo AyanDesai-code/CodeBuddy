@@ -426,7 +426,13 @@ CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TASK_TRACK_STARTED = True
 
 CELERY_TASK_TIME_LIMIT = 60 * 30
-
+# Projivo Execute
+PROJIVO_EXECUTE_LIVE_DISPATCH = (
+    os.environ.get(
+        "PROJIVO_EXECUTE_LIVE_DISPATCH",
+        "false",
+    ).lower() == "true"
+)
 GITHUB_APP_CLIENT_ID = os.environ.get(
     "GITHUB_APP_CLIENT_ID"
 )
