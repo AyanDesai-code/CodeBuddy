@@ -207,6 +207,7 @@ def launch_project_swarm(
             run = AgentRun.objects.create(
                 project=locked_project,
                 project_execution=execution,
+                execution_generation=execution.generation,
                 task=task,
                 user=user,
                 model_name=model_name,
@@ -264,6 +265,19 @@ def handle_agent_completion(run_id):
                 "handled": False,
                 "reason": "Agent has not completed.",
             }
+
+        if run.project_execution_id is not None:
+            execution = (
+                ProjectExecution.objects
+                .select_for_update()
+                .get(pk=run.project_execution_id)
+            )
+
+            if run.execution_generation != execution.generation:
+                return {
+                    "handled": False,
+                    "reason": "Agent belongs to an outdated execution.",
+                }
 
         task = run.task
 
@@ -465,6 +479,10 @@ def start_project_execution(
                 "agent_run_ids": [],
             }
 
+                # Each new execution attempt gets a unique generation.
+        # This distinguishes new agents from old cancelled agents.
+        execution.generation += 1
+
         execution.status = ProjectExecution.Status.RUNNING
         execution.started_by = user
         execution.started_at = timezone.now()
@@ -472,6 +490,7 @@ def start_project_execution(
 
         execution.save(
             update_fields=[
+                "generation",
                 "status",
                 "started_by",
                 "started_at",
@@ -725,6 +744,10 @@ def continue_project_execution(run_id, *, dispatch=False):
 
     # Respect Pause and Stop.
     if execution.status != ProjectExecution.Status.RUNNING:
+        return []
+     # Prevent agents from previous executions
+    # from triggering new agents.
+    if run.execution_generation != execution.generation:
         return []
 
     # The agent that started Execute determines

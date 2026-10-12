@@ -3661,18 +3661,50 @@ AGENT_RUNTIME_TOOLS = [
     AGENT_FINISH_TOOL,
 ]
 def agent_run_was_cancelled(run):
+    """
+    Detect cancelled agents and agents belonging
+    to an outdated Projivo Execute generation.
+    """
+
     run.refresh_from_db(
         fields=[
             "status",
             "current_step",
             "completed_at",
+            "execution_generation",
         ]
     )
 
-    return (
-        run.status
-        == AgentRun.Status.CANCELLED
-    )
+    # Existing cancellation protection.
+    if run.status == AgentRun.Status.CANCELLED:
+        return True
+
+    # Manually deployed agents do not belong
+    # to a Projivo Execute generation.
+    if run.project_execution_id is None:
+        return False
+
+    from projects.models import ProjectExecution
+
+    execution = ProjectExecution.objects.filter(
+        pk=run.project_execution_id,
+    ).values(
+        "status",
+        "generation",
+    ).first()
+
+    if execution is None:
+        return True
+
+    # Stop agents belonging to previous attempts.
+    if run.execution_generation != execution["generation"]:
+        return True
+
+    # A stopped execution must not continue working.
+    if execution["status"] == ProjectExecution.Status.STOPPED:
+        return True
+
+    return False
 def build_agent_result_details(
     *,
     run,
@@ -4102,9 +4134,22 @@ def execute_agent_run(run_id):
 
         started_at = timezone.now()
 
+        from django.db.models import F, Q
+
+        # Manual agents can start normally.
+        # Execute agents must belong to the current
+        # running execution generation.
         updated = AgentRun.objects.filter(
             pk=run.pk,
             status=AgentRun.Status.QUEUED,
+        ).filter(
+            Q(project_execution__isnull=True)
+            | Q(
+                project_execution__status="running",
+                execution_generation=F(
+                    "project_execution__generation"
+                ),
+            )
         ).update(
             status=AgentRun.Status.RUNNING,
             progress=10,
@@ -4816,6 +4861,14 @@ When finishing, provide:
         updated = AgentRun.objects.filter(
             pk=run.pk,
             status=AgentRun.Status.RUNNING,
+        ).filter(
+            Q(project_execution__isnull=True)
+            | Q(
+                project_execution__status="running",
+                execution_generation=F(
+                    "project_execution__generation"
+                ),
+            )
         ).update(
             result=run.result,
             result_summary=(
@@ -4870,12 +4923,13 @@ When finishing, provide:
                 ),
             )
             return
+
         AgentRunLog.objects.create(
             run=run,
             message=log_message,
         )
         run.status = final_status
-        
+
         # ---------------------------------
         # Projivo Execute: Agent completion
         # ---------------------------------
@@ -4904,13 +4958,20 @@ When finishing, provide:
                     "Failed to continue Projivo Execute."
                 )
 
-   
     except Exception as exc:
         failure_time = timezone.now()
 
         updated = AgentRun.objects.filter(
             pk=run.pk,
             status=AgentRun.Status.RUNNING,
+        ).filter(
+            Q(project_execution__isnull=True)
+            | Q(
+                project_execution__status="running",
+                execution_generation=F(
+                    "project_execution__generation"
+                ),
+            )
         ).update(
             status=AgentRun.Status.FAILED,
             current_step="Failed",
@@ -4982,17 +5043,15 @@ When finishing, provide:
                     "Failed to continue Projivo Execute "
                     "after agent failure."
                 )
-    # -------------------------------------
-    # Always preserve workspace
-    # -------------------------------------
 
     finally:
+        # -------------------------------------
+        # Always preserve workspace
+        # -------------------------------------
         try:
-            preservation_result = (
-                preserve_workspace_state(
-                    workspace=workspace,
-                    run=run,
-                )
+            preservation_result = preserve_workspace_state(
+                workspace=workspace,
+                run=run,
             )
 
             AgentRunLog.objects.create(

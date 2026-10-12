@@ -1337,6 +1337,9 @@ class AgentRun(models.Model):
         null=True,
         blank=True,
     )
+    execution_generation = models.PositiveIntegerField(
+        default=0,
+    )
     project_execution = models.ForeignKey(
         "ProjectExecution",
         on_delete=models.SET_NULL,

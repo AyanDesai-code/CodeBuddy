@@ -4,6 +4,7 @@ from projects.models import Project, Task, AgentRun, ProjectExecution
 from projects.ai.project_executor import (
     get_ready_tasks,
     get_execution_overview,
+    handle_agent_completion,
     launch_project_swarm,
     start_project_execution,
     pause_project_execution,
@@ -36,7 +37,135 @@ class ProjectExecutorTests(TestCase):
             title=title,
             priority=priority,
         )
+    def test_stale_agent_cannot_continue_execution(self):
+        from unittest.mock import patch
 
+        from projects.ai.project_executor import (
+            continue_project_execution,
+        )
+        from projects.models import (
+            AgentRun,
+            ProjectExecution,
+        )
+
+        task = self.create_task("Outdated agent task")
+
+        execution = ProjectExecution.objects.create(
+            project=self.project,
+            started_by=self.user,
+            status=ProjectExecution.Status.RUNNING,
+            generation=2,
+        )
+
+        stale_run = AgentRun.objects.create(
+            project=self.project,
+            project_execution=execution,
+            execution_generation=1,
+            task=task,
+            user=self.user,
+            status=AgentRun.Status.COMPLETED,
+        )
+
+        with patch(
+            "projects.ai.project_executor.refill_project_swarm"
+        ) as mock_refill:
+            result = continue_project_execution(
+                stale_run.pk,
+                dispatch=False,
+            )
+
+        self.assertEqual(result, [])
+        mock_refill.assert_not_called()
+    def test_complete_project_execution_lifecycle(self):
+        # Create three independent tasks and one dependent task.
+        tasks = [
+            self.create_task(f"Build component {i}")
+            for i in range(3)
+        ]
+        final_task = self.create_task("Integrate components")
+
+        for task in tasks:
+            final_task.dependencies.add(task)
+
+        # Start execution: three agents should launch.
+        result = start_project_execution(
+            self.project,
+            self.user,
+            dispatch=False,
+        )
+
+        self.assertEqual(len(result["agent_run_ids"]), 3)
+
+        execution = ProjectExecution.objects.get(
+            project=self.project,
+        )
+
+        self.assertEqual(
+            execution.status,
+            ProjectExecution.Status.RUNNING,
+        )
+
+        # Simulate each agent finishing, followed by human approval.
+        for run_id in result["agent_run_ids"]:
+            run = AgentRun.objects.get(pk=run_id)
+
+            run.status = AgentRun.Status.COMPLETED
+            run.save(update_fields=["status"])
+
+            completion = handle_agent_completion(run.pk)
+            self.assertTrue(completion["handled"])
+
+            task = run.task
+            task.refresh_from_db()
+            self.assertEqual(task.status, Task.Status.REVIEW)
+
+            task.status = Task.Status.DONE
+            task.completed = True
+            task.save(update_fields=["status", "completed"])
+
+        # Human approval should unlock the dependent task.
+        new_runs = sync_project_execution_after_task_change(
+            self.project,
+            dispatch=False,
+        )
+
+        self.assertEqual(len(new_runs), 1)
+        self.assertEqual(new_runs[0].task_id, final_task.pk)
+
+        # Complete the final agent's work.
+        final_run = new_runs[0]
+        final_run.status = AgentRun.Status.COMPLETED
+        final_run.save(update_fields=["status"])
+
+        completion = handle_agent_completion(final_run.pk)
+        self.assertTrue(completion["handled"])
+
+        final_task.refresh_from_db()
+        self.assertEqual(final_task.status, Task.Status.REVIEW)
+
+        # Execution must wait for final human approval.
+        execution.refresh_from_db()
+        self.assertEqual(
+            execution.status,
+            ProjectExecution.Status.RUNNING,
+        )
+
+        # Approve the final task.
+        final_task.status = Task.Status.DONE
+        final_task.completed = True
+        final_task.save(update_fields=["status", "completed"])
+
+        sync_project_execution_after_task_change(
+            self.project,
+            dispatch=False,
+        )
+
+        execution.refresh_from_db()
+
+        self.assertEqual(
+            execution.status,
+            ProjectExecution.Status.COMPLETED,
+        )
     def test_parallel_tasks(self):
         tasks = [
             self.create_task(f"Task {i}")
@@ -1160,3 +1289,31 @@ class ProjectExecutorTests(TestCase):
                 ],
             ).exists()
         )
+    def test_stale_agent_cannot_move_task_to_review(self):
+        from projects.ai.project_executor import handle_agent_completion
+        from projects.models import AgentRun, ProjectExecution
+
+        task = self.create_task("Task from previous execution")
+
+        execution = ProjectExecution.objects.create(
+            project=self.project,
+            started_by=self.user,
+            status=ProjectExecution.Status.RUNNING,
+            generation=2,
+        )
+
+        stale_run = AgentRun.objects.create(
+            project=self.project,
+            project_execution=execution,
+            execution_generation=1,
+            task=task,
+            user=self.user,
+            status=AgentRun.Status.COMPLETED,
+        )
+
+        result = handle_agent_completion(stale_run.pk)
+
+        task.refresh_from_db()
+
+        self.assertFalse(result["handled"])
+        self.assertEqual(task.status, Task.Status.TODO)

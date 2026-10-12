@@ -452,3 +452,64 @@ class AgentExecutionTests(TestCase):
             "PASS: Failed agent automatically "
             "created a replacement"
         )
+    def test_stale_generation_agent_cannot_start(self):
+        user = get_user_model().objects.create_user(
+            username="stale_agent_test_user",
+            password="test-password-123",
+        )
+
+        project = Project.objects.create(
+            owner=user,
+            name="Stale Agent Test",
+        )
+
+        task = Task.objects.create(
+            project=project,
+            title="Test stale execution",
+        )
+
+        # Create a running execution at generation 2.
+        execution = ProjectExecution.objects.create(
+            project=project,
+            started_by=user,
+            status=ProjectExecution.Status.RUNNING,
+            generation=2,
+        )
+
+        # Simulate an old queued agent from generation 1.
+        stale_run = AgentRun.objects.create(
+            project=project,
+            project_execution=execution,
+            execution_generation=1,
+            task=task,
+            user=user,
+            status=AgentRun.Status.QUEUED,
+        )
+
+        # Mock all external operations.
+        with (
+            patch("projects.ai.services.OpenAI") as mock_openai,
+            patch(
+                "projects.ai.services.execute_agent_tool"
+            ) as mock_tool,
+            patch(
+                "projects.ai.services.preserve_workspace_state",
+                return_value={
+                    "changed_files": [],
+                    "patch_bytes": 0,
+                },
+            ),
+        ):
+            execute_agent_run(stale_run.pk)
+
+        stale_run.refresh_from_db()
+
+        # The stale agent must never start.
+        self.assertEqual(
+            stale_run.status,
+            AgentRun.Status.QUEUED,
+        )
+
+        # No AI requests or tools should execute.
+        mock_openai.assert_not_called()
+        mock_tool.assert_not_called()
