@@ -17,3 +17,7 @@ db.sqlite3
 
 # macOS
 .DS_Store
+
+# Local credentials and generated agent files
+.env.worker
+agent_workspace_snapshots/
