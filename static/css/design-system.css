@@ -1,0 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+
+:root,
+html[data-theme="dark"] {
+  --background: #000600;
+  --surface: #00080a;
+  --surface-soft: #00110d;
+  --surface-raised: #002018;
+  --border: rgba(0, 255, 136, 0.14);
+  --border-strong: rgba(0, 255, 136, 0.34);
+  --text: #e7fff3;
+  --text-muted: #6688aa;
+  --accent: #00ff88;
+  --accent-hover: #71ffb5;
+  --success: #00ff88;
+  --success-background: #00190f;
+  --success-border: #008f54;
+  --warning: #ffcc66;
+  --warning-background: #211a08;
+  --warning-border: #80621c;
+  --danger: #ff6868;
+  --danger-background: #210909;
+  --danger-border: #9c3434;
+  --info-background: #001222;
+  --info-border: #0099ff;
+  --header-background: rgba(0, 6, 0, 0.94);
+  --flowchart-card-background: #00080a;
+  --flowchart-background: #00110d;
+  --shadow: 0 8px 24px rgba(0, 255, 136, 0.08);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --background: #f3fbf7;
+  --surface: #ffffff;
+  --surface-soft: #eaf6ef;
+  --surface-raised: #dcefe4;
+  --border: #bbd8c8;
+  --border-strong: #75ae91;
+  --text: #10251a;
+  --text-muted: #476b58;
+  --accent: #008a4d;
+  --accent-hover: #006d3d;
+  --success: #008a4d;
+  --success-background: #dff5e8;
+  --success-border: #5da87b;
+  --warning: #8a6400;
+  --warning-background: #fff5cf;
+  --warning-border: #d0ad49;
+  --danger: #b42323;
+  --danger-background: #ffebeb;
+  --danger-border: #d36a6a;
+  --info-background: #e4f4ff;
+  --info-border: #168bd0;
+  --header-background: rgba(243, 251, 247, 0.94);
+  --flowchart-card-background: #ffffff;
+  --flowchart-background: #f3fbf7;
+  --shadow: 0 8px 24px rgba(16, 64, 38, 0.12);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  background-color: var(--background);
+  color: var(--text);
+  background-image:
+    linear-gradient(rgba(0, 255, 136, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 136, 0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+body:not(:has(#design2-root)) {
+  min-height: 100vh;
+}
+
+body:not(:has(header)):not(:has(main)):not(:has(#design2-root)) {
+  padding: 32px 20px;
+}
+
+body:not(:has(#design2-root)) a {
+  color: var(--accent);
+}
+
+body:not(:has(#design2-root)) a:hover {
+  color: var(--accent-hover);
+}
+
+body:not(:has(#design2-root)) input,
+body:not(:has(#design2-root)) select,
+body:not(:has(#design2-root)) textarea {
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 10px 12px;
+}
+
+body:not(:has(#design2-root)) button {
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--accent);
+  color: #001208;
+  padding: 10px 14px;
+  font-family: inherit;
+  font-weight: 700;
+}
+
+body:not(:has(#design2-root)) .auth-card {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+body:not(:has(#design2-root)) .auth-card button {
+  width: 100%;
+}
+
+body:not(:has(#design2-root)) .google-login-button {
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+body:not(:has(#design2-root)) .google-login-button:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+body:not(:has(#design2-root)) .helptext {
+  color: var(--text-muted);
+}
+
+body:not(:has(#design2-root)) ul.errorlist {
+  color: var(--danger);
+}

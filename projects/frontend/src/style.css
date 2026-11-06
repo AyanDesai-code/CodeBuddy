@@ -1,0 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+
+body:has(#design2-root) {
+  margin: 0;
+  background: #000;
+  color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+body:has(#design2-root) .site-header,
+body:has(#design2-root) .project-nav,
+body:has(#design2-root) .messages {
+  display: none !important;
+}
+
+body:has(#design2-root) main {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+#design2-root,
+.design2-page {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.d2-container {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.d2-project-cards > div:hover {
+  border-color: rgba(0, 255, 136, 0.3) !important;
+}
+
+@media (max-width: 800px) {
+  .d2-nav {
+    padding: 0 18px !important;
+  }
+
+  .d2-nav-links,
+  .d2-clock {
+    display: none !important;
+  }
+
+  .d2-hero-grid,
+  .d2-demo-columns,
+  .d2-problem-grid,
+  .d2-budget-grid,
+  .d2-system-grid,
+  .d2-chat-grid {
+    grid-template-columns: 1fr !important;
+    gap: 36px !important;
+  }
+
+  .d2-hero-grid {
+    padding: 108px 24px 64px !important;
+  }
+
+  .d2-project-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .d2-demo-output {
+    border-left: 0 !important;
+    border-top: 1px solid rgba(0, 255, 136, 0.1);
+    padding: 24px 0 0 !important;
+  }
+
+  .d2-section {
+    padding: 72px 24px !important;
+  }
+
+  .d2-section.d2-hero {
+    padding: 0 !important;
+  }
+
+  #footer {
+    padding: 28px 24px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .d2-project-cards {
+    grid-template-columns: 1fr !important;
+  }
+
+  .d2-demo-columns > div:first-child {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d2-scanlines {
+    display: none;
+  }
+}
