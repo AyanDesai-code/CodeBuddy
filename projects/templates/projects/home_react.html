@@ -1,0 +1,20 @@
+{% extends "projects/base.html" %}
+{% load static %}
+
+{% block title %}Projivo{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'projects/home/build/home.css' %}">
+{% endblock %}
+
+{% block content %}
+    <div
+        id="design2-root"
+        data-start-url="{% if request.user.is_authenticated %}{% url 'new_project' %}{% else %}{% url 'signup' %}{% endif %}"
+        data-login-url="{% url 'login' %}"
+    ></div>
+{% endblock %}
+
+{% block extra_js %}
+    <script type="module" src="{% static 'projects/home/build/home.js' %}"></script>
+{% endblock %}

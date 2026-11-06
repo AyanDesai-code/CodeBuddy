@@ -20,6 +20,21 @@ It stores projects, AI conversation messages, workspace folders, and tasks in SQ
 - Django 6.0.x
 - OpenAI Python SDK
 - Pydantic
+- Node.js and npm for building the React homepage
+
+## React homepage
+
+The Django homepage is rendered by a React 19 bundle built with Vite. Its source and npm configuration live in `projects/frontend`; Vite writes assets to `projects/static/projects/home/build` for Django's static-file finder.
+
+```bash
+cd projects/frontend
+npm ci
+npm run build
+cd ../..
+python manage.py collectstatic --noinput
+```
+
+Rebuild the bundle after changing the homepage source. The generated static assets are the files Django serves at `/`.
 
 ## Recommended setup
 
@@ -91,8 +106,9 @@ A copy-and-paste friendly onboarding guide is available in [USER_GUIDE.md](USER_
 
 ## Notes
 
-- This project runs in development mode (`DEBUG = True`).
+- `DEBUG` defaults to `False`; set `DJANGO_DEBUG=True` only for local development.
 - The SQLite database file is `db.sqlite3`.
+- `DATABASE_URL`, when configured, continues to select the deployment database.
 - For production usage, update `SECRET_KEY`, `DEBUG`, and database settings.
 
 ## To access the actual site visit:

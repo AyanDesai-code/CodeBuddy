@@ -9588,15 +9588,9 @@ def regenerate_project_budget(
         folder_pk=budget_folder.pk,
     )
 def home(request):
-    if request.user.is_authenticated:
-        return render(
-            request,
-            "projects/home.html",
-        )
-
     return render(
         request,
-        "projects/home.html",
+        "projects/home_react.html",
     )
 class TaskAssignmentForm(forms.ModelForm):
     class Meta:
@@ -10967,15 +10961,9 @@ def regenerate_project_budget(
         folder_pk=budget_folder.pk,
     )
 def home(request):
-    if request.user.is_authenticated:
-        return render(
-            request,
-            "projects/home.html",
-        )
-
     return render(
         request,
-        "projects/home.html",
+        "projects/home_react.html",
     )
 class TaskAssignmentForm(forms.ModelForm):
     class Meta:

@@ -35,7 +35,7 @@ if not SECRET_KEY:
 DEBUG = (
     os.environ.get(
         "DJANGO_DEBUG",
-        "True",
+        "False",
     ).lower()
     == "true"
 )
